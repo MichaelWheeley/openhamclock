@@ -23,7 +23,13 @@ module.exports = function (app, ctx) {
     if (entry.data && Date.now() - entry.timestamp < SOURCE_TTL) return entry.data;
     try {
       const fresh = await fetcher();
-      sourceCaches.set(name, { data: fresh, timestamp: Date.now() });
+      // Never cache an empty result. ng3k reads ctx.dxpeditionCache, which is
+      // cold until /api/dxpeditions is first hit — caching the empty answer
+      // from that race would blank the source for a whole TTL. Empty results
+      // are returned as-is but retried on the next call.
+      if (fresh?.items?.length) {
+        sourceCaches.set(name, { data: fresh, timestamp: Date.now() });
+      }
       return fresh;
     } catch (e) {
       logErrorOnce(`dxnews:${name}`, e?.message || 'fetch failed');
