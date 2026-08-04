@@ -495,12 +495,26 @@ module.exports = function (app, ctx) {
   const MOON_NEGATIVE_CACHE_TTL = 5 * 60 * 1000;
 
   // Shared fetch: retrieves both image and metadata from Dial-A-Moon API
+  // Coalesce concurrent refreshes: both moon routes funnel through here, and
+  // without a shared in-flight promise every expired-cache hit launched its
+  // own NASA fetch pair (same stampede class as the 2026-08-04 incident).
+  // The bare fetches also had no timeout — a hung socket blocked forever.
+  let moonRefreshInflight = null;
+  function refreshDialAMoon() {
+    if (!moonRefreshInflight) {
+      moonRefreshInflight = fetchDialAMoon().finally(() => {
+        moonRefreshInflight = null;
+      });
+    }
+    return moonRefreshInflight;
+  }
+
   async function fetchDialAMoon() {
     const now = new Date();
     const ts = now.toISOString().slice(0, 16);
 
     const apiUrl = `https://svs.gsfc.nasa.gov/api/dialamoon/${ts}`;
-    const metaResponse = await fetch(apiUrl);
+    const metaResponse = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
     if (!metaResponse.ok) throw new Error(`Dial-A-Moon API returned ${metaResponse.status}`);
     const meta = await metaResponse.json();
 
@@ -536,7 +550,7 @@ module.exports = function (app, ctx) {
       throw new Error(`Rejected non-NASA URL: \'${imageUrl}\'`);
     }
 
-    const imgResponse = await fetch(imageUrl);
+    const imgResponse = await fetch(imageUrl, { signal: AbortSignal.timeout(20000) });
     if (!imgResponse.ok) throw new Error(`Moon image fetch returned ${imgResponse.status}`);
     const buffer = Buffer.from(await imgResponse.arrayBuffer());
     const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
@@ -561,7 +575,7 @@ module.exports = function (app, ctx) {
         return res.status(503).json({ error: 'Moon image temporarily unavailable' });
       }
 
-      await fetchDialAMoon();
+      await refreshDialAMoon();
 
       res.set('Content-Type', moonImageCache.contentType);
       res.set('Cache-Control', 'public, max-age=3600');
@@ -585,7 +599,7 @@ module.exports = function (app, ctx) {
       if (!moonMetaCache.data || Date.now() - moonMetaCache.timestamp >= MOON_CACHE_TTL) {
         if (!moonImageCache.buffer || Date.now() - moonImageCache.timestamp >= MOON_CACHE_TTL) {
           if (Date.now() - moonImageNegativeCache >= MOON_NEGATIVE_CACHE_TTL) {
-            await fetchDialAMoon();
+            await refreshDialAMoon();
           }
         }
       }
