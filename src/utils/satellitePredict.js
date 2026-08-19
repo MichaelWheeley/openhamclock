@@ -8,6 +8,7 @@
  * callers pass what it needs rather than relying on a plugin having run.
  */
 import Orbit from './orbit.js';
+import { esc } from './escapeHtml.js';
 
 /**
  * @param {object}   opts
@@ -48,7 +49,7 @@ export function openSatellitePredict({ satName, omm, satellites, config, t }) {
   const generateModalContent = (currentPasses) => {
     return `
           <div style="text-align: center; margin-bottom: 16px; border-bottom: 2px solid var(--accent-red); padding-bottom: 12px;">
-            <h2 style="margin: 0; color: var(--accent-cyan); font-size: 24px;">🛰 ${satName}</h2>
+            <h2 style="margin: 0; color: var(--accent-cyan); font-size: 24px;">🛰 ${esc(satName)}</h2>
             <p style="margin: 8px 0 0 0; color: var(--text-muted); font-size: 12px;">${t('station.settings.satellites.predictionDetails')}</p>
           </div>
 
