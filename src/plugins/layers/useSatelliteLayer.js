@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addMinimizeToggle } from './addMinimizeToggle.js';
 import { replicatePoint, replicatePath } from '../../utils/geo.js';
+import { deriveSatelliteTelemetry } from '../../utils/satelliteTelemetry.js';
 import { openSatellitePredict as openSatellitePredictShared } from '../../utils/satellitePredict.js';
 
 export const metadata = {
@@ -52,14 +53,6 @@ export const useLayer = ({ map, enabled, satellites, setSatellites, opacity, con
   };
 
   // Helper to format seconds from now into a string representation e.g. "00:12:34"
-  const formatSecsFromNow = (secsFromNow) => {
-    return secsFromNow > 3600
-      ? `${String(Math.floor(secsFromNow / 3600)).padStart(2, '0')}:${String(Math.floor((secsFromNow % 3600) / 60)).padStart(2, '0')}:${String(secsFromNow % 60).padStart(2, '0')}`
-      : secsFromNow > 60
-        ? `00:${String(Math.floor(secsFromNow / 60)).padStart(2, '0')}:${String(secsFromNow % 60).padStart(2, '0')}`
-        : `00:00:${String(secsFromNow).padStart(2, '0')}`;
-  };
-
   const fetchSatellites = async () => {
     try {
       const response = await fetch('/api/satellites/data');
@@ -263,17 +256,11 @@ export const useLayer = ({ map, enabled, satellites, setSatellites, opacity, con
     win.style.overflowY = 'auto';
 
     // --- SAFE HELPERS ---------------------------------------------------------
-    const safeNum = (v, digits = null) => {
-      if (!Number.isFinite(v)) return '';
-      return digits === null ? v : v.toFixed(digits);
-    };
-
     const safeStr = (v) =>
       String(v ?? '')
         .replace(/&/g, '&amp;')
         .replace(/"/g, '&quot;');
 
-    const safeArr = (v) => (Array.isArray(v) ? v : []);
     // --------------------------------------------------------------------------
 
     win.innerHTML =
@@ -285,41 +272,12 @@ export const useLayer = ({ map, enabled, satellites, setSatellites, opacity, con
         .map((satRaw) => {
           const sat = satRaw ?? {}; // ensure sat is always an object
 
-          const isVisible = sat.isVisible === true;
-          const isAboveHorizon = Number.isFinite(sat.elevation) && sat.elevation >= 0;
-
-          const isMetric = allUnits.dist === 'metric';
-          const distanceUnitsStr = isMetric ? 'km' : 'miles';
-          const speedUnitsStr = isMetric ? 'km/h' : 'mph';
-          const rangeRateUnitsStr = isMetric ? 'km/s' : 'miles/s';
-          const km_to_miles_factor = 0.621371;
-
-          const speedKmH = Number.isFinite(sat.speedKmH) ? sat.speedKmH : null;
-          const speed = speedKmH !== null ? Math.round(speedKmH * (isMetric ? 1 : km_to_miles_factor)) : null;
-          const speedStr = speed !== null ? `${speed.toLocaleString()} ${speedUnitsStr}` : 'N/A';
-
-          const alt = Number.isFinite(sat.alt) ? sat.alt : null;
-          const altitude = alt !== null ? Math.round(alt * (isMetric ? 1 : km_to_miles_factor)) : null;
-          const altitudeStr = altitude !== null ? `${altitude.toLocaleString()} ${distanceUnitsStr}` : 'N/A';
-
-          const nextPassStartTimes = safeArr(sat.nextPassStartTimes);
-          const nextPassEndTimes = safeArr(sat.nextPassEndTimes);
-
-          let nextPassSecsFromNow = null;
-          let nextPassEndingSecsFromNow = null;
-          nextPassStartTimes.forEach((startTime, i) => {
-            const endTime = nextPassEndTimes[i];
-            const secsFromNow = Number.isFinite(new Date(startTime).getTime())
-              ? Math.floor((new Date(startTime) - new Date()) / 1000)
-              : null;
-            const secsEndingFromNow = Number.isFinite(new Date(endTime).getTime())
-              ? Math.floor((new Date(endTime) - new Date()) / 1000)
-              : null;
-            if (secsEndingFromNow > 0 && nextPassSecsFromNow === null) {
-              nextPassSecsFromNow = secsFromNow;
-              nextPassEndingSecsFromNow = secsEndingFromNow;
-            }
-          });
+          // Figures come from the shared derivation, the same one the 3D
+          // telemetry panel uses, so the two windows cannot disagree about
+          // altitude, speed, pass timing or visibility. Only the markup below
+          // is specific to this Leaflet window.
+          const d = deriveSatelliteTelemetry(sat, allUnits);
+          const isVisible = d.isVisible;
 
           return `
       <div class="sat-card" style="border-bottom: 1px solid var(--border-color); margin-bottom: 10px; padding-bottom: 8px;">
@@ -339,25 +297,25 @@ export const useLayer = ({ map, enabled, satellites, setSatellites, opacity, con
         <!-- section 1: satellite position and motion -->
         <tr style="background-color: var(--bg-tertiary); color: var(--text-secondary);">
           <td style="padding: 0 2px;">${t('station.settings.satellites.latitude')}:</td>
-          <td align="right" style="padding: 0 2px;">${safeNum(sat.lat, 2)}°</td>
+          <td align="right" style="padding: 0 2px;">${d.lat}°</td>
         </tr>
         <tr style="background-color: var(--bg-tertiary); color: var(--text-secondary);">
           <td style="padding: 0 2px;">${t('station.settings.satellites.longitude')}:</td>
-          <td align="right" style="padding: 0 2px;">${safeNum(sat.lon, 2)}°</td>
+          <td align="right" style="padding: 0 2px;">${d.lon}°</td>
         </tr>
         <tr style="background-color: var(--bg-tertiary); color: var(--text-secondary);">
           <td style="padding: 0 2px;">${t('station.settings.satellites.altitude')}:</td>
-          <td align="right" style="padding: 0 2px;">${altitudeStr}</td>
+          <td align="right" style="padding: 0 2px;">${d.altitude}</td>
         </tr>
         <tr style="background-color: var(--bg-tertiary); color: var(--text-secondary);">
           <td style="padding: 0 2px;">${t('station.settings.satellites.speed')}:</td>
-          <td align="right" style="padding: 0 2px;">${speedStr}</td>
+          <td align="right" style="padding: 0 2px;">${d.speed}</td>
         </tr>
 
         <!-- section 2: relative location and visibility -->
         <tr style="background-color: ${isVisible ? 'var(--accent-green)' : 'var(--bg-primary)'}; color: ${isVisible ? '#000' : 'var(--text-secondary)'};">
           <td style="padding: 0 2px;">${t('station.settings.satellites.azimuth_elevation')}:</td>
-          <td align="right" style="padding: 0 2px;">${safeNum(sat.azimuth)}° / ${safeNum(sat.elevation)}°</td>
+          <td align="right" style="padding: 0 2px;">${d.azEl}</td>
         </tr>
 
         ${
@@ -365,15 +323,15 @@ export const useLayer = ({ map, enabled, satellites, setSatellites, opacity, con
             ? `
           <tr style="background-color: var(--accent-green); color:#000;">
             <td style="padding: 0 2px;">${t('station.settings.satellites.range')}:</td>
-            <td align="right" style="padding: 0 2px;">${safeNum(sat.range * (isMetric ? 1 : km_to_miles_factor), 0)} ${distanceUnitsStr}</td>
+            <td align="right" style="padding: 0 2px;">${d.range}</td>
           </tr>
           <tr style="background-color: var(--accent-green); color:#000;">
             <td style="padding: 0 2px;">${t('station.settings.satellites.rangeRate')}:</td>
-            <td align="right" style="padding: 0 2px;">${safeNum(sat.rangeRate * (isMetric ? 1 : km_to_miles_factor), 2)} ${rangeRateUnitsStr}</td>
+            <td align="right" style="padding: 0 2px;">${d.rangeRate}</td>
           </tr>
           <tr style="background-color: var(--accent-green); color:#000;">
             <td style="padding: 0 2px;">${t('station.settings.satellites.dopplerFactor')}:</td>
-            <td align="right" style="padding: 0 2px;">${safeNum(sat.dopplerFactor, 7)}</td>
+            <td align="right" style="padding: 0 2px;">${d.dopplerFactor}</td>
           </tr>
         `
             : ``
@@ -382,33 +340,27 @@ export const useLayer = ({ map, enabled, satellites, setSatellites, opacity, con
         <tr style="background-color: ${isVisible ? 'var(--accent-green)' : 'var(--bg-primary)'}; color: ${isVisible ? '#000' : 'var(--text-secondary)'};">
           <td style="padding: 0 2px;">${t('station.settings.satellites.status')}:</td>
           <td align="right" style="padding: 0 2px;">
-            ${
-              isVisible
-                ? t('station.settings.satellites.visible')
-                : isAboveHorizon
-                  ? t('station.settings.satellites.belowMinElev')
-                  : t('station.settings.satellites.belowHorizon')
-            }
+            ${t(`station.settings.satellites.${d.status}`)}
           </td>
         </tr>
 
         ${
-          !isVisible && nextPassSecsFromNow !== null
+          !isVisible && d.nextPass
             ? `
             <tr style="background-color: var(--bg-primary); color: var(--text-secondary);">
               <td style="padding: 0 2px;">${t('station.settings.satellites.nextPass')}:</td>
-              <td align="right" style="padding: 0 2px;">${formatSecsFromNow(nextPassSecsFromNow)}</td>
+              <td align="right" style="padding: 0 2px;">${d.nextPass}</td>
             </tr>
             `
             : ``
         }
 
         ${
-          isVisible && nextPassEndingSecsFromNow !== null
+          isVisible && d.endingIn
             ? `
             <tr style="background-color: var(--accent-green); color:#000;">
               <td style="padding: 0 2px;">Ending:</td>
-              <td align="right" style="padding: 0 2px;">${formatSecsFromNow(nextPassEndingSecsFromNow)}</td>
+              <td align="right" style="padding: 0 2px;">${d.endingIn}</td>
             </tr>
             `
             : ``
