@@ -595,7 +595,11 @@ export const WorldMap = ({
 
   // Migration: saved isAzimuthal → split into projection + style
   // Also validate that saved mapStyle still exists in MAP_STYLES to prevent stale references
-  const migratedStyle = storedSettings.isAzimuthal ? 'dark' : storedSettings.mapStyle || 'dark';
+  // darkEsri/political were folded into dark/streets when CARTO tiles went
+  // key-only (#1162) — the aliases keep those saved configs on the same tiles.
+  const STYLE_ALIASES = { darkEsri: 'dark', political: 'streets' };
+  const savedStyle = STYLE_ALIASES[storedSettings.mapStyle] || storedSettings.mapStyle;
+  const migratedStyle = storedSettings.isAzimuthal ? 'dark' : savedStyle || 'dark';
   // Validate style exists and isn't the legacy 'azimuthal' canvas entry
   const initialStyle = MAP_STYLES[migratedStyle] && !MAP_STYLES[migratedStyle].legacy ? migratedStyle : 'dark';
   const initialProjection = storedSettings.isAzimuthal ? 'azimuthal' : storedSettings.mapProjection || 'mercator';
