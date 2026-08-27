@@ -499,6 +499,8 @@ Real-time tracking of amateur radio satellites with orbital visualization on the
 
 **How it works under the hood:** The server fetches Two-Line Element (TLE) data from CelesTrak every 6 hours. The frontend uses the `satellite.js` library to run SGP4 orbital mechanics calculations in the browser, predicting each satellite's position at the current time. Position updates run every 5 seconds for smooth motion on the map.
 
+**3D models on the globe:** In the 3D projection, zooming in on a satellite (or selecting it) swaps its dot for a 3D model — the ISS renders as NASA's actual station model (courtesy NASA/VTAD, decimated from 42 MB to 2 MB and fetched only on demand), while other birds render as procedural low-poly archetypes matched to their type: geostationary platforms with dishes, polar orbiters with long solar arrays, and cubesats with paired wings.
+
 ---
 
 ### Contests

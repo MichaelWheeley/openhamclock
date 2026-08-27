@@ -17,6 +17,7 @@ import { getBandColor, getBandFromFreq } from '../utils/callsign.js';
 import { getSunPosition } from '../utils/geo.js';
 import { MAP_STYLES } from '../utils/config.js';
 import { buildGlobeTexture, chooseGlobeTileZoom } from '../utils/globeTexture.js';
+import { classifySatellite, getArchetypeTemplate, loadIssTemplate } from '../utils/satelliteModels.js';
 import { ACTIVITY_COLORS } from '../utils/activityColors.js';
 // Project icon set — exists because bare glyphs/emoji render inconsistently
 // (or as tofu) depending on the platform's font coverage.
@@ -168,6 +169,10 @@ const GLOBE_COLORS = {
 // Same sessionStorage key the Leaflet satellite layer uses, so a satellite
 // selected in Flat mode stays selected when switching to 3D and back.
 const SAT_SELECTED_KEY = 'selected_satellites';
+
+// Camera distance (earth radii from center) below which satellites swap from
+// dots to 3D models. Selected satellites show their model at any distance.
+const SAT_MODEL_LOD_DIST = 2.6;
 
 function readSelectedSats() {
   try {
@@ -762,6 +767,22 @@ export default function Globe3D({
         const k = s.camera.position.length() / DEFAULT_CAM_DISTANCE;
         for (let i = 0; i < s.stationMarkers.length; i++) s.stationMarkers[i].scale.setScalar(k);
       }
+      // Satellite 3D models: shown inside the LOD distance (always for
+      // selected birds), scaled per frame to a constant apparent size. The
+      // dots underneath stay visible and remain the raycast target.
+      if (s.satModels?.length) {
+        const near = s.camera.position.length() < SAT_MODEL_LOD_DIST;
+        const h = s.renderer.domElement.clientHeight || 1;
+        const fovK = 2 * Math.tan((s.camera.fov * Math.PI) / 360);
+        for (let i = 0; i < s.satModels.length; i++) {
+          const m = s.satModels[i];
+          const show = near || m.userData.satSelected;
+          m.visible = show;
+          if (!show) continue;
+          const px = m.userData.satSelected ? 46 : 34;
+          m.scale.setScalar((px * fovK * s.camera.position.distanceTo(m.position)) / h);
+        }
+      }
       // Sun direction is fixed in world space; convert to view space per frame.
       if (s.sunWorld) {
         s.earthMat.uniforms.uSunDir.value.copy(s.sunWorld).transformDirection(s.camera.matrixWorldInverse);
@@ -1117,11 +1138,19 @@ export default function Globe3D({
 
     while (s.satGroup.children.length) {
       const child = s.satGroup.children.pop();
+      // Model groups carry no root geometry/material of their own — their
+      // nested meshes share session-cached template resources that must
+      // survive this teardown, and these optional-chained disposes skip them.
       child.geometry?.dispose?.();
       if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
       else child.material?.dispose?.();
     }
     s.satData = [];
+    s.satModels = [];
+    // Invalidate any in-flight ISS glb swap on every rebuild path, including
+    // the disabled/empty early return below — a late .then must never add to
+    // a group that has since been cleared.
+    s.satModelToken = (s.satModelToken || 0) + 1;
 
     if (!satellitesEnabled || !satellites?.length) return;
 
@@ -1195,6 +1224,72 @@ export default function Globe3D({
     points.frustumCulled = false;
     s.satGroup.add(points);
     s.satData = sats;
+
+    // ── 3D models — an LOD layer above the dots ────────────────────
+    // Dots stay the raycast/interaction surface at every distance; models
+    // fade in when the camera is near (or the bird is selected) and hold a
+    // constant apparent size in renderFrame, like the station markers. The
+    // ISS gets NASA's real model (lazy 2 MB glb, cubesat stand-in until it
+    // arrives); everything else gets a procedural archetype. Skipped in
+    // low-memory mode, where the dots are the whole story.
+    const modelToken = s.satModelToken;
+    if (!lowMem) {
+      // Sun-following light rig: the Lambert model materials are the only
+      // lit objects in the scene, so this touches nothing else. Rebuilt with
+      // the group every 5 s, which also tracks the moving sun for free.
+      const lightRig = new THREE.Group();
+      lightRig.add(new THREE.AmbientLight(0xffffff, 0.55));
+      const sun = new THREE.DirectionalLight(0xffffff, 1.1);
+      sun.position.copy(s.sunWorld || new THREE.Vector3(1, 0.4, 0.6)).multiplyScalar(10);
+      lightRig.add(sun);
+      s.satGroup.add(lightRig);
+
+      const placeModel = (obj, sat) => {
+        const altR = Math.max(1 + (Number.isFinite(sat.alt) ? sat.alt : 0) / 6371, MARKER_ALT);
+        const pos = latLonToVec3(sat.lat, sat.lon, EARTH_R * altR);
+        obj.position.copy(pos);
+        // Orient along the orbit: nose toward travel, belly toward the earth.
+        let forward = null;
+        if (Array.isArray(sat.track) && sat.track.length > 2) {
+          const mid = Math.floor(sat.track.length / 2);
+          const next = Math.min(mid + 1, sat.track.length - 1);
+          const a = latLonToVec3(sat.track[mid][0], sat.track[mid][1], EARTH_R * altR);
+          const b = latLonToVec3(sat.track[next][0], sat.track[next][1], EARTH_R * altR);
+          forward = b.sub(a);
+        }
+        if (!forward || forward.lengthSq() < 1e-10) {
+          forward = new THREE.Vector3(0, 1, 0).cross(pos);
+        }
+        obj.up.copy(pos).normalize();
+        obj.lookAt(pos.clone().add(forward.normalize()));
+        obj.visible = false; // renderFrame owns visibility via the LOD gate
+        obj.userData.satSelected = selectedSats.includes(sat.name);
+        s.satGroup.add(obj);
+        s.satModels.push(obj);
+      };
+
+      sats.forEach((sat) => {
+        const kind = classifySatellite(sat.name);
+        placeModel(getArchetypeTemplate(kind === 'iss' ? 'cubesat' : kind).clone(), sat);
+        if (kind !== 'iss') return;
+        // Swap the stand-in for NASA's model when the glb lands. The token
+        // guards against a 5 s rebuild (or scene teardown) racing the load.
+        const standIn = s.satModels[s.satModels.length - 1];
+        loadIssTemplate().then((tpl) => {
+          if (!tpl || s.satModelToken !== modelToken || !s.satGroup) return;
+          const real = tpl.clone();
+          real.position.copy(standIn.position);
+          real.quaternion.copy(standIn.quaternion);
+          real.userData.satSelected = standIn.userData.satSelected;
+          real.visible = false;
+          const idx = s.satModels.indexOf(standIn);
+          if (idx >= 0) s.satModels[idx] = real;
+          s.satGroup.remove(standIn);
+          s.satGroup.add(real);
+          s.requestRender?.();
+        });
+      });
+    }
 
     sats.forEach((sat) => {
       const isSelected = selectedSats.includes(sat.name);
