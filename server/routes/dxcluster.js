@@ -695,8 +695,10 @@ module.exports = function (app, ctx) {
   app.get('/api/dxcluster/spots', async (req, res) => {
     // Hosted instances serve OUR cluster only, whatever the client asks for.
     const source = IS_HOSTED ? 'ohc' : (req.query.source || CONFIG.dxClusterSource || 'auto').toLowerCase();
-    // Used by DX Spider direct for the telnet login (falls back to config).
-    const userCallsign = (req.query.callsign || '').trim();
+    // Used by DX Spider direct for the telnet login. The operator's
+    // DX_CLUSTER_CALLSIGN wins over the browser's station call so a
+    // deliberately-configured SSID login survives (#1128).
+    const userCallsign = (CONFIG.dxClusterCallsign || req.query.callsign || '').trim();
 
     // Helper function for HamQTH (HTTP-based, works everywhere)
     async function fetchHamQTH() {
@@ -1589,7 +1591,11 @@ module.exports = function (app, ctx) {
     const udpHost = (req.query.udpHost || CONFIG.dxUdpHost || '').trim();
     const parsedUdpPort = parseInt(req.query.udpPort, 10);
     const udpPort = Number.isFinite(parsedUdpPort) ? parsedUdpPort : CONFIG.dxUdpPort;
-    const userCallsign = (req.query.callsign || CONFIG.dxClusterCallsign || '').trim();
+    // DX_CLUSTER_CALLSIGN takes precedence over the browser's station call: it is
+    // set only by the self-host operator, explicitly, and may carry an SSID their
+    // private node's login requires (e.g. M0MHX-56). The browser always sends the
+    // bare station call, which shadowed the env var and broke such logins (#1128).
+    const userCallsign = (CONFIG.dxClusterCallsign || req.query.callsign || '').trim();
 
     // SECURITY: Validate custom host to prevent SSRF (internal network scanning)
     // Resolves DNS and returns the validated IP. We connect to the IP, not the hostname,

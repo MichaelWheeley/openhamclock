@@ -966,6 +966,18 @@ Your `.env` file is never overwritten by updates, so your configuration is alway
 
 ## Deployment
 
+### Hardware Requirements
+
+OpenHamClock is a Node.js server plus a browser app — and it's the **browser side** that determines how smooth it feels. The server is light; rendering the map with many layers enabled is what works a machine.
+
+| Tier                    | Hardware                                   | Experience                                                                                                                                                                                      |
+| ----------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Minimum**             | Raspberry Pi 3B+ / 1 GB RAM                | Works, but slow to paint with several map layers on. Best used in server-only mode (browse from a faster machine) or with **Low Memory Mode** enabled in Settings and a modest layer selection. |
+| **Recommended (kiosk)** | Raspberry Pi 4 (2 GB+) or Pi 5             | Smooth as a dedicated shack display, including the kiosk setup from `setup-pi.sh`. A Pi 5 handles everything comfortably, including the 3D globe.                                               |
+| **Desktop**             | Any x86-64 machine from the last ~10 years | Full experience. The 3D globe wants working GPU/WebGL acceleration; without it OpenHamClock falls back to the flat map automatically.                                                           |
+
+Tips for slower hardware: enable **Low Memory Mode** in Settings, run fewer map layers at once, and prefer the Flat projection over Azimuthal/3D. A Pi that only _serves_ OpenHamClock to browsers on other machines can be far more modest than one that also has to display it.
+
 ### Local / Desktop
 
 Works on Linux, macOS, FreeBSD, and Windows. Requires Node.js 18+ (22 LTS recommended) and Git.
