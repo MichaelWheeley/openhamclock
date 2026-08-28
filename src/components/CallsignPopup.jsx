@@ -85,7 +85,11 @@ function CallsignPopup({ anchorRef, call, onClose, popupHeightRef, location, spo
   const { t } = useTranslation();
   const popupRef = useRef(null);
   const recalculateRef = useRef(null);
-  const pos = usePopupPosition(anchorRef, popupHeightRef, POPUP_HEIGHT_ESTIMATE, (fn) => {
+  // Third arg is the popup WIDTH (drives the right-edge clamp) — it must
+  // match the rendered maxWidth. POPUP_HEIGHT_ESTIMATE was passed here by
+  // mistake once, which let popups anchored near the right edge (e.g. the
+  // focus layouts' panel rail) hang ~180px off-screen, hiding the 🎧 link.
+  const pos = usePopupPosition(anchorRef, popupHeightRef, 300, (fn) => {
     recalculateRef.current = fn;
   });
 
