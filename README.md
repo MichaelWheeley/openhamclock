@@ -1397,7 +1397,6 @@ The backend exposes these REST endpoints. All data endpoints return JSON. Cache 
 | `GET /api/wsjtx`                  | WSJT-X connection status and active client list                                                | —        |
 | `GET /api/wsjtx/decodes`          | WSJT-X decoded messages (latest batch)                                                         | —        |
 | `POST /api/wsjtx/relay`           | WSJT-X relay agent data ingest endpoint                                                        | —        |
-| `GET /api/qrz/lookup/:callsign`   | QRZ.com callsign lookup                                                                        | —        |
 
 ---
 

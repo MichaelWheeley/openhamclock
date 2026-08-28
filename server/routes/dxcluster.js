@@ -25,10 +25,9 @@ module.exports = function (app, ctx) {
     extractGridFromComment,
     extractGridsFromComment,
     getCountryFromPrefix,
-    cacheCallsignLookup,
     callsignLookupCache,
     callsignLocationCache,
-    hamqthLookup,
+    lookupCallsignLocation,
   } = ctx;
 
   // DX Cluster proxy - fetches from selectable sources
@@ -1951,15 +1950,9 @@ module.exports = function (app, ctx) {
           const call = rawCall.replace(/[<>]/g, '').trim();
           if (!call || !/^[A-Z0-9\/\-]{1,20}$/.test(call)) continue;
 
-          // Fire-and-forget — results land in callsignLookupCache for next poll
-          // TODO: Refactor lookup chain into callsign.js. Currently we duplicate the full
-          // flow (cache check → HamQTH DXCC → prefix estimation) here instead of using
-          // the shared hamqthLookup() + extractBaseCallsign() chain from callsign.js.
-          hamqthLookup(call).then((result) => {
-            if (result) {
-              cacheCallsignLookup(call, { data: result, timestamp: Date.now() });
-            }
-          });
+          // Fire-and-forget — results land in callsignLookupCache for next poll.
+          // dxccOnly: bulk spot traffic must not burn QRZ/HamQTH XML quota.
+          lookupCallsignLocation(call, { dxccOnly: true });
         }
       }
 
