@@ -43,6 +43,7 @@ import {
   MeteorShowerPanel,
 } from './components';
 import MeshtasticPanel from './components/MeshtasticPanel.jsx';
+import LogbookPanel from './components/LogbookPanel.jsx';
 
 import { resetLayout, loadLayout, saveLayout } from './store/layoutStore.js';
 import { DockableLayoutProvider } from './contexts';
@@ -452,6 +453,7 @@ export const DockableApp = ({
       'psk-bands': { name: 'Band Activity (PSKR)', icon: '📡' },
       ibp: { name: 'IBP Beacons', icon: '📡', group: 'Propagation' },
       'dx-cluster': { name: 'DX Cluster', icon: '📻' },
+      logbook: { name: 'Logbook', icon: '📓' },
       'psk-reporter': { name: 'PSK Reporter', icon: '📡' },
       dxpeditions: { name: 'DXpeditions', icon: '🏝️' },
       pota: { name: 'POTA', icon: '▲', iconColor: '#44cc44' },
@@ -962,6 +964,10 @@ export const DockableApp = ({
               deLon={config.location?.lon}
             />
           );
+          break;
+
+        case 'logbook':
+          content = <LogbookPanel userCallsign={config.callsign} myGrid={deGrid} />;
           break;
 
         case 'psk-reporter':

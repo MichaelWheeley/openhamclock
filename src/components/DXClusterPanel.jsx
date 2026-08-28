@@ -14,6 +14,7 @@ import { classifySpotMode } from '../hooks/useBandHealth.js';
 import { useWorkedBefore } from '../hooks/useWorkedBefore.js';
 import { apiFetch } from '../utils/apiFetch';
 import { getListenUrl, loadNearbyReceivers } from '../utils/webSdr.js';
+import { requestLogQso } from '../services/logbookStore.js';
 
 // Mirrors the server-side validator — good enough to gate the Spot button.
 const isValidCallsign = (call) =>
@@ -542,7 +543,7 @@ export const DXClusterPanel = ({
             <span role="columnheader">Mode</span>
             {showSpotter && <span role="columnheader">Spotter</span>}
             <span role="columnheader">Age</span>
-            <span role="columnheader">Listen</span>
+            <span role="columnheader">Log / Listen</span>
           </div>
           {spots.map((spot, i) => {
             // Frequency can be in MHz (string like "14.070") or kHz (number like 14070)
@@ -723,7 +724,45 @@ export const DXClusterPanel = ({
                 >
                   {formatSpotTimeLabel(spot)}
                 </div>
-                <div role="cell" style={{ alignSelf: 'center' }}>
+                <div role="cell" style={{ alignSelf: 'center', display: 'flex', gap: '2px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      requestLogQso({
+                        call: spot.call,
+                        freq: freqMHz > 0 ? freqMHz : undefined,
+                        mode: modeInfo?.mode || undefined,
+                        gridsquare: spot.dxGrid || undefined,
+                      });
+                    }}
+                    title={t('logbook.logFromSpotTooltip', {
+                      defaultValue: 'Log a QSO with {{call}} in your logbook',
+                      call: spot.call,
+                    })}
+                    aria-label={t('logbook.logFromSpotTooltip', {
+                      defaultValue: 'Log a QSO with {{call}} in your logbook',
+                      call: spot.call,
+                    })}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      fontSize: '10px',
+                      cursor: 'pointer',
+                      opacity: 0.55,
+                      transition: 'opacity 0.15s',
+                      lineHeight: 1,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = '1';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = '0.55';
+                    }}
+                  >
+                    📓+
+                  </button>
                   {listen && (
                     <a
                       href={listen.url}

@@ -3,10 +3,12 @@
  * Displays <whatever> on the Air activations with ON/OFF toggle
  */
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import CallsignLink from './CallsignLink.jsx';
 import { useCallsignPopup } from './CallsignPopupManager.jsx';
 import { IconSearch, IconRefresh, IconMap, IconTag } from './Icons.jsx';
 import { useWorkedBefore } from '../hooks/useWorkedBefore.js';
+import { requestLogQso } from '../services/logbookStore.js';
 
 export const ActivatePanel = ({
   mapDefs,
@@ -25,6 +27,7 @@ export const ActivatePanel = ({
   onOpenFilters,
   filteredData,
 }) => {
+  const { t } = useTranslation();
   const { showPopup } = useCallsignPopup();
   // Worked-before flag from live logged QSOs (N3FJP + N1MM/DXLog). Call-level
   // only here — activation hunters mostly care whether the activator is
@@ -234,6 +237,7 @@ export const ActivatePanel = ({
               <span role="columnheader">Reference</span>
               <span role="columnheader">Frequency</span>
               <span role="columnheader">Time</span>
+              <span role="columnheader">Log</span>
             </div>
             {spots.map((spot, i) => (
               <div
@@ -247,7 +251,7 @@ export const ActivatePanel = ({
                   role="row"
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '62px 72px 58px 1fr',
+                    gridTemplateColumns: '62px 72px 58px 1fr auto',
                     gap: '4px',
                     cursor: 'pointer',
                   }}
@@ -316,6 +320,47 @@ export const ActivatePanel = ({
                   </span>
                   <span role="cell" style={{ color: 'var(--text-muted)', textAlign: 'right', fontSize: '9px' }}>
                     {spot.time}
+                  </span>
+                  <span role="cell" style={{ textAlign: 'right' }}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const freqVal = parseFloat(spot.freq);
+                        requestLogQso({
+                          call: spot.call,
+                          freq: Number.isFinite(freqVal) && freqVal > 0 ? freqVal : undefined,
+                          mode: spot.mode || undefined,
+                          gridsquare: spot.grid || undefined,
+                          comment: spot.ref ? `${spot.ref}${spot.name ? ` ${spot.name}` : ''}` : undefined,
+                        });
+                      }}
+                      title={t('logbook.logFromSpotTooltip', {
+                        defaultValue: 'Log a QSO with {{call}} in your logbook',
+                        call: spot.call,
+                      })}
+                      aria-label={t('logbook.logFromSpotTooltip', {
+                        defaultValue: 'Log a QSO with {{call}} in your logbook',
+                        call: spot.call,
+                      })}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        fontSize: '10px',
+                        cursor: 'pointer',
+                        opacity: 0.55,
+                        lineHeight: 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '0.55';
+                      }}
+                    >
+                      📓+
+                    </button>
                   </span>
                 </div>
                 {spot.comments?.length > 0 && (

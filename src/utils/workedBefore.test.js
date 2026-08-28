@@ -93,6 +93,43 @@ describe('buildWorkedIndex', () => {
     expect(entry).toBeDefined();
     expect(entry.bands.size).toBe(0);
   });
+
+  it('indexes native logbook QSOs (freq in MHz) as a third source', () => {
+    const index = buildWorkedIndex({
+      logbookQsos: [{ call: 'OZ1ABC', freq: 14.25, mode: 'SSB', band: '20m' }],
+    });
+    expect(index.get('OZ1ABC').combos.has('20m|SSB')).toBe(true);
+    expect(lookupWorked(index, 'OZ1ABC', 14.2, 'SSB')).toBe('dupe');
+  });
+
+  it('falls back to the ADIF band tag when a logbook QSO has no freq', () => {
+    const index = buildWorkedIndex({
+      logbookQsos: [
+        { call: 'W1AW', band: '40M', mode: 'CW' }, // imported ADIF, uppercase band, no freq
+        { call: 'K1ABC', mode: 'FT8' }, // neither freq nor band — call-level only
+      ],
+    });
+    expect(index.get('W1AW').combos.has('40m|CW')).toBe(true);
+    expect(lookupWorked(index, 'W1AW', 7.03, 'CW')).toBe('dupe');
+    expect(index.get('K1ABC').bands.size).toBe(0);
+    expect(lookupWorked(index, 'K1ABC', 14.074, 'FT8')).toBe('worked');
+  });
+
+  it('merges the logbook with the live feeds under one base call', () => {
+    const index = buildWorkedIndex({
+      n3fjpQsos: [{ dx_call: 'OZ6ABL', freq_khz: 14230, mode: 'USB', status: 'log' }],
+      logbookQsos: [{ call: 'OZ6ABL/P', freq: 7.09, mode: 'SSB' }],
+    });
+    expect(index.size).toBe(1);
+    const entry = index.get('OZ6ABL');
+    expect(entry.combos.has('20m|SSB')).toBe(true);
+    expect(entry.combos.has('40m|SSB')).toBe(true);
+  });
+
+  it('ignores garbage logbook rows', () => {
+    const index = buildWorkedIndex({ logbookQsos: [null, {}, { freq: 14.2 }] });
+    expect(index.size).toBe(0);
+  });
 });
 
 describe('lookupWorked', () => {

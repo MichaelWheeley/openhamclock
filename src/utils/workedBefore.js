@@ -1,9 +1,11 @@
 /**
  * workedBefore — cross-reference spots against the operator's logged QSOs.
  *
- * Builds an index from the two live QSO feeds the app already ingests:
+ * Builds an index from the two live QSO feeds the app already ingests plus
+ * the native in-browser logbook:
  *   - N3FJP bridge      GET /api/n3fjp/qsos    → { qsos: [{ dx_call, freq_khz, mode, status, ... }] }
  *   - N1MM/DXLog        GET /api/contest/qsos  → { qsos: [{ dxCall, freqMHz, bandMHz, mode, ... }] }
+ *   - Native logbook    logbookStore (IndexedDB) → [{ call, freq (MHz), mode, band, ... }]
  *
  * Index shape: Map<baseCall, { bands: Set<band>, combos: Set<`${band}|${mode}`> }>
  *   - baseCall via extractBaseCall (5Z4/OZ6ABL → OZ6ABL, W1ABC/6 → W1ABC)
@@ -43,7 +45,7 @@ export const bandFromFreq = (freq) => {
   return band === 'other' ? null : band;
 };
 
-const addQsoToIndex = (index, call, freq, mode) => {
+const addQsoToIndex = (index, call, freq, mode, bandHint) => {
   const base = extractBaseCall(String(call || '').trim());
   if (!base) return;
   let entry = index.get(base);
@@ -51,7 +53,13 @@ const addQsoToIndex = (index, call, freq, mode) => {
     entry = { bands: new Set(), combos: new Set() };
     index.set(base, entry);
   }
-  const band = bandFromFreq(freq);
+  // Frequency wins; an ADIF-style band tag ('20m'/'20M') covers imported
+  // logbook rows that carry no frequency.
+  let band = bandFromFreq(freq);
+  if (!band && bandHint) {
+    const hint = String(bandHint).trim().toLowerCase();
+    if (/^\d+c?m$/.test(hint)) band = hint;
+  }
   if (!band) return;
   entry.bands.add(band);
   const m = normalizeMode(mode);
@@ -59,15 +67,16 @@ const addQsoToIndex = (index, call, freq, mode) => {
 };
 
 /**
- * Build the worked-before index from both QSO sources. Either list may be
- * empty or missing (source disabled / endpoint unavailable).
+ * Build the worked-before index from all QSO sources. Any list may be
+ * empty or missing (source disabled / endpoint unavailable / empty logbook).
  *
  * @param {object} sources
  * @param {Array}  [sources.n3fjpQsos]   QSOs from /api/n3fjp/qsos (preview rows are skipped)
  * @param {Array}  [sources.contestQsos] QSOs from /api/contest/qsos
+ * @param {Array}  [sources.logbookQsos] QSOs from the native logbook (freq in MHz)
  * @returns {Map} worked-before index
  */
-export const buildWorkedIndex = ({ n3fjpQsos = [], contestQsos = [] } = {}) => {
+export const buildWorkedIndex = ({ n3fjpQsos = [], contestQsos = [], logbookQsos = [] } = {}) => {
   const index = new Map();
 
   for (const q of Array.isArray(n3fjpQsos) ? n3fjpQsos : []) {
@@ -82,6 +91,14 @@ export const buildWorkedIndex = ({ n3fjpQsos = [], contestQsos = [] } = {}) => {
     // freqMHz is the actual RX/TX frequency; bandMHz (N1MM band tag, e.g. 14)
     // still resolves to the right band via getBandFromFreq when freq is absent.
     addQsoToIndex(index, q.dxCall || q.call, q.freqMHz ?? q.bandMHz, q.mode);
+  }
+
+  for (const q of Array.isArray(logbookQsos) ? logbookQsos : []) {
+    if (!q || !q.call) continue;
+    // Native logbook records store freq in MHz; imported ADIF rows may lack
+    // freq but carry an ADIF band tag. A call with neither still indexes for
+    // call-level "worked" matches.
+    addQsoToIndex(index, q.call, q.freq, q.mode, q.band);
   }
 
   return index;
