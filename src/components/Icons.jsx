@@ -785,6 +785,83 @@ export const LiOnAir = glyph(
   </>,
 );
 
+export const LiSatPass = glyph(
+  <>
+    <line x1="3" y1="18.5" x2="21" y2="18.5" />
+    <path d="M4.5 18.5a8.5 8.5 0 0 1 15 0" />
+    <circle cx="12" cy="10" r="1.6" />
+    <line x1="12" y1="5.5" x2="12" y2="8.4" />
+  </>,
+);
+export const LiSatCheck = glyph(
+  <>
+    <ellipse cx="12" cy="10" rx="8.5" ry="3.6" />
+    <circle cx="12" cy="6.4" r="1.5" />
+    <polyline points="8.5,16.5 11,19 15.5,14.5" />
+  </>,
+);
+export const LiSunMoon = glyph(
+  <>
+    <circle cx="8.5" cy="12" r="3.2" />
+    <path d="M8.5 5.5v1.8M8.5 16.7v1.8M2.5 12h1.8M4 7.5l1.3 1.3M4 16.5l1.3-1.3" />
+    <path d="M16 6.5a6.2 6.2 0 1 0 5.5 9.2 7 7 0 0 1-5.5-9.2z" />
+  </>,
+);
+export const LiTrendWave = glyph(
+  <>
+    <polyline points="3,7.5 7,12 10,9 14.5,16.5 17.5,13 21,16" />
+    <polyline points="21,11.5 21,16 16.5,16" />
+  </>,
+);
+export const LiHeardBy = glyph(
+  <>
+    <line x1="12" y1="21" x2="12" y2="11" />
+    <circle cx="12" cy="8.6" r="1.7" />
+    <path d="M6.5 4.5a8.2 8.2 0 0 0 0 8.2M17.5 4.5a8.2 8.2 0 0 1 0 8.2" />
+    <path d="M9 6.2a4.4 4.4 0 0 0 0 4.8M15 6.2a4.4 4.4 0 0 1 0 4.8" />
+  </>,
+);
+export const LiRipple = glyph(
+  <>
+    <circle cx="5" cy="19" r="1.3" fill="currentColor" stroke="none" />
+    <path d="M5 13.8a5.2 5.2 0 0 1 5.2 5.2" />
+    <path d="M5 9.2a9.8 9.8 0 0 1 9.8 9.8" />
+    <path d="M5 4.6a14.4 14.4 0 0 1 14.4 14.4" />
+  </>,
+);
+export const LiTriangleSpot = glyph(
+  <>
+    <path d="M10 6.5 17 19H3z" />
+    <line x1="19" y1="4" x2="19" y2="8.5" />
+    <line x1="16.7" y1="6.2" x2="21.3" y2="6.2" />
+  </>,
+);
+export const LiTower = glyph(
+  <>
+    <path d="M9 21 12 6.5 15 21" />
+    <line x1="10.2" y1="14" x2="13.8" y2="14" />
+    <line x1="9.5" y1="18" x2="14.5" y2="18" />
+    <circle cx="12" cy="5" r="1.3" />
+    <path d="M8.2 3.4a6 6 0 0 1 7.6 0" />
+  </>,
+);
+export const LiGlobeClock = glyph(
+  <>
+    <circle cx="10" cy="10.5" r="6.8" />
+    <path d="M3.2 10.5h13.6M10 3.7a10.5 10.5 0 0 1 0 13.6M10 3.7a10.5 10.5 0 0 0 0 13.6" />
+    <circle cx="17.6" cy="17.6" r="4" />
+    <path d="M17.6 15.9v1.7l1.3 1" />
+  </>,
+);
+export const LiStopwatch = glyph(
+  <>
+    <circle cx="12" cy="13.5" r="7" />
+    <line x1="12" y1="13.5" x2="12" y2="9.7" />
+    <line x1="9.8" y1="3.5" x2="14.2" y2="3.5" />
+    <line x1="12" y1="3.5" x2="12" y2="6.5" />
+  </>,
+);
+
 /**
  * PANEL_ICONS — panel id → line-icon component.
  *
@@ -847,6 +924,16 @@ export const PANEL_ICONS = {
   meshcom: LiLink,
   'digital-modes': LiActivity,
   winlink: LiMail,
+  'sat-passes': LiSatPass,
+  'amsat-status': LiSatCheck,
+  'sun-moon': LiSunMoon,
+  'swpc-trends': LiTrendWave,
+  'rbn-mine': LiHeardBy,
+  'wspr-mine': LiRipple,
+  'pota-activator': LiTriangleSpot,
+  repeaters: LiTower,
+  'world-clocks': LiGlobeClock,
+  stopwatch: LiStopwatch,
 };
 
 /**

@@ -75,6 +75,16 @@ export function buildPanelDefs({ isLocalInstall = false } = {}) {
     meshcom: { name: 'MeshCom', icon: '🔗' },
     'digital-modes': { name: 'Digital Modes', icon: '📻', group: 'Rig Bridge' },
     winlink: { name: 'Winlink', icon: '📬', group: 'Rig Bridge' },
+    'sat-passes': { name: 'Satellite Passes', icon: '🛰️' },
+    'amsat-status': { name: 'AMSAT Status', icon: '🛰️' },
+    'sun-moon': { name: 'Sun & Moon', icon: '🌗', group: 'Solar' },
+    'swpc-trends': { name: 'Space Wx Trends', icon: '📉', group: 'Solar' },
+    'rbn-mine': { name: 'My Signal (RBN)', icon: '📶', group: 'Propagation' },
+    'wspr-mine': { name: 'WSPR My Spots', icon: '📡', group: 'Propagation' },
+    'pota-activator': { name: 'POTA Activator', icon: '▲', iconColor: '#44cc44' },
+    repeaters: { name: 'Repeaters', icon: '🗼' },
+    'world-clocks': { name: 'World Clocks', icon: '🌐' },
+    stopwatch: { name: 'Stopwatch', icon: '⏱️' },
   };
 
   // Append auto-discovered panel plugins (src/plugins/local/panels/*.jsx).

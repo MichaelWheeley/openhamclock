@@ -284,6 +284,11 @@ require('./server/routes/winlink')(app, ctx);
 require('./server/routes/logsync')(app, ctx); // Wavelog/QRZ push + LoTW pull proxies (per-user creds, never stored)
 
 require('./server/routes/contests')(app, ctx);
+require('./server/routes/swpc-trends')(app, ctx); // solar wind/Bz/proton trend series (Space Wx Trends panel)
+require('./server/routes/wsprlive')(app, ctx); // wspr.live "my spots" proxy (WSPR My Spots panel)
+require('./server/routes/amsat-status')(app, ctx); // AMSAT status board proxy (AMSAT Status panel)
+require('./server/routes/repeaters')(app, ctx); // hearham.com repeater directory (Repeaters panel)
+require('./server/routes/pota-spot')(app, ctx); // POTA activator self-spotting + park lookup
 require('./server/routes/aprs')(app, ctx);
 require('./server/routes/field-reports')(app, ctx); // EmComm field reports (Winlink Express CSV ingest)
 require('./server/routes/wsjtx')(app, ctx);

@@ -39,6 +39,16 @@ import {
   DXLocalTime,
   DigitalModesPanel,
   WinlinkPanel,
+  WorldClockPanel,
+  StopwatchPanel,
+  SunMoonPanel,
+  SatellitePassesPanel,
+  RBNMySignalPanel,
+  SpaceWxTrendsPanel,
+  WSPRMySpotsPanel,
+  AMSATStatusPanel,
+  RepeatersPanel,
+  POTAActivatorPanel,
   IBPPanel,
   SWPCAlertsPanel,
   MeteorShowerPanel,
@@ -1222,6 +1232,46 @@ export const DockableApp = ({
 
         case 'meteor-showers':
           content = <MeteorShowerPanel deLat={config.location?.lat ?? null} deLon={config.location?.lon ?? null} />;
+          break;
+
+        case 'world-clocks':
+          content = <WorldClockPanel />;
+          break;
+
+        case 'stopwatch':
+          content = <StopwatchPanel />;
+          break;
+
+        case 'sun-moon':
+          content = <SunMoonPanel deLocation={config.location} dxLocation={dxLocation} />;
+          break;
+
+        case 'sat-passes':
+          content = <SatellitePassesPanel satellites={satellites} config={config} />;
+          break;
+
+        case 'rbn-mine':
+          content = <RBNMySignalPanel config={config} />;
+          break;
+
+        case 'swpc-trends':
+          content = <SpaceWxTrendsPanel />;
+          break;
+
+        case 'wspr-mine':
+          content = <WSPRMySpotsPanel config={config} />;
+          break;
+
+        case 'amsat-status':
+          content = <AMSATStatusPanel />;
+          break;
+
+        case 'repeaters':
+          content = <RepeatersPanel config={config} />;
+          break;
+
+        case 'pota-activator':
+          content = <POTAActivatorPanel config={config} />;
           break;
 
         case 'rotator':

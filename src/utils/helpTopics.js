@@ -102,6 +102,16 @@ export const PANEL_HELP = {
   meshcom: 'emcomm-mesh',
   'digital-modes': 'wsjtx',
   winlink: 'emcomm-mesh',
+  'sat-passes': 'satellites',
+  'amsat-status': 'satellites',
+  'sun-moon': 'propagation-panels',
+  'swpc-trends': 'propagation-panels',
+  'rbn-mine': 'propagation-panels',
+  'wspr-mine': 'propagation-panels',
+  'pota-activator': 'spots-activity',
+  repeaters: 'utility',
+  'world-clocks': 'utility',
+  stopwatch: 'utility',
 };
 
 /**
