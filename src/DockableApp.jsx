@@ -1639,13 +1639,22 @@ export const DockableApp = ({
               borderRadius: '12px',
               padding: '20px',
               minWidth: '350px',
+              width: 'min(960px, 94vw)',
+              maxHeight: '85vh',
+              overflowY: 'auto',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ margin: '0 0 16px', color: '#00ffcc', fontFamily: 'var(--font-mono)', fontSize: '14px' }}>
               Add Panel
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: '8px',
+              }}
+            >
               {(() => {
                 const panels = getAvailablePanels();
                 const ungrouped = panels.filter((p) => !p.group);
