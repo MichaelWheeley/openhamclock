@@ -1203,13 +1203,17 @@ export default function Globe3D({
   // ── Moon: real position, real phase ──────────────────────
   // A sprite textured with NASA's Dial-A-Moon render (already proxied at
   // /api/moon-image, hourly) — the photo shows the actual current phase and
-  // libration, so no phase shader is needed. Additive blending makes the
-  // image's black background vanish against space. Placement follows the
-  // real sublunar point (getMoonPosition) at a compressed distance: far
-  // outside the camera's 8-unit orbit ceiling but inside the starfield, at
-  // an exaggerated size so it reads as the moon rather than a pixel (the
-  // true angular size at this distance would be invisible). Earth occludes
-  // it naturally via the depth test. Skipped in low-memory mode.
+  // libration, so no phase shader is needed. The JPEG has no alpha channel,
+  // so it is luminance-keyed on a scratch canvas: the black background goes
+  // fully transparent (no square against space — the renderer canvas is
+  // alpha-composited over the page, so blending tricks can't hide it) and
+  // the unlit limb fades out naturally, which is how the moon actually
+  // looks in the sky. Placement follows the real sublunar point
+  // (getMoonPosition) at a compressed distance: far outside the camera's
+  // 8-unit orbit ceiling but inside the starfield, at an exaggerated size
+  // so it reads as the moon rather than a pixel (the true angular size at
+  // this distance would be invisible). Earth occludes it naturally via the
+  // depth test. Skipped in low-memory mode.
   useEffect(() => {
     if (lowMem) return undefined;
     const s = gl.current;
@@ -1217,9 +1221,9 @@ export default function Globe3D({
 
     const MOON_DIST = 12; // world units (camera maxDistance is 8, starfield ~22+)
     const MOON_SIZE = 0.85; // sprite diameter in world units
+    const MOON_TEX_SIZE = 512;
 
     const material = new THREE.SpriteMaterial({
-      blending: THREE.AdditiveBlending,
       depthWrite: false,
       depthTest: true,
       transparent: true,
@@ -1231,7 +1235,6 @@ export default function Globe3D({
 
     let alive = true;
     let lastImageBucket = null;
-    const loader = new THREE.TextureLoader();
 
     const updatePosition = () => {
       const pos = getMoonPosition(new Date());
@@ -1239,17 +1242,33 @@ export default function Globe3D({
       s.requestRender?.();
     };
 
+    // Luminance → alpha: below ~2% black stays fully transparent, and
+    // anything moderately lit ramps quickly to opaque so stars don't
+    // bleed through the maria. The steep ramp doubles as a soft edge.
+    const keyOutBlack = (img) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = MOON_TEX_SIZE;
+      const cctx = canvas.getContext('2d');
+      cctx.drawImage(img, 0, 0, MOON_TEX_SIZE, MOON_TEX_SIZE);
+      const pixels = cctx.getImageData(0, 0, MOON_TEX_SIZE, MOON_TEX_SIZE);
+      const d = pixels.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const lum = Math.max(d[i], d[i + 1], d[i + 2]);
+        d[i + 3] = lum <= 5 ? 0 : Math.min(255, (lum - 5) * 8);
+      }
+      cctx.putImageData(pixels, 0, 0);
+      return canvas;
+    };
+
     const updateTexture = () => {
       const bucket = Math.floor(Date.now() / 3600_000);
       if (bucket === lastImageBucket) return;
       lastImageBucket = bucket;
-      loader.load(
-        `/api/moon-image?t=${bucket}`,
-        (texture) => {
-          if (!alive) {
-            texture.dispose();
-            return;
-          }
+      const img = new Image();
+      img.onload = () => {
+        if (!alive) return;
+        try {
+          const texture = new THREE.CanvasTexture(keyOutBlack(img));
           texture.colorSpace = THREE.SRGBColorSpace;
           const old = material.map;
           material.map = texture;
@@ -1257,13 +1276,15 @@ export default function Globe3D({
           old?.dispose();
           moon.visible = true;
           s.requestRender?.();
-        },
-        undefined,
-        () => {
-          // image unavailable — retry next hourly tick
-          lastImageBucket = null;
-        },
-      );
+        } catch {
+          lastImageBucket = null; // canvas readback failed — retry next tick
+        }
+      };
+      img.onerror = () => {
+        // image unavailable — retry next hourly tick
+        lastImageBucket = null;
+      };
+      img.src = `/api/moon-image?t=${bucket}`;
     };
 
     updatePosition();
