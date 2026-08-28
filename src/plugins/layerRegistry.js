@@ -31,6 +31,9 @@ import * as WinlinkGatewaysPlugin from './layers/useWinlinkGateways.js';
 import * as AircraftPlugin from './layers/useAircraft.js';
 import * as ATCSectorsPlugin from './layers/useATCSectors.js';
 import * as PSKReporterBandActivityPlugin from './layers/usePSKReporterBandActivity.js';
+import * as MaidenheadGridPlugin from './layers/useMaidenheadGrid.js';
+import * as DRAPPlugin from './layers/useDRAP.js';
+import * as ZonesPlugin from './layers/useZones.js';
 
 // Auto-discover local/custom plugins (gitignored — survive updates)
 const localPluginModules = import.meta.glob('./local/*.js', { eager: true });
@@ -75,6 +78,9 @@ const layerPlugins = [
   AircraftPlugin,
   ATCSectorsPlugin,
   PSKReporterBandActivityPlugin,
+  MaidenheadGridPlugin,
+  DRAPPlugin,
+  ZonesPlugin,
   ...localPlugins,
 ];
 
@@ -108,6 +114,11 @@ const PINNED_SHORTCUTS = {
   aircraft: 'x',
   'atc-sectors': 'z',
   'psk-band-activity': 'b',
+  // Alphabet is nearly exhausted — pin the stragglers so auto-assignment
+  // doesn't hand them arbitrary leftover letters.
+  maidenhead: 'h', // maidenHead grid
+  drap: 'j',
+  zones: 'y',
 };
 
 export function getAllLayers() {

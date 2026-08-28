@@ -605,6 +605,89 @@ module.exports = function (app, ctx) {
     }
   });
 
+  // NOAA D-RAP (D-Region Absorption Prediction)
+  // Global grid of the highest frequency affected by 1 dB absorption (MHz).
+  // Upstream is a fixed-width text table: '#' header lines (including
+  // "Product Valid At"), a row of longitudes, a dashed separator, then one
+  // row per latitude:  " 89 |  0.4  0.4 ..." (north → south).
+  const drapCache = { data: null, timestamp: 0 };
+  const DRAP_CACHE_TTL = 5 * 60 * 1000;
+
+  function parseDrapText(text) {
+    const lines = text.split('\n');
+    let validAt = null;
+    let lons = null;
+    const lats = [];
+    const freqs = [];
+    let maxFreq = 0;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      if (trimmed.startsWith('#')) {
+        const m = trimmed.match(/Product Valid At\s*:\s*(.+)$/i);
+        if (m) validAt = m[1].trim();
+        continue;
+      }
+      if (/^-+$/.test(trimmed)) continue;
+
+      if (trimmed.includes('|')) {
+        // Data row: "<lat> | <freq> <freq> ..."
+        const [latPart, valPart] = trimmed.split('|');
+        const lat = parseFloat(latPart);
+        if (!Number.isFinite(lat) || !valPart) continue;
+        const row = valPart
+          .trim()
+          .split(/\s+/)
+          .map((v) => {
+            const f = parseFloat(v);
+            return Number.isFinite(f) ? f : 0;
+          });
+        if (lons && row.length !== lons.length) continue; // malformed row
+        for (const f of row) if (f > maxFreq) maxFreq = f;
+        lats.push(lat);
+        freqs.push(row);
+      } else {
+        // Longitude header row (first non-comment, non-separator line)
+        const vals = trimmed.split(/\s+/).map(parseFloat);
+        if (!lons && vals.length > 10 && vals.every(Number.isFinite)) lons = vals;
+      }
+    }
+
+    if (!lons || lats.length === 0) throw new Error('Unrecognized DRAP format');
+    return {
+      source: 'NOAA SWPC D-RAP',
+      validAt,
+      lats, // north → south
+      lons, // west → east
+      freqs, // freqs[latIdx][lonIdx] = highest affected frequency (MHz)
+      maxFreq: Math.round(maxFreq * 10) / 10,
+    };
+  }
+
+  app.get('/api/drap', async (req, res) => {
+    try {
+      if (drapCache.data && Date.now() - drapCache.timestamp < DRAP_CACHE_TTL) {
+        return res.json(drapCache.data);
+      }
+      const response = await fetch('https://services.swpc.noaa.gov/text/drap_global_frequencies.txt', {
+        headers: { 'User-Agent': `OpenHamClock/${APP_VERSION}` },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const text = await response.text();
+      const data = { ...parseDrapText(text), fetchedAt: Date.now() };
+      drapCache.data = data;
+      drapCache.timestamp = Date.now();
+      res.json(data);
+    } catch (error) {
+      logErrorOnce('DRAP', error.message);
+      if (drapCache.data) return res.json({ ...drapCache.data, stale: true });
+      res.status(502).json({ error: 'Failed to fetch D-RAP data' });
+    }
+  });
+
   // N0NBH Parsed Band Conditions + Solar Data
   app.get('/api/n0nbh', async (req, res) => {
     try {
