@@ -20,7 +20,7 @@ export const metadata = {
   defaultOpacity: 0.9,
   version: '1.1.0',
   config: {
-    leadTimeMins: 30, // predicted-track vector length; 0 disables
+    leadTimeMins: 0, // predicted-track vector length; 0 disables (off by default)
   },
 };
 

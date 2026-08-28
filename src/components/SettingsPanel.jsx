@@ -4357,8 +4357,8 @@ export const SettingsPanel = ({
                               >
                                 <span>{t('station.settings.layers.leadTime')}</span>
                                 <span style={{ color: 'var(--accent-amber)' }}>
-                                  {(layer.config?.leadTimeMins ?? 30) > 0
-                                    ? `${layer.config?.leadTimeMins ?? 30} min`
+                                  {(layer.config?.leadTimeMins ?? 0) > 0
+                                    ? `${layer.config?.leadTimeMins ?? 0} min`
                                     : t('station.settings.layers.leadTimeOff')}
                                 </span>
                               </label>
@@ -4367,7 +4367,7 @@ export const SettingsPanel = ({
                                 min="0"
                                 max="120"
                                 step="5"
-                                value={layer.config?.leadTimeMins ?? 30}
+                                value={layer.config?.leadTimeMins ?? 0}
                                 onChange={(e) =>
                                   handleUpdateLayerConfig(layer.id, { leadTimeMins: parseInt(e.target.value, 10) })
                                 }
