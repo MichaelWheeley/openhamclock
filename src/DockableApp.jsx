@@ -56,7 +56,14 @@ import MeshtasticPanel from './components/MeshtasticPanel.jsx';
 import LogbookPanel from './components/LogbookPanel.jsx';
 import AwardsPanel from './components/AwardsPanel.jsx';
 
-import { resetLayout, loadLayout, saveLayout } from './store/layoutStore.js';
+import {
+  getActiveLayout,
+  getActivePresetId,
+  resetActiveLayout,
+  saveLayoutForPreset,
+  createPreset,
+  PRESETS_CHANGED_EVENT,
+} from './store/layoutStore.js';
 import { getPanelPluginById } from './plugins/panelRegistry.js';
 import { buildPanelDefs } from './panelDefs.js';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
@@ -207,10 +214,15 @@ export const DockableApp = ({
   onToggleLayoutLock,
 }) => {
   const layoutRef = useRef(null);
-  const [model, setModel] = useState(() => Model.fromJson(loadLayout()));
+  const [model, setModel] = useState(() => Model.fromJson(getActiveLayout()));
   const [showPanelPicker, setShowPanelPicker] = useState(false);
   const [targetTabSetId, setTargetTabSetId] = useState(null);
   const saveTimeoutRef = useRef(null);
+  // Which named layout preset the current model belongs to — pending debounced
+  // saves are flushed to THIS id before a switch loads another preset's model.
+  const activePresetIdRef = useRef(getActivePresetId());
+  const modelRef = useRef(model);
+  modelRef.current = model;
 
   // Layout lock — controlled by parent (sidebar), fall back to local state if no prop
   const [localLayoutLocked, setLocalLayoutLocked] = useState(() => {
@@ -234,7 +246,11 @@ export const DockableApp = ({
     });
   const handleResetLayout = useCallback(() => {
     if (confirm('Reset panel layout to default? This will undo any customizations.')) {
-      const defaultLayout = resetLayout();
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      const defaultLayout = resetActiveLayout();
       setModel(Model.fromJson(defaultLayout));
     }
   }, []);
@@ -432,12 +448,14 @@ export const DockableApp = ({
     [layoutLocked],
   );
 
-  // Handle model changes with debounced save
+  // Handle model changes with debounced save (into the active preset — the
+  // Default preset persists under the legacy openhamclock_dockLayout key)
   const handleModelChange = useCallback((newModel) => {
     setModel(newModel);
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    const presetId = activePresetIdRef.current;
     saveTimeoutRef.current = setTimeout(() => {
-      saveLayout(newModel.toJson());
+      saveLayoutForPreset(presetId, newModel.toJson());
     }, 500);
   }, []);
 
@@ -446,6 +464,46 @@ export const DockableApp = ({
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, []);
+
+  // Flush any pending debounced save into the preset the model belongs to.
+  const flushPendingSave = useCallback(() => {
+    if (!saveTimeoutRef.current) return;
+    clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = null;
+    try {
+      saveLayoutForPreset(activePresetIdRef.current, modelRef.current.toJson());
+    } catch {}
+  }, []);
+
+  // Named layout presets — react to activation changes made anywhere (sidebar
+  // preset control, command palette, scene rotation): flush edits into the
+  // preset we're leaving, then load the newly active preset's model.
+  useEffect(() => {
+    const onPresetsChanged = () => {
+      const activeId = getActivePresetId();
+      if (activeId === activePresetIdRef.current) return;
+      flushPendingSave();
+      activePresetIdRef.current = activeId;
+      setModel(Model.fromJson(getActiveLayout()));
+    };
+    // "Duplicate current…" — needs the live (possibly unsaved) model, which
+    // only this component has, so the preset control dispatches an event.
+    const onDuplicate = (e) => {
+      const name = e.detail?.name;
+      if (!name) return;
+      flushPendingSave();
+      const preset = createPreset(name, modelRef.current.toJson());
+      // createPreset activates the copy; its model is identical to the live
+      // one, so just adopt the new id without reloading the model.
+      if (preset) activePresetIdRef.current = preset.id;
+    };
+    window.addEventListener(PRESETS_CHANGED_EVENT, onPresetsChanged);
+    window.addEventListener('openhamclock:dock-preset-duplicate', onDuplicate);
+    return () => {
+      window.removeEventListener(PRESETS_CHANGED_EVENT, onPresetsChanged);
+      window.removeEventListener('openhamclock:dock-preset-duplicate', onDuplicate);
+    };
+  }, [flushPendingSave]);
 
   // Panel definitions (shared with the command palette — see src/panelDefs.js)
   const panelDefs = useMemo(() => buildPanelDefs({ isLocalInstall }), [isLocalInstall]);

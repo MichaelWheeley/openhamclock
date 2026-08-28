@@ -6,7 +6,8 @@
  *   config.sceneRotation = {
  *     enabled: boolean,
  *     intervalSec: number,   // 30–600
- *     layouts: string[],     // layout ids from the Settings layout picker
+ *     layouts: string[],     // layout ids from the Settings layout picker;
+ *                            // a named dockable preset is `dockable#<presetId>`
  *   }
  *
  * Rotation is active only when enabled AND at least two layouts are selected.
@@ -22,10 +23,11 @@
  *    switch until the user has been idle for the 60 s grace period.
  *
  * Returns { active, flash } — `active` drives the on-screen indicator dot,
- * `flash` is { layout, ts } for ~2.5 s after each switch so the indicator can
- * flash the new layout's name.
+ * `flash` is { layout, presetName, ts } for ~2.5 s after each switch so the
+ * indicator can flash the new layout's (and preset's) name.
  */
 import { useEffect, useRef, useState } from 'react';
+import { activatePreset, getActivePresetId, getPresetById } from '../../store/layoutStore.js';
 
 export const SCENE_ROTATION_MIN_SEC = 30;
 export const SCENE_ROTATION_MAX_SEC = 600;
@@ -38,6 +40,32 @@ export const clampSceneInterval = (sec) => {
   const n = parseInt(sec, 10);
   if (!Number.isFinite(n)) return 60;
   return Math.min(SCENE_ROTATION_MAX_SEC, Math.max(SCENE_ROTATION_MIN_SEC, n));
+};
+
+/**
+ * Scene ids are either a base layout id ('modern', 'dockable', …) or a
+ * compound `dockable#<presetId>` addressing a named dockable layout preset.
+ * → { layout, presetId } with presetId null for plain ids.
+ */
+export const parseSceneLayoutId = (id) => {
+  if (typeof id !== 'string') return { layout: id, presetId: null };
+  const hash = id.indexOf('#');
+  if (hash === -1) return { layout: id, presetId: null };
+  return { layout: id.slice(0, hash), presetId: id.slice(hash + 1) || null };
+};
+
+/**
+ * Index of the currently showing scene within the rotation list. For the
+ * dockable layout an exact `dockable#<activePreset>` entry wins over a plain
+ * 'dockable' entry, so preset-to-preset rotation advances correctly.
+ * Exported for tests.
+ */
+export const findCurrentSceneIndex = (list, currentLayout, activePresetId) => {
+  if (currentLayout === 'dockable') {
+    const exact = list.indexOf(`dockable#${activePresetId}`);
+    if (exact !== -1) return exact;
+  }
+  return list.indexOf(currentLayout);
 };
 
 export default function useSceneRotation(config, onSaveConfig, { paused = false } = {}) {
@@ -101,14 +129,25 @@ export default function useSceneRotation(config, onSaveConfig, { paused = false 
       const cfg = configRef.current;
       const list = Array.isArray(cfg?.sceneRotation?.layouts) ? cfg.sceneRotation.layouts : [];
       if (list.length < 2) return;
-      const cur = list.indexOf(cfg.layout);
+      const activePresetId = getActivePresetId();
+      const cur = findCurrentSceneIndex(list, cfg.layout, activePresetId);
       // Current layout not in the rotation (user picked something else
       // manually) → start from the first selected scene.
       const next = cur === -1 ? list[0] : list[(cur + 1) % list.length];
       dueAtRef.current = now + intervalMs;
-      if (!next || next === cfg.layout) return;
-      saveRef.current?.({ ...cfg, layout: next });
-      setFlash({ layout: next, ts: now });
+      if (!next) return;
+      const { layout: nextLayout, presetId } = parseSceneLayoutId(next);
+      // Already showing this scene (same layout, and same preset when the
+      // scene addresses one) — nothing to do.
+      if (nextLayout === cfg.layout && (!presetId || presetId === activePresetId)) return;
+      // Named dockable preset: activate it (layoutStore notifies DockableApp).
+      // Plain 'dockable' keeps whatever preset is currently active.
+      const presetName = presetId ? getPresetById(presetId)?.name || null : null;
+      if (presetId) activatePreset(presetId);
+      // config.layout only ever holds base layout ids — preset activation is
+      // orthogonal state, so nothing else in the app needs to know.
+      if (nextLayout !== cfg.layout) saveRef.current?.({ ...cfg, layout: nextLayout });
+      setFlash({ layout: nextLayout, presetName, ts: now });
     }, TICK_MS);
     return () => clearInterval(id);
   }, [active, intervalMs]);

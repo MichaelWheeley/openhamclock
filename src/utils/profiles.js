@@ -15,6 +15,7 @@ const ACTIVE_KEY = 'openhamclock_activeProfile';
 const SNAPSHOT_KEYS = [
   'openhamclock_config',
   'openhamclock_dockLayout',
+  'openhamclock_dockLayoutPresets',
   'openhamclock_dxFilters',
   'openhamclock_dxLocation',
   'openhamclock_dxLocked',

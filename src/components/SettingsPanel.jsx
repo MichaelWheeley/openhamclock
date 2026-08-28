@@ -38,6 +38,7 @@ import {
 import { setRelaySessionId, setRelayConfigured, clearRelaySession } from '../utils/relaySession';
 import { getCallbookCredentials, setCallbookCredentials } from '../utils/callbookAuth.js';
 import { getCartoApiKey, CARTO_KEY_STORAGE } from '../utils/config.js';
+import { listPresets } from '../store/layoutStore.js';
 import LogSyncSettings from './LogSyncSettings.jsx';
 import { CALLBOOKS, getCallbook } from '../utils/callbook.js';
 import { HELP_EVENT, settingsTabHelpTopic, layerHelpTopic } from '../utils/helpTopics.js';
@@ -4370,38 +4371,61 @@ export const SettingsPanel = ({
                   <div
                     style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}
                   >
-                    {['modern', 'classic', 'tablet', 'compact', 'dockable', 'emcomm', 'contest'].map((l) => {
-                      const selected = (sceneRotation.layouts || []).includes(l);
-                      return (
-                        <label
-                          key={l}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            color: 'var(--text-primary)',
-                            padding: '6px 8px',
-                            background: selected ? 'var(--bg-tertiary)' : 'transparent',
-                            border: `1px solid ${selected ? 'var(--accent-amber)' : 'var(--border-color)'}`,
-                            borderRadius: '6px',
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={(e) => {
-                              const current = sceneRotation.layouts || [];
-                              const layouts = e.target.checked ? [...current, l] : current.filter((id) => id !== l);
-                              setSceneRotation({ ...sceneRotation, layouts });
+                    {(() => {
+                      // Named dockable layout presets rotate as `dockable#<id>`
+                      // scenes; a plain 'dockable' scene keeps whatever preset
+                      // is active. Preset entries are only offered once the
+                      // user has created a custom preset.
+                      const presets = listPresets();
+                      const presetIds = presets.length > 1 ? presets.map((p) => `dockable#${p.id}`) : [];
+                      return [
+                        'modern',
+                        'classic',
+                        'tablet',
+                        'compact',
+                        'dockable',
+                        ...presetIds,
+                        'emcomm',
+                        'contest',
+                      ].map((l) => {
+                        const presetName = l.startsWith('dockable#')
+                          ? presets.find((p) => `dockable#${p.id}` === l)?.name
+                          : null;
+                        const label = presetName
+                          ? `${t('station.settings.layout.dockable')} — ${presetName}`
+                          : t('station.settings.layout.' + l);
+                        const selected = (sceneRotation.layouts || []).includes(l);
+                        return (
+                          <label
+                            key={l}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              color: 'var(--text-primary)',
+                              padding: '6px 8px',
+                              background: selected ? 'var(--bg-tertiary)' : 'transparent',
+                              border: `1px solid ${selected ? 'var(--accent-amber)' : 'var(--border-color)'}`,
+                              borderRadius: '6px',
                             }}
-                            style={{ accentColor: 'var(--accent-amber)' }}
-                          />
-                          {t('station.settings.layout.' + l)}
-                        </label>
-                      );
-                    })}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={(e) => {
+                                const current = sceneRotation.layouts || [];
+                                const layouts = e.target.checked ? [...current, l] : current.filter((id) => id !== l);
+                                setSceneRotation({ ...sceneRotation, layouts });
+                              }}
+                              style={{ accentColor: 'var(--accent-amber)' }}
+                            />
+                            {label}
+                          </label>
+                        );
+                      });
+                    })()}
                   </div>
                 )}
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>

@@ -496,7 +496,9 @@ Separately from the PWA, the app polls the server version and — on the hosted 
 | **EmComm**   | Emergency communications operations (beta)                                                      |
 | **Contest**  | Contest operating — quick-log strip, dupe check, rate meter, session multipliers (next release) |
 
-**Scene rotation (next release).** For shack TVs and club-station kiosks: Settings → Display → **Scene Rotation** cycles automatically through layouts you select, at an interval from 30 seconds to 10 minutes. Rotation pauses whenever a dialog is open and whenever someone touches the screen, mouse, or keyboard (it waits for 60 seconds of quiet before rotating again). While rotating, a small dot sits in the bottom-right corner and the new layout's name flashes briefly on each switch.
+**Named dockable layouts (next release).** The Dockable layout can hold more than one arrangement. In the sidebar's layout controls (next to the lock and reset buttons), **⧉ Duplicate** saves the current arrangement as a named preset — up to 10 — and the dropdown switches between them live. Rename (✎) and delete (✕) manage your presets; the built-in **Default** is your original layout and can't be renamed or deleted. Presets are included in profiles, backups, and settings sync like everything else.
+
+**Scene rotation (next release).** For shack TVs and club-station kiosks: Settings → Display → **Scene Rotation** cycles automatically through layouts you select, at an interval from 30 seconds to 10 minutes. Rotation pauses whenever a dialog is open and whenever someone touches the screen, mouse, or keyboard (it waits for 60 seconds of quiet before rotating again). While rotating, a small dot sits in the bottom-right corner and the new layout's name flashes briefly on each switch. **(Next release)** Named dockable presets appear in the rotation list as "Dockable — _name_", so a kiosk can cycle through several dock arrangements; the plain "Dockable" entry keeps whichever preset is currently active.
 
 ### Contest mode
 

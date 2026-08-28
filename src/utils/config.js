@@ -202,6 +202,7 @@ export const saveConfig = (config) => {
 const SYNC_KEYS = [
   'openhamclock_config',
   'openhamclock_dockLayout',
+  'openhamclock_dockLayoutPresets',
   'openhamclock_dxFavorites',
   'openhamclock_dxFilters',
   'openhamclock_dxLocation',

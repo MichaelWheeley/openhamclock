@@ -10,7 +10,17 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import useSceneRotation, { clampSceneInterval } from './useSceneRotation.js';
+
+// The hook activates named dockable presets through the layout store — mock
+// it so these tests stay pure (no localStorage, no server-sync side effects).
+const presetStore = vi.hoisted(() => ({ activeId: 'default', activatePreset: null }));
+vi.mock('../../store/layoutStore.js', () => ({
+  activatePreset: (...args) => presetStore.activatePreset(...args),
+  getActivePresetId: () => presetStore.activeId,
+  getPresetById: (id) => ({ id, name: `Preset ${id}` }),
+}));
+
+import useSceneRotation, { clampSceneInterval, parseSceneLayoutId, findCurrentSceneIndex } from './useSceneRotation.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -25,7 +35,7 @@ function Harness({ config, initialPaused = false }) {
   const { active, flash } = useSceneRotation(config, onSave, { paused });
   return (
     <div data-testid="out">
-      {active ? 'active' : 'idle'}|{flash?.layout || ''}
+      {active ? 'active' : 'idle'}|{flash?.layout || ''}|{flash?.presetName || ''}
     </div>
   );
 }
@@ -42,6 +52,11 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   onSave = vi.fn();
+  presetStore.activeId = 'default';
+  presetStore.activatePreset = vi.fn((id) => {
+    presetStore.activeId = id;
+    return true;
+  });
   vi.useFakeTimers();
 });
 
@@ -159,5 +174,71 @@ describe('useSceneRotation', () => {
       vi.advanceTimersByTime(31_000);
     });
     expect(onSave).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('parseSceneLayoutId', () => {
+  it('splits compound dockable-preset ids and passes plain ids through', () => {
+    expect(parseSceneLayoutId('modern')).toEqual({ layout: 'modern', presetId: null });
+    expect(parseSceneLayoutId('dockable')).toEqual({ layout: 'dockable', presetId: null });
+    expect(parseSceneLayoutId('dockable#abc-123')).toEqual({ layout: 'dockable', presetId: 'abc-123' });
+    expect(parseSceneLayoutId('dockable#')).toEqual({ layout: 'dockable', presetId: null });
+    expect(parseSceneLayoutId(undefined)).toEqual({ layout: undefined, presetId: null });
+  });
+});
+
+describe('findCurrentSceneIndex', () => {
+  it('prefers the exact dockable#<activePreset> entry over plain dockable', () => {
+    const list = ['modern', 'dockable', 'dockable#a', 'dockable#b'];
+    expect(findCurrentSceneIndex(list, 'dockable', 'b')).toBe(3);
+    expect(findCurrentSceneIndex(list, 'dockable', 'nope')).toBe(1); // plain fallback
+    expect(findCurrentSceneIndex(list, 'modern', 'a')).toBe(0);
+    expect(findCurrentSceneIndex(['modern', 'classic'], 'dockable', 'a')).toBe(-1);
+  });
+});
+
+describe('useSceneRotation — named dockable presets (dockable#<id>)', () => {
+  it('rotates preset→preset via activatePreset without re-saving config.layout', () => {
+    presetStore.activeId = 'a';
+    act(() => {
+      root.render(<Harness config={cfg('dockable', ['dockable#a', 'dockable#b'])} />);
+    });
+    act(() => {
+      vi.advanceTimersByTime(31_000);
+    });
+    expect(presetStore.activatePreset).toHaveBeenCalledWith('b');
+    expect(onSave).not.toHaveBeenCalled(); // layout stays 'dockable'
+    expect(getText()).toContain('Preset b'); // flash carries the preset name
+
+    // Next tick wraps back to preset a (the mock updated the active id).
+    act(() => {
+      vi.advanceTimersByTime(31_000);
+    });
+    expect(presetStore.activatePreset).toHaveBeenLastCalledWith('a');
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('enters a named preset from another layout: activates the preset AND sets layout=dockable', () => {
+    act(() => {
+      root.render(<Harness config={cfg('modern', ['modern', 'dockable#a'])} />);
+    });
+    act(() => {
+      vi.advanceTimersByTime(31_000);
+    });
+    expect(presetStore.activatePreset).toHaveBeenCalledWith('a');
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][0].layout).toBe('dockable'); // never a compound id in config
+  });
+
+  it('a plain dockable scene keeps whatever preset is active', () => {
+    presetStore.activeId = 'x';
+    act(() => {
+      root.render(<Harness config={cfg('dockable', ['dockable', 'modern'])} />);
+    });
+    act(() => {
+      vi.advanceTimersByTime(31_000);
+    });
+    expect(presetStore.activatePreset).not.toHaveBeenCalled();
+    expect(onSave.mock.calls[0][0].layout).toBe('modern');
   });
 });

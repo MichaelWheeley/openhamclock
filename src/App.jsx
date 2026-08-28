@@ -14,7 +14,7 @@ import ModernLayout from './layouts/ModernLayout.jsx';
 import EmcommLayout from './layouts/EmcommLayout.jsx';
 import ContestLayout from './layouts/ContestLayout.jsx';
 
-import { resetLayout } from './store/layoutStore.js';
+import { resetActiveLayout } from './store/layoutStore.js';
 import { RigProvider } from './contexts/RigContext.jsx';
 import { CallsignPopupProvider } from './components/CallsignPopupManager.jsx';
 
@@ -230,7 +230,7 @@ const App = () => {
   }, [showSettings, showDXFilters, showPSKFilters, showKeybindings, showCommandPalette, layerShortcuts]);
 
   const handleResetLayout = useCallback(() => {
-    resetLayout();
+    resetActiveLayout();
     setLayoutResetKey((prev) => prev + 1);
   }, []);
 
@@ -1036,7 +1036,8 @@ const App = () => {
                 padding: '2px 8px',
               }}
             >
-              {t('station.settings.layout.' + sceneRotation.flash.layout, sceneRotation.flash.layout)}
+              {t('station.settings.layout.' + sceneRotation.flash.layout, sceneRotation.flash.layout) +
+                (sceneRotation.flash.presetName ? ' — ' + sceneRotation.flash.presetName : '')}
             </span>
           )}
           <span

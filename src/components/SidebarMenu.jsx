@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { IconGear, IconExpand, IconShrink, SETTINGS_TAB_ICONS, LiLock, LiUnlock, LiRotate } from './Icons.jsx';
 import DonateButton from './DonateButton.jsx';
+import LayoutPresetControl from './LayoutPresetControl.jsx';
 
 const COLLAPSED_WIDTH = 40;
 const EXPANDED_WIDTH = 180;
@@ -284,6 +285,9 @@ export default function SidebarMenu({
               gap: '4px',
             }}
           >
+            {/* Named layout presets — duplicate / switch / rename / delete */}
+            <LayoutPresetControl isExpanded={isExpanded} isVisible={isVisible} />
+
             {/* Layout Lock */}
             <button
               type="button"

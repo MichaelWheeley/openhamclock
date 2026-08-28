@@ -25,6 +25,7 @@ import { buildPanelDefs } from '../panelDefs.js';
 import { PanelIcon } from './Icons.jsx';
 import { fuzzyFilter } from '../utils/fuzzyMatch.js';
 import { HELP_TOPICS, openHelp } from '../utils/helpTopics.js';
+import { listPresets, getActivePresetId, activatePreset } from '../store/layoutStore.js';
 
 const LAYOUT_IDS = ['modern', 'classic', 'tablet', 'compact', 'dockable', 'emcomm', 'contest'];
 const SETTINGS_TAB_IDS = [
@@ -120,6 +121,30 @@ export const CommandPalette = ({
         }),
         run: () => onSaveConfig?.({ ...config, layout: id }),
       });
+    }
+
+    // Named dockable layout presets — `dockable#<id>` scenes. Only offered
+    // once the user has created a custom preset (Default alone adds nothing
+    // over the plain Dockable entry above).
+    const presets = listPresets();
+    if (presets.length > 1) {
+      const activePresetId = getActivePresetId();
+      for (const p of presets) {
+        if (config?.layout === 'dockable' && p.id === activePresetId) continue; // already showing
+        items.push({
+          id: `layout:dockable#${p.id}`,
+          category: t('commandPalette.cat.layouts', { defaultValue: 'Layout' }),
+          icon: '🖥️',
+          label: t('commandPalette.switchLayout', {
+            defaultValue: 'Switch layout: {{name}}',
+            name: `${t('station.settings.layout.dockable')} — ${p.name}`,
+          }),
+          run: () => {
+            activatePreset(p.id);
+            if (config?.layout !== 'dockable') onSaveConfig?.({ ...config, layout: 'dockable' });
+          },
+        });
+      }
     }
 
     // Settings tabs.
