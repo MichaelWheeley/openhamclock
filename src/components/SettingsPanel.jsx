@@ -5734,6 +5734,20 @@ export const SettingsPanel = ({
                     'Oukagen',
                     'ftl',
                     'phether',
+                    'frankenstein91',
+                    'stearnsy33',
+                    'williamscody',
+                    '9M2PJU',
+                    'AntDiClementi',
+                    'chrisdebian',
+                    'KoenVdH',
+                    'w9fyi',
+                    'caballe',
+                    'saschabuehrle',
+                    'DigitalFeonix',
+                    'praxiscode',
+                    'AnthonyOHC',
+                    'vk3arr',
                   ].map((name) => (
                     <a
                       key={name}
