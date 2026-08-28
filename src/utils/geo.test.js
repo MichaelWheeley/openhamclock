@@ -3,6 +3,7 @@ import { validateGridLocator, latLonToMaidenhead, maidenheadToLatLon, maidenhead
 import { getSunPosition, getMoonPosition, getMoonPhase } from './geo.js';
 import { normalizeLon } from './geo.js';
 import { destinationPoint, deadReckonPosition, calculateDistance, calculateBearing } from './geo.js';
+import { densifyPath, densifyGeoJson } from './geo.js';
 
 // normalize to [−π, +π)
 const normalizeRadians = (r) => {
@@ -518,3 +519,152 @@ describe('destinationPoint / deadReckonPosition (aircraft track prediction)', ()
     expect(calculateDistance(-20, -178, p.lat, p.lon)).toBeCloseTo(400 * 1.852 * 1.5, 6);
   });
 });
+
+describe('densifyPath / densifyGeoJson (projection curvature densification)', () => {
+  it('leaves short segments untouched', () => {
+    const path = [
+      [0, 0],
+      [1, 1.5],
+      [2, 3],
+    ];
+    expect(densifyPath(path)).toEqual(path);
+  });
+
+  it('does not subdivide a segment exactly at the threshold', () => {
+    expect(
+      densifyPath(
+        [
+          [0, 0],
+          [0, 2],
+        ],
+        2,
+      ),
+    ).toEqual([
+      [0, 0],
+      [0, 2],
+    ]);
+  });
+
+  it('subdivides a long east-west segment into even <=2° steps, endpoints preserved', () => {
+    const out = densifyPath(
+      [
+        [10, 0],
+        [10, 10],
+      ],
+      2,
+    );
+    expect(out.length).toBe(6); // 5 segments of 2°
+    expect(out[0]).toEqual([10, 0]);
+    expect(out[out.length - 1]).toEqual([10, 10]);
+    for (let i = 1; i < out.length; i++) {
+      expect(out[i][0]).toBeCloseTo(10, 10); // constant latitude
+      expect(out[i][1] - out[i - 1][1]).toBeCloseTo(2, 10);
+    }
+  });
+
+  it('uses the larger of the lat/lon spans to pick the subdivision count', () => {
+    // 7° of latitude vs 1° of longitude → ceil(7/2) = 4 segments → 3 inserted
+    const out = densifyPath(
+      [
+        [0, 0],
+        [7, 1],
+      ],
+      2,
+    );
+    expect(out.length).toBe(5);
+    expect(out[1]).toEqual([7 / 4, 1 / 4]); // linear interpolation in lat/lon
+  });
+
+  it('never bridges an antimeridian jump (|dlon| > 180 left as-is)', () => {
+    // A path already split-friendly: 179 → -179 is a 2° hop across the date
+    // line stored as a -358° jump. Interpolating it would smear a line across
+    // the whole map, so it must pass through untouched.
+    const path = [
+      [10, 170],
+      [10, 179],
+      [10, -179],
+      [10, -170],
+    ];
+    const out = densifyPath(path, 2);
+    expect(out).toContainEqual([10, 179]);
+    expect(out).toContainEqual([10, -179]);
+    const i179 = out.findIndex((p) => p[1] === 179);
+    expect(out[i179 + 1]).toEqual([10, -179]); // still adjacent — jump preserved
+    // and the sub-180 flanking segments got densified normally
+    expect(out.length).toBe(4 + ceilSegs(9) - 1 + ceilSegs(9) - 1);
+  });
+
+  it('densifies unwrapped world-copy coordinates linearly (no wrap-around)', () => {
+    // Unwrapped paths (e.g. from getGreatCirclePoints) can exceed ±180; a
+    // 10° hop from 355 to 365 must interpolate through 357, 359, ... — not wrap
+    const out = densifyPath(
+      [
+        [0, 355],
+        [0, 365],
+      ],
+      2,
+    );
+    expect(out.length).toBe(6);
+    expect(out[2]).toEqual([0, 359]);
+  });
+
+  it('passes through degenerate inputs unchanged', () => {
+    expect(densifyPath([])).toEqual([]);
+    expect(densifyPath([[5, 5]])).toEqual([[5, 5]]);
+    expect(densifyPath(null)).toBe(null);
+  });
+
+  it('densifyGeoJson handles Polygon rings in [lon, lat] order', () => {
+    const geom = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [10, 0], // 10° of longitude along the equator
+          [10, 3],
+          [0, 3],
+          [0, 0],
+        ],
+      ],
+    };
+    const out = densifyGeoJson(geom, 2);
+    expect(out).not.toBe(geom); // new object, input untouched
+    expect(geom.coordinates[0].length).toBe(5);
+    const ring = out.coordinates[0];
+    expect(ring[0]).toEqual([0, 0]);
+    expect(ring[ring.length - 1]).toEqual([0, 0]);
+    // first edge subdivided into 5 → points at lon 2,4,6,8 with lat 0
+    expect(ring[1]).toEqual([2, 0]);
+    expect(ring[2]).toEqual([4, 0]);
+    // ring stays closed and both 10°-long edges gained 4 points each,
+    // the two 3° edges gained 1 each
+    expect(ring.length).toBe(5 + 4 + 4 + 1 + 1);
+  });
+
+  it('densifyGeoJson handles MultiPolygon and leaves other types unchanged', () => {
+    const multi = {
+      type: 'MultiPolygon',
+      coordinates: [
+        [
+          [
+            [0, 0],
+            [8, 0],
+            [8, 1],
+            [0, 0],
+          ],
+        ],
+      ],
+    };
+    const out = densifyGeoJson(multi, 2);
+    expect(out.coordinates[0][0].length).toBeGreaterThan(4);
+
+    const point = { type: 'Point', coordinates: [5, 5] };
+    expect(densifyGeoJson(point, 2)).toBe(point);
+    expect(densifyGeoJson(null, 2)).toBe(null);
+  });
+});
+
+// segments needed to cover `span` degrees at 2° max
+function ceilSegs(span) {
+  return Math.ceil(span / 2);
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { esc } from '../../utils/escapeHtml.js';
 import { ZONE_SOURCES } from '../../utils/globeOverlays.js';
+import { densifyGeoJson } from '../../utils/geo.js';
 
 /**
  * CQ / ITU Zones Overlay Plugin
@@ -76,8 +77,17 @@ export function useLayer({ enabled = false, opacity = 0.7, map = null }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!alive || !data || !Array.isArray(data.features)) return;
-        cacheRef.current[zoneType] = data;
-        setGeojson(data);
+        // Densify long boundary segments (>2°) so they curve correctly on the
+        // azimuthal projection instead of cutting straight chords across it
+        // (and track parallels slightly better on Mercator too). Done once at
+        // fetch time and cached; cost is tiny — the CQ set grows 134,734 →
+        // 137,145 points (+1.8%), ITU 73,407 → 77,269 (+5.3%).
+        const densified = {
+          ...data,
+          features: data.features.map((f) => ({ ...f, geometry: densifyGeoJson(f.geometry, 2) })),
+        };
+        cacheRef.current[zoneType] = densified;
+        setGeojson(densified);
       })
       .catch((err) => {
         console.error('[Zones] GeoJSON fetch error:', err);

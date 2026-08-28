@@ -596,6 +596,76 @@ export const replicatePath = (path) => {
 };
 
 /**
+ * Shared core for densifyPath / densifyGeoJson: inserts linearly interpolated
+ * points into any segment whose lat OR lon span exceeds maxSegDeg, so that
+ * projections which curve straight lat/lon segments (azimuthal equidistant,
+ * and to a lesser degree Mercator for diagonal segments) render smooth arcs
+ * instead of long straight chords.
+ *
+ * Segments whose longitude jump exceeds 180° are left untouched: such a jump
+ * is either an antimeridian split or a world-copy seam, and downstream
+ * path-breaking logic (e.g. replicatePath) relies on seeing the raw jump —
+ * interpolating across it would re-bridge the seam with a line across the map.
+ *
+ * latIdx/lonIdx select coordinate order: [lat, lon] arrays use (0, 1),
+ * GeoJSON [lon, lat] arrays use (1, 0). Original points are passed through
+ * untouched (extra members like elevation are preserved on them).
+ */
+const densifyCoords = (points, maxSegDeg, latIdx, lonIdx) => {
+  if (!Array.isArray(points) || points.length < 2 || !(maxSegDeg > 0)) return points;
+  const out = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const dLat = b[latIdx] - a[latIdx];
+    const dLon = b[lonIdx] - a[lonIdx];
+    const span = Math.max(Math.abs(dLat), Math.abs(dLon));
+    if (span > maxSegDeg && Math.abs(dLon) <= 180) {
+      const n = Math.ceil(span / maxSegDeg);
+      for (let k = 1; k < n; k++) {
+        const f = k / n;
+        const p = [];
+        p[latIdx] = a[latIdx] + dLat * f;
+        p[lonIdx] = a[lonIdx] + dLon * f;
+        out.push(p);
+      }
+    }
+    out.push(b);
+  }
+  return out;
+};
+
+/**
+ * Densify a polyline of [lat, lon] points: subdivide any segment longer than
+ * maxSegDeg (in lat or lon) with linearly interpolated intermediate points.
+ * Endpoints are preserved; antimeridian jumps (|Δlon| > 180) are not bridged.
+ * Linear interpolation in lat/lon is fine at ≤2° granularity — the residual
+ * deviation from the true chord is far below one pixel at map scales.
+ */
+export const densifyPath = (points, maxSegDeg = 2) => densifyCoords(points, maxSegDeg, 0, 1);
+
+/**
+ * Densify a GeoJSON geometry's coordinate arrays ([lon, lat] order).
+ * Supports LineString, MultiLineString, Polygon, and MultiPolygon; any other
+ * geometry type is returned unchanged. Returns a new geometry object.
+ */
+export const densifyGeoJson = (geometry, maxSegDeg = 2) => {
+  if (!geometry || !geometry.coordinates) return geometry;
+  const ring = (coords) => densifyCoords(coords, maxSegDeg, 1, 0);
+  switch (geometry.type) {
+    case 'LineString':
+      return { ...geometry, coordinates: ring(geometry.coordinates) };
+    case 'MultiLineString':
+    case 'Polygon':
+      return { ...geometry, coordinates: geometry.coordinates.map(ring) };
+    case 'MultiPolygon':
+      return { ...geometry, coordinates: geometry.coordinates.map((poly) => poly.map(ring)) };
+    default:
+      return geometry;
+  }
+};
+
+/**
  * Replicate a single [lat, lon] point across 3 world copies.
  * Returns an array of 3 [lat, lon] pairs for use with L.circleMarker etc.
  */
@@ -705,6 +775,8 @@ export default {
   getMoonPhaseEmoji,
   calculateSunTimes,
   getGreatCirclePoints,
+  densifyPath,
+  densifyGeoJson,
   replicatePath,
   replicatePoint,
   normalizeLon,
