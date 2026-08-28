@@ -689,20 +689,27 @@ export const WorldMap = ({
 
   useEffect(() => {
     if (!mapRotationConfig.enabled) return;
-    // Every style change makes the globe refetch its full tile set (up to 256
-    // tiles at retina zoom), and overlapping bursts get us throttled by the
-    // tile providers — throttled tiles are permanent holes in the texture.
-    // Rotation resumes when the user returns to a Leaflet projection.
-    if (isGlobe3D) return;
+    // On the globe each tick rebuilds the full sphere texture — the same cost
+    // as picking that style from the dropdown by hand, and Globe3D aborts the
+    // previous build's tile fetches when the style changes, so ticks never
+    // stack up. Styles the globe cannot build (MODIS — its GIBS URL is
+    // generated dynamically by the 2D projections, so its MAP_STYLES url is
+    // empty and Globe3D would silently fall back to 'dark') are skipped in 3D,
+    // matching the dropdown disabling MODIS there.
+    const eligibleIds = isGlobe3D ? availableBaseMapIds.filter((id) => MAP_STYLES[id]?.url) : availableBaseMapIds;
 
-    const selected = (mapRotationConfig.selectedIds || []).filter((id) => availableBaseMapIds.includes(id));
+    const selected = (mapRotationConfig.selectedIds || []).filter((id) => eligibleIds.includes(id));
     if (selected.length < 2) return;
 
-    const seconds = Math.max(5, Number(mapRotationConfig.intervalSeconds) || 60);
+    // The globe's floor matches the menu's smallest interval: a full-sphere
+    // rebuild can take several seconds on slow links, and sub-15 s cycling
+    // (only reachable via hand-edited localStorage) risks tile-provider
+    // throttling, which leaves permanent holes in the texture.
+    const seconds = Math.max(isGlobe3D ? 15 : 5, Number(mapRotationConfig.intervalSeconds) || 60);
 
     const timer = setInterval(() => {
       setMapStyle((current) => {
-        const selectedNow = (mapRotationConfig.selectedIds || []).filter((id) => availableBaseMapIds.includes(id));
+        const selectedNow = (mapRotationConfig.selectedIds || []).filter((id) => eligibleIds.includes(id));
         if (selectedNow.length < 2) return current;
 
         const currentIndex = selectedNow.indexOf(current);
@@ -832,6 +839,10 @@ export const WorldMap = ({
       return false;
     }
   });
+  // Shared by the flat map's eye button and the globe's (Globe3D renders its
+  // own copy at the top of its control column, since the Leaflet dock below
+  // does not exist in 3D). Both drive the same state + persisted key.
+  const toggleMapUiHidden = useCallback(() => setMapUiHidden((prev) => !prev), []);
 
   // Legend visibility toggle (persisted)
   const [showLegend, setShowLegend] = useState(() => {
@@ -2570,6 +2581,7 @@ export const WorldMap = ({
               allUnits={allUnits}
               config={config}
               hideUi={mapUiHidden}
+              onToggleHideUi={toggleMapUiHidden}
               tileStyle={mapStyle}
               lowMemoryMode={lowMemoryMode}
               nightDarkness={nightDarkness}
@@ -2654,7 +2666,7 @@ export const WorldMap = ({
           }}
         >
           <button
-            onClick={() => setMapUiHidden((prev) => !prev)}
+            onClick={toggleMapUiHidden}
             title={mapUiHidden ? t('app.mapUi.show') : t('app.mapUi.hide')}
             style={{
               width: '42px',
@@ -3140,6 +3152,9 @@ export const WorldMap = ({
                     <span>
                       {styleId === mapStyle ? '★ ' : ''}
                       {MAP_STYLES[styleId]?.name || styleId}
+                      {/* Same predicate the rotation timer uses to skip
+                          globe-incompatible styles (empty url ⇒ MODIS). */}
+                      {isGlobe3D && !MAP_STYLES[styleId]?.url ? ' (2D only)' : ''}
                     </span>
                   </label>
                 ))}

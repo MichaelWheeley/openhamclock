@@ -371,6 +371,10 @@ export default function Globe3D({
   allUnits = { dist: 'imperial' },
   config,
   hideUi = false,
+  // Flips WorldMap's mapUiHidden state (persisted as openhamclock_mapUiHidden)
+  // — the globe's counterpart to the flat map's eye button, which lives in a
+  // Leaflet-only dock that never renders in 3D.
+  onToggleHideUi,
   tileStyle = 'dark',
   lowMemoryMode = false,
   nightDarkness = 60,
@@ -1999,8 +2003,10 @@ export default function Globe3D({
         </div>
       )}
 
-      {/* Controls */}
-      {!hideUi && (
+      {/* Controls. The column itself survives hideUi so the eye button stays
+          as the un-hide affordance — the same pattern as the flat map, where
+          everything hides except the eye toggle. */}
+      {(!hideUi || onToggleHideUi) && (
         <div
           style={{
             position: 'absolute',
@@ -2015,103 +2021,119 @@ export default function Globe3D({
             gap: '5px',
           }}
         >
-          <button style={btnStyle} onClick={() => centerOn(lat0, lon0)} title="Center on your QTH">
-            DE
-          </button>
-          {dxLocation && (
-            <button style={btnStyle} onClick={() => centerOn(dxLocation.lat, dxLocation.lon)} title="Center on DX">
-              DX
+          {onToggleHideUi && (
+            <button
+              style={{
+                ...btnStyle,
+                border: hideUi ? '1px solid var(--accent-cyan)' : btnStyle.border,
+              }}
+              onClick={onToggleHideUi}
+              title={hideUi ? t('app.mapUi.show') : t('app.mapUi.hide')}
+            >
+              {hideUi ? '👁' : '🙈'}
             </button>
           )}
-          <button
-            style={{
-              ...btnStyle,
-              color: autoRotate ? 'var(--bg-primary)' : 'var(--accent-cyan)',
-              background: autoRotate ? 'var(--accent-cyan)' : btnStyle.background,
-            }}
-            onClick={() => setAutoRotate((v) => !v)}
-            title={autoRotate ? 'Auto-rotate on — turns after 30 s idle' : 'Auto-rotate off'}
-          >
-            <IconRefresh size={15} style={iconStyle} />
-          </button>
-
-          {/* Night overlay darkness — shares state with the flat map's slider */}
-          {onNightDarknessChange && (
-            <div
-              title="Adjust night overlay darkness"
-              style={{
-                marginTop: '4px',
-                width: '30px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '5px',
-                color: 'var(--text-secondary)',
-                fontSize: '12px',
-                fontFamily: 'var(--font-mono)',
-                textAlign: 'center',
-              }}
-            >
-              <span>{nightDarkness}%</span>
-              <input
-                type="range"
-                min="0"
-                max="90"
-                value={nightDarkness}
-                onChange={(e) => onNightDarknessChange(parseInt(e.target.value, 10))}
+          {!hideUi && (
+            <>
+              <button style={btnStyle} onClick={() => centerOn(lat0, lon0)} title="Center on your QTH">
+                DE
+              </button>
+              {dxLocation && (
+                <button style={btnStyle} onClick={() => centerOn(dxLocation.lat, dxLocation.lon)} title="Center on DX">
+                  DX
+                </button>
+              )}
+              <button
                 style={{
-                  cursor: 'pointer',
-                  margin: 0,
-                  writingMode: 'vertical-lr',
-                  WebkitAppearance: 'slider-vertical',
-                  transform: 'rotate(180deg)',
+                  ...btnStyle,
+                  color: autoRotate ? 'var(--bg-primary)' : 'var(--accent-cyan)',
+                  background: autoRotate ? 'var(--accent-cyan)' : btnStyle.background,
                 }}
-              />
-            </div>
-          )}
+                onClick={() => setAutoRotate((v) => !v)}
+                title={autoRotate ? 'Auto-rotate on — turns after 30 s idle' : 'Auto-rotate off'}
+              >
+                <IconRefresh size={15} style={iconStyle} />
+              </button>
 
-          {suppressedLayers.length > 0 && (
-            <div
-              title={suppressedLayers.join(', ')}
-              style={{
-                marginTop: '4px',
-                color: 'var(--text-muted)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '10px',
-                background: 'var(--bg-panel)',
-                border: '1px solid var(--border-color)',
-                padding: '3px 8px',
-                borderRadius: '4px',
-                whiteSpace: 'nowrap',
-                cursor: 'help',
-              }}
-            >
-              {suppressedLayers.length} map layer{suppressedLayers.length !== 1 ? 's' : ''} 2D-only
-            </div>
-          )}
+              {/* Night overlay darkness — shares state with the flat map's slider */}
+              {onNightDarknessChange && (
+                <div
+                  title="Adjust night overlay darkness"
+                  style={{
+                    marginTop: '4px',
+                    width: '30px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '5px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontFamily: 'var(--font-mono)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <span>{nightDarkness}%</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="90"
+                    value={nightDarkness}
+                    onChange={(e) => onNightDarknessChange(parseInt(e.target.value, 10))}
+                    style={{
+                      cursor: 'pointer',
+                      margin: 0,
+                      writingMode: 'vertical-lr',
+                      WebkitAppearance: 'slider-vertical',
+                      transform: 'rotate(180deg)',
+                    }}
+                  />
+                </div>
+              )}
 
-          {/* Usage hint only. The DE/DX figures that used to sit here duplicate
+              {suppressedLayers.length > 0 && (
+                <div
+                  title={suppressedLayers.join(', ')}
+                  style={{
+                    marginTop: '4px',
+                    color: 'var(--text-muted)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '10px',
+                    background: 'var(--bg-panel)',
+                    border: '1px solid var(--border-color)',
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    whiteSpace: 'nowrap',
+                    cursor: 'help',
+                  }}
+                >
+                  {suppressedLayers.length} map layer{suppressedLayers.length !== 1 ? 's' : ''} 2D-only
+                </div>
+              )}
+
+              {/* Usage hint only. The DE/DX figures that used to sit here duplicate
               the DE and DX side panels, and as an opaque box on top of the
               globe they cost more than they gave. This disappears for good once
               the operator has actually used the controls. */}
-          {!hasInteracted && (
-            <div
-              style={{
-                marginTop: '4px',
-                color: 'var(--text-muted)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '10px',
-                background: 'var(--bg-panel)',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                pointerEvents: 'none',
-                lineHeight: 1.5,
-                whiteSpace: 'nowrap',
-                opacity: 0.75,
-              }}
-            >
-              drag to rotate · scroll to zoom · click to set DX
-            </div>
+              {!hasInteracted && (
+                <div
+                  style={{
+                    marginTop: '4px',
+                    color: 'var(--text-muted)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '10px',
+                    background: 'var(--bg-panel)',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    pointerEvents: 'none',
+                    lineHeight: 1.5,
+                    whiteSpace: 'nowrap',
+                    opacity: 0.75,
+                  }}
+                >
+                  drag to rotate · scroll to zoom · click to set DX
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
