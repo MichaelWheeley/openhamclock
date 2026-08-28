@@ -11,6 +11,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLogbook } from '../hooks/useLogbook.js';
 import { consumePendingPrefill, subscribePrefill } from '../services/logbookStore.js';
+import {
+  backupFilename,
+  buildBackup,
+  dismissBackupNudge,
+  markBackupDone,
+  shouldShowBackupNudge,
+} from '../utils/backup.js';
 import { getBandFromFreq } from '../utils/callsign.js';
 import { useRig } from '../contexts/RigContext.jsx';
 import CallsignLink from './CallsignLink.jsx';
@@ -107,6 +114,29 @@ export const LogbookPanel = ({ userCallsign, myGrid }) => {
   const [modeFilter, setModeFilter] = useState('');
   const [importSummary, setImportSummary] = useState(null); // {imported, skipped} | {error}
   const fileInputRef = useRef(null);
+
+  // Monthly "back up your log" reminder — recheck after dismiss/export.
+  const [nudgeCheck, setNudgeCheck] = useState(0);
+  const showBackupNudge = useMemo(
+    () => shouldShowBackupNudge(qsos.length),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [qsos.length, nudgeCheck],
+  );
+
+  const handleFullBackup = async () => {
+    const bundle = await buildBackup();
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = backupFilename();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    markBackupDone();
+    setNudgeCheck((c) => c + 1);
+  };
 
   const setField = (name, value) => setForm((f) => ({ ...f, [name]: value }));
 
@@ -749,6 +779,48 @@ export const LogbookPanel = ({ userCallsign, myGrid }) => {
               {t('logbook.noMatch', { defaultValue: 'No QSOs match the current search/filters' })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Backup reminder: log is browser-local; nudge monthly once it's worth protecting */}
+      {showBackupNudge && (
+        <div
+          role="status"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            marginTop: '6px',
+            padding: '5px 8px',
+            background: 'rgba(255, 191, 0, 0.08)',
+            border: '1px solid rgba(255, 191, 0, 0.35)',
+            borderRadius: '4px',
+            fontSize: '10px',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <span style={{ flex: 1, lineHeight: 1.4 }}>
+            {t('logbook.backupNudge.body', {
+              defaultValue:
+                "Your log ({{count}} QSOs) hasn't been backed up in over a month. It lives only in this browser — export a full backup to keep it safe.",
+              count: stats.total,
+            })}
+          </span>
+          <button type="button" onClick={handleFullBackup} style={smallBtnStyle(true)}>
+            {t('logbook.backupNudge.go', { defaultValue: 'Back up now' })}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              dismissBackupNudge();
+              setNudgeCheck((c) => c + 1);
+            }}
+            title={t('logbook.backupNudge.dismiss', { defaultValue: 'Dismiss backup reminder for 30 days' })}
+            aria-label={t('logbook.backupNudge.dismiss', { defaultValue: 'Dismiss backup reminder for 30 days' })}
+            style={smallBtnStyle(false)}
+          >
+            ✕
+          </button>
         </div>
       )}
 
