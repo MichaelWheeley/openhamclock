@@ -11,7 +11,6 @@
  */
 import { describe, it, expect } from 'vitest';
 import { buildPanelDefs } from '../panelDefs.js';
-import { PANEL_DEFINITIONS } from '../store/layoutStore.js';
 import { PANEL_ICONS, SETTINGS_TAB_ICONS, PanelIcon } from './Icons.jsx';
 
 // Must match SettingsPanel's SETTINGS_TABS / SidebarMenu's MENU_ITEMS ids.
@@ -43,12 +42,6 @@ describe('PANEL_ICONS registry completeness', () => {
     // must know them.
     expect(typeof PANEL_ICONS.ambient).toBe('function');
     expect(typeof PANEL_ICONS.rotator).toBe('function');
-  });
-
-  it('covers every id in layoutStore PANEL_DEFINITIONS', () => {
-    for (const id of Object.keys(PANEL_DEFINITIONS)) {
-      expect(typeof PANEL_ICONS[id], `PANEL_ICONS['${id}'] missing (layoutStore PANEL_DEFINITIONS)`).toBe('function');
-    }
   });
 });
 

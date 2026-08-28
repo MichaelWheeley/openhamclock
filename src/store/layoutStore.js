@@ -85,38 +85,6 @@ export const DEFAULT_LAYOUT = {
   },
 };
 
-// Panel definitions for the panel picker
-export const PANEL_DEFINITIONS = {
-  'de-location': { name: 'DE Location', icon: '📍', description: 'Your station location and weather' },
-  'dx-location': { name: 'DX Target', icon: '🎯', description: 'Target location for DXing' },
-  solar: { name: 'Solar', icon: '☀️', description: 'Sunspot numbers and solar flux' },
-  propagation: { name: 'Propagation', icon: '📡', description: 'Band conditions and forecasts' },
-  ambient: { name: 'Ambient Weather', icon: '🌦️', description: 'AmbientWeather.net station data' },
-  'band-health': { name: 'HF Band Health', icon: '📶', description: 'Observed band usability from DX cluster spots' },
-  'dx-cluster': { name: 'DX Cluster', icon: '📻', description: 'Live DX spots from cluster' },
-  'psk-reporter': { name: 'PSK Reporter', icon: '📡', description: 'Digital mode spots and WSJT-X' },
-  dxpeditions: { name: 'DXpeditions', icon: '🏝️', description: 'Upcoming DXpeditions' },
-  pota: { name: 'POTA', icon: '▲', description: 'Parks on the Air activators' },
-  sota: { name: 'SOTA', icon: '◆', description: 'Summits on the Air activators' },
-  wwbota: { name: 'WWBOTA', icon: '■', description: 'World Wide Bunker On The Air activators' },
-  canparks: { name: 'CANParks', icon: '🍁', description: 'Canadian parks program activators' },
-  contests: { name: 'Contests', icon: '🏆', description: 'Upcoming and active contests' },
-  'id-timer': { name: 'ID Timer', icon: '📢', description: '10-minute station identification reminder' },
-  'world-map': { name: 'World Map', icon: '🗺️', description: 'Interactive world map' },
-  'rig-control': { name: 'Rig Control', icon: '📻', description: 'Transceiver control and feedback' },
-  'freq-memories': { name: 'Frequencies', icon: '📻', description: 'Saved named frequencies with click-to-tune' },
-  'net-schedule': { name: 'Nets', icon: '🕐', description: 'Recurring net schedule with countdowns' },
-  'callsign-search': { name: 'Callsign Lookup', icon: '🔎', description: 'Callbook search with set-as-DX' },
-  'dx-news': { name: 'DX News', icon: '📰', description: 'Multi-source DX news reader' },
-  'solar-cycle': { name: 'Solar Cycle', icon: '📈', description: 'Sunspot history vs cycle-25 forecast' },
-  'log-stats': { name: 'Log Stats', icon: '📊', description: 'Logbook analytics and QSO heatmap' },
-  'sked-planner': { name: 'Sked Planner', icon: '🤝', description: 'Best 48h windows to work the DX target' },
-  ionosonde: { name: 'Ionosondes', icon: '📡', description: 'Live foF2/MUF from nearby digisondes' },
-  'prop-verify': { name: 'Prediction Check', icon: '🎯', description: 'VOACAP prediction vs observed spots' },
-  'on-air': { name: 'On Air', icon: '🔴', description: 'Large TX status indicator' },
-  meshtastic: { name: 'Meshtastic', icon: '📡', description: 'Mesh network nodes and messages' },
-};
-
 // Load layout from localStorage
 export const loadLayout = () => {
   try {
