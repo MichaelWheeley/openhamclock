@@ -450,4 +450,101 @@ export function chooseGlobeTileZoom({ lowMemory = false, pixelRatio = 1 } = {}) 
   return pixelRatio >= 2 ? 4 : 3;
 }
 
-export default { buildGlobeTexture, chooseGlobeTileZoom };
+// Inverse of latToMercatorY: latitude at a Mercator pixel row.
+function mercatorYToLat(y, dim) {
+  return (2 * Math.atan(Math.exp(((dim / 2 - y) * 2 * Math.PI) / dim)) - Math.PI / 2) / DEG;
+}
+
+/**
+ * High-zoom detail patch for the visible window of the globe.
+ *
+ * A whole-globe equirect texture tops out around z5 (8192px for the entire
+ * planet), which magnifies badly up close. This fetches Mercator tiles at a
+ * Leaflet-grade zoom for ONLY the requested lon/lat window, remaps them to
+ * equirectangular, and returns the canvas plus the tile-aligned bounds the
+ * shader needs to blend it over the base texture.
+ *
+ * Longitude wraps across the antimeridian: columns are fetched modulo the
+ * world width and composed on a continuous (unwrapped) canvas.
+ *
+ * @returns {Promise<{canvas, bounds:{lonMin, lonSpan, latTop, latBottom}}>}
+ */
+export async function buildGlobeDetailPatch({
+  tileUrlTemplate,
+  lang,
+  zoom,
+  lonMin,
+  lonSpan,
+  latTop,
+  latBottom,
+  signal,
+}) {
+  const worldTiles = Math.pow(2, zoom);
+  const worldDim = worldTiles * 256;
+
+  // Tile-align the window.
+  const xStart = Math.floor(((lonMin + 180) / 360) * worldTiles);
+  const xCount = Math.min(worldTiles, Math.ceil(((lonMin + lonSpan + 180) / 360) * worldTiles) - xStart);
+  const yTopPx = latToMercatorY(Math.min(latTop, MAX_MERCATOR_LAT), worldDim);
+  const yBotPx = latToMercatorY(Math.max(latBottom, -MAX_MERCATOR_LAT), worldDim);
+  const tyStart = Math.max(0, Math.floor(yTopPx / 256));
+  const tyEnd = Math.min(worldTiles - 1, Math.floor((yBotPx - 1) / 256));
+  const yCount = tyEnd - tyStart + 1;
+  if (xCount < 1 || yCount < 1) throw new Error('empty patch window');
+
+  const merc = document.createElement('canvas');
+  merc.width = xCount * 256;
+  merc.height = yCount * 256;
+  const mctx = merc.getContext('2d');
+  mctx.fillStyle = '#0b1a2b';
+  mctx.fillRect(0, 0, merc.width, merc.height);
+
+  const queue = [];
+  for (let j = 0; j < yCount; j++) {
+    for (let i = 0; i < xCount; i++) {
+      queue.push({ i, j, tx: (xStart + i) % worldTiles, ty: tyStart + j });
+    }
+  }
+  let next = 0;
+  async function worker() {
+    while (next < queue.length) {
+      if (signal?.aborted) return;
+      const { i, j, tx, ty } = queue[next++];
+      try {
+        const img = await loadTile(resolveTileUrl(tileUrlTemplate, zoom, tx, ty, lang), signal);
+        if (!signal?.aborted) mctx.drawImage(img, i * 256, j * 256, 256, 256);
+      } catch {
+        if (signal?.aborted) return;
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: MAX_CONCURRENT }, worker));
+  if (signal?.aborted) throw new Error('aborted');
+
+  // Actual bounds of the tile-aligned patch.
+  const alignedLonMin = (xStart / worldTiles) * 360 - 180;
+  const alignedLonSpan = (xCount / worldTiles) * 360;
+  const alignedLatTop = mercatorYToLat(tyStart * 256, worldDim);
+  const alignedLatBottom = mercatorYToLat((tyEnd + 1) * 256, worldDim);
+
+  // Remap Mercator rows to an equirectangular patch (linear in latitude).
+  const outW = merc.width;
+  const pxPerDeg = outW / alignedLonSpan;
+  const outH = Math.max(1, Math.round((alignedLatTop - alignedLatBottom) * pxPerDeg));
+  const eq = document.createElement('canvas');
+  eq.width = outW;
+  eq.height = outH;
+  const ectx = eq.getContext('2d');
+  for (let y = 0; y < outH; y++) {
+    const lat = alignedLatTop - ((y + 0.5) / outH) * (alignedLatTop - alignedLatBottom);
+    const srcY = Math.max(0, Math.min(merc.height - 1, Math.floor(latToMercatorY(lat, worldDim) - tyStart * 256)));
+    ectx.drawImage(merc, 0, srcY, outW, 1, 0, y, outW, 1);
+  }
+
+  return {
+    canvas: eq,
+    bounds: { lonMin: alignedLonMin, lonSpan: alignedLonSpan, latTop: alignedLatTop, latBottom: alignedLatBottom },
+  };
+}
+
+export default { buildGlobeTexture, buildGlobeDetailPatch, chooseGlobeTileZoom };

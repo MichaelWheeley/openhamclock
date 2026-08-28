@@ -16,7 +16,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { getBandColor, getBandFromFreq } from '../utils/callsign.js';
 import { getSunPosition } from '../utils/geo.js';
 import { MAP_STYLES } from '../utils/config.js';
-import { buildGlobeTexture, chooseGlobeTileZoom } from '../utils/globeTexture.js';
+import { buildGlobeTexture, buildGlobeDetailPatch, chooseGlobeTileZoom } from '../utils/globeTexture.js';
 import { classifySatellite, getArchetypeTemplate, loadIssTemplate } from '../utils/satelliteModels.js';
 import { ACTIVITY_COLORS } from '../utils/activityColors.js';
 // Project icon set — exists because bare glyphs/emoji render inconsistently
@@ -262,6 +262,9 @@ const EARTH_VERT = /* glsl */ `
 
 const EARTH_FRAG = /* glsl */ `
   uniform sampler2D uMap;
+  uniform sampler2D uDetail;    // close-zoom patch for the visible window
+  uniform float uDetailOn;      // 0/1
+  uniform vec4 uDetailBounds;   // uMin, uSpan, vTop, vBottom (base-texture UV space)
   uniform vec3 uSunDir;         // in view space
   uniform float uNightDarkness; // 0..1, same meaning as the flat map's overlay opacity
   uniform float uBrightness;    // lift for dark basemaps
@@ -270,6 +273,20 @@ const EARTH_FRAG = /* glsl */ `
 
   void main() {
     vec3 tex = texture2D(uMap, vUv).rgb * uBrightness;
+    // High-zoom detail patch: replaces the base inside its window, feathered
+    // at the edges so the seam never reads as a hard line. Longitude compare
+    // wraps so a patch spanning the antimeridian still works.
+    if (uDetailOn > 0.5) {
+      float du = mod(vUv.x - uDetailBounds.x + 1.0, 1.0);
+      float vSpan = uDetailBounds.z - uDetailBounds.w;
+      if (du < uDetailBounds.y && vUv.y > uDetailBounds.w && vUv.y < uDetailBounds.z) {
+        vec2 duv = vec2(du / uDetailBounds.y, (vUv.y - uDetailBounds.w) / vSpan);
+        vec3 det = texture2D(uDetail, duv).rgb * uBrightness;
+        float f = smoothstep(0.0, 0.04, duv.x) * smoothstep(0.0, 0.04, 1.0 - duv.x) *
+                  smoothstep(0.0, 0.04, duv.y) * smoothstep(0.0, 0.04, 1.0 - duv.y);
+        tex = mix(tex, det, f);
+      }
+    }
     float d = dot(normalize(vNormal), normalize(uSunDir));
     // Soft band across the terminator rather than a hard edge.
     float day = smoothstep(-0.14, 0.14, d);
@@ -685,6 +702,9 @@ export default function Globe3D({
     const earthMat = new THREE.ShaderMaterial({
       uniforms: {
         uMap: { value: new THREE.CanvasTexture(placeholder) },
+        uDetail: { value: new THREE.CanvasTexture(placeholder) },
+        uDetailOn: { value: 0 },
+        uDetailBounds: { value: new THREE.Vector4(0, 0, 0, 0) },
         uSunDir: { value: new THREE.Vector3(1, 0, 0) },
         uNightDarkness: { value: THREE.MathUtils.clamp(nightDarknessRef.current / 100, 0, 1) },
         uBrightness: { value: 1 },
@@ -996,6 +1016,113 @@ export default function Globe3D({
 
     return () => ac.abort();
   }, [tileStyle, lowMem, mapLang, detailBump]);
+
+  // ── Close-zoom detail patch ──────────────────────────────
+  // A whole-globe texture cannot match tiled LOD up close, so once the camera
+  // settles inside 2.3 earth radii we stream Leaflet-grade tiles for just the
+  // visible window and blend them over the base in the shader. Zoom ladder is
+  // chosen to keep every rebuild under ~200 tile requests; closer camera =
+  // higher zoom over a narrower (center-screen) window. Debounced on control
+  // changes, so nothing rebuilds mid-drag or during auto-rotate.
+  useEffect(() => {
+    const s = gl.current;
+    if (!s.controls || lowMem) return undefined;
+    const style = MAP_STYLES[tileStyle]?.url ? tileStyle : 'dark';
+    const template = MAP_STYLES[style].url;
+    if (!template) return undefined;
+
+    let ac = null;
+    let last = null; // { zoom, lat, lon }
+    let timer = null;
+
+    const disable = () => {
+      if (s.earthMat && s.earthMat.uniforms.uDetailOn.value !== 0) {
+        s.earthMat.uniforms.uDetailOn.value = 0;
+        s.requestRender?.();
+      }
+      last = null;
+    };
+
+    const update = () => {
+      if (!s.camera || !s.earthMat) return;
+      const d = s.camera.position.length();
+      if (d > 2.3) {
+        disable();
+        return;
+      }
+      const { lat, lon } = vec3ToLatLon(s.camera.position);
+      const horizonDeg = Math.acos(Math.min(1, 1 / d)) / DEG;
+      // Zoom ladder: closer camera → higher zoom over a narrower window that
+      // covers where the user is actually looking; the feather hands off to
+      // the base texture outside it.
+      let zoom;
+      let span;
+      if (d < 1.35) {
+        zoom = 7;
+        span = 40;
+      } else if (d < 1.7) {
+        zoom = 6;
+        span = 70;
+      } else {
+        zoom = 5;
+        span = 140;
+      }
+      span = Math.min(span, 2 * horizonDeg + 24);
+      // Reuse the current patch while the view stays well inside it.
+      const lonDelta = Math.abs(((((lon - (last?.lon ?? 999)) % 360) + 540) % 360) - 180);
+      if (last && last.zoom === zoom && Math.abs(lat - last.lat) < span * 0.2 && lonDelta < span * 0.2) return;
+
+      ac?.abort();
+      ac = new AbortController();
+      const signal = ac.signal;
+      const req = { zoom, lat, lon };
+      buildGlobeDetailPatch({
+        tileUrlTemplate: template,
+        lang: mapLang,
+        zoom,
+        lonMin: lon - span / 2,
+        lonSpan: span,
+        latTop: Math.min(80, lat + span / 2),
+        latBottom: Math.max(-80, lat - span / 2),
+        signal,
+      })
+        .then(({ canvas, bounds }) => {
+          if (signal.aborted || !s.earthMat) return;
+          last = req;
+          const tex = new THREE.CanvasTexture(canvas);
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.anisotropy = s.renderer?.capabilities.getMaxAnisotropy?.() ?? 1;
+          const old = s.earthMat.uniforms.uDetail.value;
+          s.earthMat.uniforms.uDetail.value = tex;
+          old?.dispose?.();
+          s.earthMat.uniforms.uDetailBounds.value.set(
+            (bounds.lonMin + 180) / 360,
+            bounds.lonSpan / 360,
+            1 - (90 - bounds.latTop) / 180,
+            1 - (90 - bounds.latBottom) / 180,
+          );
+          s.earthMat.uniforms.uDetailOn.value = 1;
+          s.requestRender?.();
+        })
+        .catch(() => {
+          /* aborted or offline — the base texture stays */
+        });
+    };
+
+    const onChange = () => {
+      clearTimeout(timer);
+      timer = setTimeout(update, 700);
+    };
+    s.controls.addEventListener('change', onChange);
+    update();
+
+    return () => {
+      clearTimeout(timer);
+      ac?.abort();
+      s.controls?.removeEventListener('change', onChange);
+      disable();
+    };
+  }, [tileStyle, lowMem, mapLang]);
 
   // ── Terminator: track the subsolar point ─────────────────
   // Depends on lowMem because a scene rebuild loses s.sunWorld, which would
