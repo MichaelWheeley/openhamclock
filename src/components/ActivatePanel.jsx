@@ -8,6 +8,8 @@ import CallsignLink from './CallsignLink.jsx';
 import { useCallsignPopup } from './CallsignPopupManager.jsx';
 import { IconSearch, IconRefresh, IconMap, IconTag } from './Icons.jsx';
 import { useWorkedBefore } from '../hooks/useWorkedBefore.js';
+import { useAwards } from '../hooks/useAwards.js';
+import { spotBadge } from '../utils/awards.js';
 import { requestLogQso } from '../services/logbookStore.js';
 
 export const ActivatePanel = ({
@@ -34,6 +36,10 @@ export const ActivatePanel = ({
   // already in the log at all. Returns null for everyone when no QSO source
   // has data, so the badge never renders outside a logging session.
   const { getStatus: getWorkedStatus } = useWorkedBefore();
+  // Award status from the native logbook: 'new' = the activator's DXCC entity
+  // is not in the log at all (ATNO), 'new-band' = entity worked but not on
+  // the spot's band. Null for everyone until the logbook has QSOs.
+  const { getSpotStatus: getAwardStatus } = useAwards();
   const staleMinutes = lastUpdated ? Math.floor((Date.now() - lastUpdated) / 60000) : null;
   const isStale = staleMinutes !== null && staleMinutes >= 5;
   const checkedTime = lastChecked ? new Date(lastChecked).toISOString().substr(11, 5) + 'z' : '';
@@ -283,20 +289,85 @@ export const ActivatePanel = ({
                           : undefined
                       }
                     />
-                    {getWorkedStatus(spot.call) && (
-                      <span
-                        title="In your log — worked this station before"
-                        aria-label="In your log — worked this station before"
-                        style={{
-                          marginLeft: '3px',
-                          fontSize: '9px',
-                          color: 'var(--text-muted)',
-                          opacity: 0.75,
-                        }}
-                      >
-                        ✓
-                      </span>
-                    )}
+                    {(() => {
+                      // One badge per row — precedence: new > new-band > worked.
+                      // Worked-before is call-level here (activation hunters
+                      // mostly care whether the activator is in the log at all).
+                      const badge = spotBadge(
+                        getAwardStatus(spot.call, parseFloat(spot.freq)),
+                        getWorkedStatus(spot.call),
+                      );
+                      if (badge === 'new') {
+                        const label = t('activations.badge.newTooltip', {
+                          defaultValue: 'New one — this DXCC entity is not in your logbook (ATNO)',
+                        });
+                        return (
+                          <span
+                            title={label}
+                            aria-label={label}
+                            style={{
+                              marginLeft: '3px',
+                              padding: '0 3px',
+                              fontSize: '8px',
+                              fontWeight: '700',
+                              letterSpacing: '0.5px',
+                              color: '#ff4444',
+                              background: 'rgba(255, 68, 68, 0.15)',
+                              border: '1px solid rgba(255, 68, 68, 0.6)',
+                              borderRadius: '2px',
+                              verticalAlign: 'middle',
+                            }}
+                          >
+                            {t('activations.badge.new', { defaultValue: 'NEW' })}
+                          </span>
+                        );
+                      }
+                      if (badge === 'new-band') {
+                        const label = t('activations.badge.newBandTooltip', {
+                          defaultValue: 'Entity worked before, but not on this band — new band slot',
+                        });
+                        return (
+                          <span
+                            title={label}
+                            aria-label={label}
+                            style={{
+                              marginLeft: '3px',
+                              padding: '0 3px',
+                              fontSize: '8px',
+                              fontWeight: '700',
+                              letterSpacing: '0.5px',
+                              color: '#ff8844',
+                              background: 'rgba(255, 136, 68, 0.12)',
+                              border: '1px solid rgba(255, 136, 68, 0.5)',
+                              borderRadius: '2px',
+                              verticalAlign: 'middle',
+                            }}
+                          >
+                            {t('activations.badge.newBand', { defaultValue: 'BAND' })}
+                          </span>
+                        );
+                      }
+                      if (badge) {
+                        const label = t('activations.badge.workedTooltip', {
+                          defaultValue: 'In your log — worked this station before',
+                        });
+                        return (
+                          <span
+                            title={label}
+                            aria-label={label}
+                            style={{
+                              marginLeft: '3px',
+                              fontSize: '9px',
+                              color: 'var(--text-muted)',
+                              opacity: 0.75,
+                            }}
+                          >
+                            ✓
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </span>
                   <span
                     role="cell"

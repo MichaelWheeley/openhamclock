@@ -44,6 +44,7 @@ import {
 } from './components';
 import MeshtasticPanel from './components/MeshtasticPanel.jsx';
 import LogbookPanel from './components/LogbookPanel.jsx';
+import AwardsPanel from './components/AwardsPanel.jsx';
 
 import { resetLayout, loadLayout, saveLayout } from './store/layoutStore.js';
 import { DockableLayoutProvider } from './contexts';
@@ -454,6 +455,7 @@ export const DockableApp = ({
       ibp: { name: 'IBP Beacons', icon: '📡', group: 'Propagation' },
       'dx-cluster': { name: 'DX Cluster', icon: '📻' },
       logbook: { name: 'Logbook', icon: '📓' },
+      awards: { name: 'Awards', icon: '🏆' },
       'psk-reporter': { name: 'PSK Reporter', icon: '📡' },
       dxpeditions: { name: 'DXpeditions', icon: '🏝️' },
       pota: { name: 'POTA', icon: '▲', iconColor: '#44cc44' },
@@ -968,6 +970,10 @@ export const DockableApp = ({
 
         case 'logbook':
           content = <LogbookPanel userCallsign={config.callsign} myGrid={deGrid} />;
+          break;
+
+        case 'awards':
+          content = <AwardsPanel />;
           break;
 
         case 'psk-reporter':

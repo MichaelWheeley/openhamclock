@@ -12,6 +12,8 @@ import CallsignLink from './CallsignLink.jsx';
 import { useCallsignPopup } from './CallsignPopupManager.jsx';
 import { classifySpotMode } from '../hooks/useBandHealth.js';
 import { useWorkedBefore } from '../hooks/useWorkedBefore.js';
+import { useAwards } from '../hooks/useAwards.js';
+import { spotBadge } from '../utils/awards.js';
 import { apiFetch } from '../utils/apiFetch';
 import { getListenUrl, loadNearbyReceivers } from '../utils/webSdr.js';
 import { requestLogQso } from '../services/logbookStore.js';
@@ -58,6 +60,11 @@ export const DXClusterPanel = ({
   // getStatus returns null for every call when neither source has data, so
   // the badges simply never render unless the operator is actually logging.
   const { getStatus: getWorkedStatus } = useWorkedBefore();
+
+  // Award status from the native logbook: 'new' = the spot's DXCC entity is
+  // not in the log at all (ATNO), 'new-band' = entity worked, but not on this
+  // band. Null for everyone until the logbook has QSOs — zero-config.
+  const { getSpotStatus: getAwardStatus } = useAwards();
 
   // ── Spot submission (only when this instance has an OHC Cluster) ────
   const [canSpot, setCanSpot] = useState(false);
@@ -571,6 +578,10 @@ export const DXClusterPanel = ({
             // 'dupe' = worked on this band+mode, 'worked' = in the log on
             // another band/mode, null = not in the log (a "new one").
             const workedStatus = getWorkedStatus(spot.call, freqMHz, modeInfo?.mode);
+            // Award angle from the native logbook: 'new' (ATNO) / 'new-band'.
+            // spotBadge collapses both statuses into the single badge shown —
+            // precedence: new > new-band > worked/dupe.
+            const badge = spotBadge(getAwardStatus(spot.call, freqMHz), workedStatus);
             // Web SDR "listen" link — lets rig-less users hear the station.
             const listen = freqMHz > 0 ? getListenUrl(freqMHz * 1000, modeInfo?.mode) : null;
 
@@ -628,7 +639,55 @@ export const DXClusterPanel = ({
                     location={{ grid: spot.dxGrid, lat: spot.dxLat, lon: spot.dxLon }}
                     spot={freqMHz > 0 ? { freq: freqMHz * 1000, mode: modeInfo?.mode ?? null } : undefined}
                   />
-                  {workedStatus === 'dupe' && (
+                  {badge === 'new' && (
+                    <span
+                      title={t('dxClusterPanel.workedBadge.newTooltip', {
+                        defaultValue: 'New one — this DXCC entity is not in your logbook (ATNO)',
+                      })}
+                      aria-label={t('dxClusterPanel.workedBadge.newTooltip', {
+                        defaultValue: 'New one — this DXCC entity is not in your logbook (ATNO)',
+                      })}
+                      style={{
+                        marginLeft: '4px',
+                        padding: '0 3px',
+                        fontSize: '8px',
+                        fontWeight: '700',
+                        letterSpacing: '0.5px',
+                        color: '#ff4444',
+                        background: 'rgba(255, 68, 68, 0.15)',
+                        border: '1px solid rgba(255, 68, 68, 0.6)',
+                        borderRadius: '2px',
+                        verticalAlign: 'middle',
+                      }}
+                    >
+                      {t('dxClusterPanel.workedBadge.new', { defaultValue: 'NEW' })}
+                    </span>
+                  )}
+                  {badge === 'new-band' && (
+                    <span
+                      title={t('dxClusterPanel.workedBadge.newBandTooltip', {
+                        defaultValue: 'Entity worked before, but not on this band — new band slot',
+                      })}
+                      aria-label={t('dxClusterPanel.workedBadge.newBandTooltip', {
+                        defaultValue: 'Entity worked before, but not on this band — new band slot',
+                      })}
+                      style={{
+                        marginLeft: '4px',
+                        padding: '0 3px',
+                        fontSize: '8px',
+                        fontWeight: '700',
+                        letterSpacing: '0.5px',
+                        color: '#ff8844',
+                        background: 'rgba(255, 136, 68, 0.12)',
+                        border: '1px solid rgba(255, 136, 68, 0.5)',
+                        borderRadius: '2px',
+                        verticalAlign: 'middle',
+                      }}
+                    >
+                      {t('dxClusterPanel.workedBadge.newBand', { defaultValue: 'BAND' })}
+                    </span>
+                  )}
+                  {badge === 'dupe' && (
                     <span
                       title={t('dxClusterPanel.workedBadge.dupeTooltip', {
                         defaultValue: 'Already in your log on this band and mode — dupe',
@@ -652,7 +711,7 @@ export const DXClusterPanel = ({
                       {t('dxClusterPanel.workedBadge.dupe', { defaultValue: 'DUPE' })}
                     </span>
                   )}
-                  {workedStatus === 'worked' && (
+                  {badge === 'worked' && (
                     <span
                       title={t('dxClusterPanel.workedBadge.workedTooltip', {
                         defaultValue: 'In your log — worked before on a different band or mode',
