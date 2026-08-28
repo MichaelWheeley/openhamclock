@@ -38,6 +38,7 @@ export const ALERT_FEEDS = {
   dxpeditions: { label: 'DXpeditions', defaultTone: 'two-tone' },
   contests: { label: 'Contests', defaultTone: 'simple' },
   lightning: { label: 'Lightning Proximity', defaultTone: 'chirp' },
+  swpc: { label: 'Space Weather', defaultTone: 'chime' },
 };
 
 const LS_KEY = 'ohc_audio_alerts';

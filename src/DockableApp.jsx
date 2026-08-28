@@ -24,6 +24,7 @@ import {
   PSKReporterPanel,
   PSKReporterBandActivityPanel,
   APRSPanel,
+  APRSTelemetryPanel,
   MapDataListView,
   MeshComPanel,
   WeatherPanel,
@@ -38,6 +39,8 @@ import {
   DigitalModesPanel,
   WinlinkPanel,
   IBPPanel,
+  SWPCAlertsPanel,
+  MeteorShowerPanel,
 } from './components';
 import MeshtasticPanel from './components/MeshtasticPanel.jsx';
 
@@ -106,6 +109,7 @@ export const DockableApp = ({
   mySpots,
   dxpeditions,
   contests,
+  swpcAlerts,
   satellites,
   filteredSatellites,
   pskReporter,
@@ -455,8 +459,11 @@ export const DockableApp = ({
       sota: { name: 'SOTA', icon: '◆', iconColor: '#ff9632' },
       wwbota: { name: 'WWBOTA', icon: '■', iconColor: '#8b7fff' },
       aprs: { name: 'APRS', icon: '📍' },
+      'aprs-telemetry': { name: 'APRS Telemetry', icon: '📊' },
       ...(isLocalInstall ? { rotator: { name: 'Rotator', icon: '🧭' } } : {}),
       contests: { name: 'Contests', icon: '🏆' },
+      'swpc-alerts': { name: 'Space Wx Alerts', icon: '🚨' },
+      'meteor-showers': { name: 'Meteor Showers', icon: '☄️' },
       ...(hasAmbient ? { ambient: { name: 'Ambient Weather', icon: '🌦️' } } : {}),
       'rig-control': { name: 'Rig Control', icon: '📻' },
       'on-air': { name: 'On Air', icon: '🔴' },
@@ -1083,8 +1090,20 @@ export const DockableApp = ({
           );
           break;
 
+        case 'aprs-telemetry':
+          content = <APRSTelemetryPanel />;
+          break;
+
         case 'contests':
           content = <ContestPanel data={contests.data} loading={contests.loading} />;
+          break;
+
+        case 'swpc-alerts':
+          content = <SWPCAlertsPanel data={swpcAlerts?.data} loading={swpcAlerts?.loading} error={swpcAlerts?.error} />;
+          break;
+
+        case 'meteor-showers':
+          content = <MeteorShowerPanel deLat={config.location?.lat ?? null} deLon={config.location?.lon ?? null} />;
           break;
 
         case 'rotator':
@@ -1202,6 +1221,7 @@ export const DockableApp = ({
       wsjtxMapSpots,
       dxpeditions,
       contests,
+      swpcAlerts,
       pskFilters,
       wsjtx,
       handleDXChange,

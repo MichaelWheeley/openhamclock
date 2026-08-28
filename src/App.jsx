@@ -39,6 +39,7 @@ import {
   useMeshCom,
   useEmcommData,
   useIBP,
+  useSWPCAlerts,
 } from './hooks';
 
 import useAppConfig from './hooks/app/useAppConfig';
@@ -315,6 +316,12 @@ const App = () => {
   const dxClusterData = useDXClusterData(dxFilters, config);
   const dxpeditions = useDXpeditions();
   const contests = useContests();
+  const swpcAlerts = useSWPCAlerts();
+  // Audio alert only for significant space weather (R2/S2/G2 or higher)
+  const severeSwpcAlerts = useMemo(
+    () => (swpcAlerts.data || []).filter((a) => (a.scale?.level ?? 0) >= 2),
+    [swpcAlerts.data],
+  );
   // Audio alerts for new items in data feeds
   useAudioAlerts({
     pota: potaSpots.data,
@@ -324,6 +331,7 @@ const App = () => {
     dxcluster: dxClusterData.spots,
     dxpeditions: dxpeditions.data?.dxpeditions,
     contests: contests.data,
+    swpc: severeSwpcAlerts,
   });
 
   const { announcement: lightningAnnouncement } = useLightningAnnouncements();
@@ -585,6 +593,7 @@ const App = () => {
     mySpots,
     dxpeditions,
     contests,
+    swpcAlerts,
     satellites,
     pskReporter,
     wsjtx,

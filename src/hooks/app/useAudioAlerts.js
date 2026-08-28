@@ -24,6 +24,8 @@ function itemKey(feedId, item) {
       return `${item.callsign || item.call || ''}-${item.entity || item.dxcc || ''}`;
     case 'contests':
       return item.id || item.name || item.contestId || '';
+    case 'swpc':
+      return `${item.productId || ''}-${item.serial || ''}`;
     default:
       return JSON.stringify(item).substring(0, 80);
   }
@@ -92,5 +94,14 @@ export default function useAudioAlerts(feeds) {
 
       prevKeysRef.current[feedId] = currentKeys;
     }
-  }, [feeds.pota, feeds.sota, feeds.wwff, feeds.wwbota, feeds.dxcluster, feeds.dxpeditions, feeds.contests]);
+  }, [
+    feeds.pota,
+    feeds.sota,
+    feeds.wwff,
+    feeds.wwbota,
+    feeds.dxcluster,
+    feeds.dxpeditions,
+    feeds.contests,
+    feeds.swpc,
+  ]);
 }
