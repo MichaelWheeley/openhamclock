@@ -65,6 +65,10 @@ describe('formatAlertBody', () => {
     // Raw-API field names still work
     expect(formatAlertBody('sota', { activator: 'W1AW', frequency: '7.032' })).toBe('7.032 W1AW');
     expect(formatAlertBody('wwbota', {})).toBe('');
+    // CANParks shares the activation formatting
+    expect(formatAlertBody('canparks', { call: 'VE2OCH', freq: '7.074', ref: 'QC-0071' })).toBe(
+      '7.074 VE2OCH · QC-0071',
+    );
   });
 
   it('formats dx cluster spots', () => {

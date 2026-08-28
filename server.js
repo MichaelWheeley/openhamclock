@@ -252,8 +252,10 @@ Object.assign(ctx, spaceWeatherExports);
 // 3. Remaining routes (can use callsign + space-weather exports)
 require('./server/routes/rotator')(app, ctx);
 require('./server/routes/spots')(app, ctx);
+require('./server/routes/canparks')(app, ctx);
 require('./server/routes/emcomm')(app, ctx);
-require('./server/routes/swpc-alerts')(app, ctx);
+const swpcAlertsExports = require('./server/routes/swpc-alerts')(app, ctx);
+Object.assign(ctx, swpcAlertsExports); // refreshSwpcAlerts + onSwpcAlertsRefreshed (used by push.js)
 require('./server/routes/websdr')(app, ctx);
 require('./server/routes/dxpeditions')(app, ctx);
 require('./server/routes/aircraft')(app, ctx);
@@ -267,6 +269,9 @@ Object.assign(ctx, pskreporterExports);
 
 const rbnExports = require('./server/routes/rbn')(app, ctx);
 Object.assign(ctx, rbnExports);
+
+// Band-opening detection (reads rbn + dxcluster spot caches — register after both)
+require('./server/routes/band-openings')(app, ctx);
 
 require('./server/routes/satellites')(app, ctx);
 
@@ -287,6 +292,7 @@ require('./server/routes/rig-bridge')(app, ctx);
 require('./server/routes/config-routes')(app, ctx);
 require('./server/routes/geo-time')(app, ctx);
 require('./server/routes/admin')(app, ctx);
+require('./server/routes/push')(app, ctx); // Web Push (dormant without VAPID keys); needs swpc-alerts exports
 
 // Subsystem health background refresher (read by /api/health).
 const health = require('./server/health');

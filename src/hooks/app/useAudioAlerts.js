@@ -19,7 +19,8 @@ function itemKey(feedId, item) {
     case 'sota':
     case 'wwff':
     case 'wwbota':
-      return `${item.activator || item.callsign || item.call || ''}-${item.reference || item.summitCode || ''}-${item.frequency || item.freq || ''}`;
+    case 'canparks':
+      return `${item.activator || item.callsign || item.call || ''}-${item.reference || item.ref || item.summitCode || ''}-${item.frequency || item.freq || ''}`;
     case 'dxcluster':
       return `${item.dx || item.call || ''}-${item.frequency || item.freq || ''}-${item.spotter || ''}`;
     case 'dxpeditions':
@@ -111,6 +112,7 @@ export default function useAudioAlerts(feeds) {
     feeds.sota,
     feeds.wwff,
     feeds.wwbota,
+    feeds.canparks,
     feeds.dxcluster,
     feeds.dxpeditions,
     feeds.contests,

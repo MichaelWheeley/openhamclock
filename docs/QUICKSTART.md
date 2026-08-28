@@ -26,7 +26,7 @@ No install, no server, no account. Open **[openhamclock.com](https://openhamcloc
    - The **map** is the centerpiece — click anywhere to set a DX target, and the propagation panels recalculate for that path.
    - **DX Cluster** shows live spots from OpenHamClock's own cluster node. Click a spot to set it as your DX target; the 🎧 button opens a web SDR already tuned to the spot.
    - **Map layers** (gray line, satellites, aurora, MUF, and two dozen more) toggle from Settings → Map Layers or with single-key shortcuts — press the key shown next to each layer name.
-   - **POTA / SOTA / WWFF / WWBOTA** panels list who's activating right now, with markers on the map.
+   - **POTA / SOTA / WWFF / WWBOTA / CANParks** panels list who's activating right now, with markers on the map.
    - The **Logbook** panel logs QSOs right in your browser (stored locally — export ADIF for backup).
 
 Everything you configure is saved in your browser, so your setup is there when you come back.

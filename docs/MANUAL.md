@@ -202,6 +202,7 @@ In the **Dockable** layout, every panel below can be added from the **+** panel 
 - **DX Cluster** — live spots with band coloring, filtering, worked/dupe badges, click-to-tune, click-to-listen, and log-from-spot. Detailed below in [DX cluster in depth](#dx-cluster-in-depth).
 - **PSK Reporter** — who hears you (**TX** tab) and who you hear (**RX** tab) on digital modes, live via a server-side MQTT proxy with HTTP fallback. Filter by band, mode, retention window (2–15 min), callsign or grid. A gold star ★ marks _mutual_ reception — you hear them and they hear you on the same band, so a QSO is likely. A trash-can button clears all spots.
 - **POTA / SOTA / WWFF / WWBOTA** — currently active Parks, Summits, Flora & Fauna, and Bunkers on the Air activators, each with its own marker shape and color on the map (▲ green, ◆ orange, ▼ light green, ■ light purple). QRT and expired spots are filtered automatically. Band/mode/grid filters per panel; SOTA spots include summit name, altitude, and points.
+- **CANParks (next release)** — activators in the [CANParks](https://canparks.ca/) Canadian parks program, with the same panel features as its sibling programs (● maple-red map marker, band/mode/grid filters, click-to-tune, log-from-spot, worked-before badges). Spots are enriched server-side from the CANParks park directory, so each spot carries park name, grid, and coordinates; parks that are also POTA references show a muted "POTA CA-xxxx" chip. The program is young — an empty panel just means nobody is on the air from a Canadian park right now.
 - **DXpeditions** — active and upcoming DXpeditions (NG3K data) with real operating callsigns, dates, and modes.
 - **Contests** — the WA7BNM contest calendar with countdowns and links; active contests highlighted.
 - **DX News ticker** — headlines merged from DXNews.com, DX-World, and NG3K, deduplicated over 24 hours, with adjustable text size.
@@ -223,7 +224,7 @@ In the **Dockable** layout, every panel below can be added from the **+** panel 
 - **DE Location / DX Target** — station info panels: grid, coordinates, sun times, weather (collapsible), and for DX: bearing and distance (handy for aiming a beam).
 - **Analog Clock** — a classic clock face with date, sunrise, and sunset. Also available in the Classic layout via `CLASSIC_ANALOG_CLOCK=true`.
 - **Ambient Weather** — your own AmbientWeather.net station's live data (appears only when `VITE_AMBIENT_*` keys are configured).
-- **Rig Control** — current frequency and mode from your radio via Rig Bridge, with a band plan overlay on the frequency display and PTT status.
+- **Rig Control** — current frequency and mode from your radio via Rig Bridge, with a band plan overlay on the frequency display and PTT status. **(next release)** Set your US license class in Settings → Station and the band plan bar hatches out the ranges outside your privileges (Technician/General/Amateur Extra, per the FCC Part 97 / ARRL band chart); leave it on Other for no restriction display.
 - **On Air** — a big red ON AIR light driven by your rig's PTT. Point a webcam at it, or don't — it looks great either way.
 - **ID Timer** — 10-minute countdown that beeps and pops a reminder to identify; dismissing restarts it.
 - **Rotator** — compass rose, live bearing, and controls for a PSTRotator-compatible rotator (self-hosted only).
@@ -320,6 +321,7 @@ What it does:
 - **ADIF import** — bring in your existing log (`.adi`/`.adif`); duplicates are detected and skipped.
 - **ADIF export** — your whole log as a standard `.adi` file, any time. This is your backup and your bridge to LoTW/QRZ/other loggers.
 - **Worked-before everywhere** — the log feeds the DUPE/WORKED badges on spots, and (next release) the Awards panel (DXCC/WAZ/WAS/VUCC) and the Worked Grids map layer.
+- **Full backup** (next release) — one JSON file with every QSO _and_ all your settings, from **Settings → Profiles → Full Backup** (details below). Once your log tops 50 QSOs, the panel shows a small dismissable reminder when your last backup is more than a month old — **Back up now** downloads the file on the spot.
 
 QSO records are ADIF-aligned internally (band, mode, RST, grids, power, plus arbitrary extra ADIF fields), so round-trips through other software are clean.
 
@@ -384,7 +386,7 @@ The tracked-satellite list is actively audited — dead and decayed birds get re
 
 **Cloud Relay (alpha):** using the hosted site or a cloud install? The relay connects your local rig-bridge to the server with a per-session token, enabling click-to-tune, PTT status, WSJT-X decodes, and APRS from anywhere. Connect it from Settings → Rig Bridge; the session credential lives only in your browser.
 
-**Click-to-tune behavior:** works from DX cluster, POTA/SOTA/WWFF/WWBOTA, PSK Reporter, and WSJT-X panels. "Auto-set mode" switches CW/SSB/Data from the band plan; Yaesu rigs get true band-select commands so ATU and antenna memories follow.
+**Click-to-tune behavior:** works from DX cluster, POTA/SOTA/WWFF/WWBOTA (and CANParks, next release), PSK Reporter, and WSJT-X panels. "Auto-set mode" switches CW/SSB/Data from the band plan; Yaesu rigs get true band-select commands so ATU and antenna memories follow. **(next release)** With a US license class set in Settings → Station, tuning outside your privileges still tunes but shows a brief warning toast (e.g. "28.6 MHz SSB is outside Technician privileges").
 
 (The older _Rig Listener_ and _WSJT-X Relay_ standalone tools still exist but are deprecated — Rig Bridge replaces all of them.)
 
@@ -421,11 +423,17 @@ Deep dive: [docs/emcomm-roadmap.md](emcomm-roadmap.md).
 
 ## Alerts and notifications
 
-**Settings → Alerts** plays a tone when new items appear in a feed. Feeds: POTA, SOTA, WWFF, WWBOTA, DX Cluster, DXpeditions, Contests, Lightning Proximity, and Space Weather — all off by default, each with its own tone (nine Web Audio presets — no sound files) and a master volume.
+**Settings → Alerts** plays a tone when new items appear in a feed. Feeds: POTA, SOTA, WWFF, WWBOTA, CANParks (next release), DX Cluster, DXpeditions, Contests, Lightning Proximity, and Space Weather — all off by default, each with its own tone (nine Web Audio presets — no sound files) and a master volume.
 
 Sensible guardrails: no alert storm on page load or when returning to a background tab, a per-feed cooldown, and one tone per batch of new items.
 
-**Browser notifications (next release):** each feed also gets a 🔔 toggle to show an OS-level notification alongside the tone — delivered through the service worker, so they work while the tab is backgrounded. Grant permission with the master button at the top of the Alerts tab. (Notifications with the browser fully closed would need Web Push and aren't included.)
+**Browser notifications (next release):** each feed also gets a 🔔 toggle to show an OS-level notification alongside the tone — delivered through the service worker, so they work while the tab is backgrounded. Grant permission with the master button at the top of the Alerts tab.
+
+**Push with the browser closed (next release):** the **Push (Closed Browser) — Space Weather** card in Settings → Alerts subscribes your browser to true Web Push. In this first version it covers one thing, broadcast to everyone subscribed: **severe space weather alerts** — NOAA scale **2 or higher** (G2/S2/R2 and up), the same threshold as the in-app severe-alert feed. A **Send test** button verifies the whole path end-to-end. Notes:
+
+- Works on the hosted site out of the box. Push requires HTTPS and a service worker, so plain-http LAN installs can't use it (same browser rule as offline mode).
+- **Self-hosters:** the feature is dormant until you configure VAPID keys — run `npx web-push generate-vapid-keys` once and set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` (a `mailto:` contact) in your `.env` (see `.env.example`). Without keys, the card simply shows push as unavailable and nothing else changes.
+- Per-feed/per-watchlist push (your spots, your callsign) needs server-side evaluation and is planned as a later phase.
 
 ---
 
@@ -465,6 +473,10 @@ Display extras: header size slider, local-time-first clock swap, mutual-receptio
 
 A profile captures _everything_ — callsign, location, theme, layout, dock arrangement, map layers, filters, satellite selection, propagation preferences, units. Save under a name, **Load** to switch (page reloads), **Update** to overwrite, **Export/Import** as JSON to move between devices or operators. Perfect for shared shacks and contest-vs-everyday setups.
 
+**Share codes** (next release). Every saved profile also gets a 🔗 **Copy share code** button — the whole profile packed into a single `OHC1:…` string you can paste into an email, a group chat, or a forum post. The receiving side pastes it into **Import from Share Code** on the same tab and gets your layout as a new named profile. Codes are compressed and decoded entirely in the browser; nothing is uploaded anywhere.
+
+**Full Backup** (next release). The answer to "the logbook lives only in this browser": **Export Full Backup** downloads one `ohc-backup-YYYYMMDD-HHMMSS.json` containing every settings key, all saved profiles, _and_ your entire logbook. **Restore from Backup** reads such a file on a new machine (or after a browser wipe): settings are overwritten, QSOs are merged into the existing log with duplicates skipped, and you get a summary of what was restored. Callbook logins (QRZ/HamQTH) and API keys are deliberately **not** included in backup files — they stay private to each browser, so re-enter them after a restore. The tab also shows when this browser last exported a backup.
+
 ---
 
 ## Languages
@@ -486,7 +498,7 @@ A quick map of where things live (⚙ Settings, via the gear or your callsign):
 | 🎨 **Display**      | Layout, theme (+ custom theme editor), monospace font, header size, clock order, What's New on startup, mutual-reception star                                                                                                                                         |
 | 🗺️ **Map Layers**   | Every overlay layer with enable + opacity, grouped by category; DE/DX markers, DX Target panel, and DX News ticker toggles                                                                                                                                            |
 | 🛰️ **Satellites**   | Satellite selection, tracks/footprints, station altitude, minimum elevation, track duration                                                                                                                                                                           |
-| 👤 **Profiles**     | Save/load/rename/export/import named profiles; Open-Meteo API key; export current state                                                                                                                                                                               |
+| 👤 **Profiles**     | Save/load/rename/export/import named profiles; profile share codes and full backup/restore (next release); Open-Meteo API key; export current state                                                                                                                   |
 | 🌐 **Community**    | GitHub, Facebook group, Reddit; core maintainers and the contributors wall; the privacy statement (no cookies, no tracking, anonymized stats)                                                                                                                         |
 | 🔔 **Alerts**       | Per-feed audio alerts, tones, master volume, browser notifications (next release)                                                                                                                                                                                     |
 | 📻 **Rig Bridge**   | Enable/connect, downloads for each OS, API token, click-to-tune and auto-mode, plugin overview, Cloud Relay                                                                                                                                                           |

@@ -31,6 +31,7 @@ export const DEFAULT_CONFIG = {
     power: 100, // TX power in watts
     antenna: 'isotropic', // Antenna profile key
   },
+  licenseClass: 'other', // US license class for privilege shading/warnings: 'other', 'technician', 'general', 'extra'
   theme: 'dark', // 'dark', 'light', 'legacy', or 'retro'
   layout: 'modern', // 'modern' or 'classic'
   mouseZoom: 50, // Factor to affect rate of zooming with scrollwheel (1-100)
@@ -214,6 +215,7 @@ const SYNC_KEYS = [
   'openhamclock_sotaFilters',
   'openhamclock_wwffFilters',
   'openhamclock_wwbotaFilters',
+  'openhamclock_canparksFilters',
   'openhamclock_pskPanelMode',
   'openhamclock_bandColors',
   'openhamclock_satelliteFilters',

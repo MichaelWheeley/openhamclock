@@ -26,6 +26,7 @@ const SNAPSHOT_KEYS = [
   'openhamclock_sotaFilters',
   'openhamclock_wwffFilters',
   'openhamclock_wwbotaFilters',
+  'openhamclock_canparksFilters',
   'openhamclock_pskPanelMode',
   'openhamclock_bandColors',
   'openhamclock_satelliteFilters',
@@ -246,4 +247,109 @@ export function updateActiveProfile() {
   const name = getActiveProfile();
   if (!name) return false;
   return saveProfile(name);
+}
+
+// ── Share codes ─────────────────────────────────────────────────────────────
+// A share code is a profile export packed into a single copy-pasteable
+// string: `OHC1:` + base64url(payload bytes). The payload is the profile
+// JSON, gzip-compressed via the built-in CompressionStream when the browser
+// has it, or plain UTF-8 JSON otherwise. The decoder tells the two apart by
+// the gzip magic bytes (0x1f 0x8b), so codes from either encoder are
+// interchangeable. Pure client-side — nothing touches a server.
+
+export const SHARE_CODE_PREFIX = 'OHC1:';
+
+const bytesToBase64Url = (bytes) => {
+  let bin = '';
+  const CHUNK = 0x8000; // avoid call-stack limits on large profiles
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
+const base64UrlToBytes = (str) => {
+  const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+};
+
+const hasStreamSupport = () => typeof Response === 'function' && typeof ReadableStream === 'function';
+const hasCompressionStream = () => typeof CompressionStream === 'function' && hasStreamSupport();
+const hasDecompressionStream = () => typeof DecompressionStream === 'function' && hasStreamSupport();
+
+const pipeBytes = async (bytes, transform) => {
+  const source = new ReadableStream({
+    start(controller) {
+      controller.enqueue(bytes);
+      controller.close();
+    },
+  });
+  return new Uint8Array(await new Response(source.pipeThrough(transform)).arrayBuffer());
+};
+
+/**
+ * Encode an arbitrary JSON-serializable object as an OHC1 share code.
+ * Uses gzip when CompressionStream is available; falls back to plain
+ * base64url JSON otherwise (feature-detected, not assumed).
+ */
+export async function encodeShareCode(obj) {
+  const json = JSON.stringify(obj);
+  const raw = new TextEncoder().encode(json);
+  let payload = raw;
+  if (hasCompressionStream()) {
+    try {
+      payload = await pipeBytes(raw, new CompressionStream('gzip'));
+    } catch {
+      payload = raw; // compression failed — plain JSON still round-trips
+    }
+  }
+  return SHARE_CODE_PREFIX + bytesToBase64Url(payload);
+}
+
+/**
+ * Decode an OHC1 share code back to its object.
+ * Returns null for anything that is not a valid code (bad prefix, bad
+ * base64, bad JSON, or a gzip payload in a browser without
+ * DecompressionStream).
+ */
+export async function decodeShareCode(code) {
+  try {
+    const trimmed = String(code || '').trim();
+    if (!trimmed.startsWith(SHARE_CODE_PREFIX)) return null;
+    let bytes = base64UrlToBytes(trimmed.slice(SHARE_CODE_PREFIX.length));
+    if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
+      if (!hasDecompressionStream()) return null; // gzip code, no way to inflate
+      bytes = await pipeBytes(bytes, new DecompressionStream('gzip'));
+    }
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build a share code for a saved profile.
+ * Returns the code string, or null if the profile doesn't exist.
+ */
+export async function exportProfileShareCode(name) {
+  const profiles = getProfiles();
+  const profile = profiles[name];
+  if (!profile?.snapshot) return null;
+  return encodeShareCode({ name, version: 1, snapshot: profile.snapshot });
+}
+
+/**
+ * Import a profile from a share code and save it under a new name
+ * (suffixed if the name is taken). Returns the saved name, or null on
+ * any validation failure.
+ */
+export async function importProfileFromShareCode(code) {
+  const data = await decodeShareCode(code);
+  if (!data || typeof data !== 'object' || !data.name || !data.snapshot || typeof data.snapshot !== 'object') {
+    return null;
+  }
+  return importProfile(JSON.stringify({ name: String(data.name), snapshot: data.snapshot }));
 }

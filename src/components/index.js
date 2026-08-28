@@ -14,6 +14,7 @@ export { default as MeshComPanel } from './MeshComPanel.jsx';
 export { WWFFPanel } from './WWFFPanel.jsx';
 export { SOTAPanel } from './SOTAPanel.jsx';
 export { WWBOTAPanel } from './WWBOTAPanel.jsx';
+export { CANParksPanel } from './CANParksPanel.jsx';
 export { PotaSotaPanel } from './PotaSotaPanel.jsx';
 export { ContestPanel } from './ContestPanel.jsx';
 export { LocationPanel } from './LocationPanel.jsx';

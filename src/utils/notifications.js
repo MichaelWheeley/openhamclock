@@ -64,7 +64,8 @@ export function formatAlertBody(feedId, item) {
     case 'pota':
     case 'sota':
     case 'wwff':
-    case 'wwbota': {
+    case 'wwbota':
+    case 'canparks': {
       // Hook-normalized spots: { call, ref, freq (MHz string), mode }
       const freq = item.freq || item.frequency || '';
       const call = item.call || item.activator || item.callsign || '';
