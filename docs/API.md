@@ -137,7 +137,7 @@ called out in release notes.
 | `/api/band-openings`   | Detected band openings from live spot analysis                                                                    | ~1 min       |
 | `/api/satellites/data` | Tracked amateur satellite orbital elements (OMM)                                                                  | ~1 h         |
 | `/api/ionosonde`       | Live ionosonde soundings (foF2/MUF from GIRO via KC2G)                                                            | ~15 min      |
-| `/api/contests`        | Upcoming contest calendar                                                                                         | ~30 min      |
+| `/api/contests`        | Contest calendar (WA7BNM iCal, RSS fallback). Returns `{ contests, source, fetchedAt }`                           | ~30 min      |
 | `/api/health`          | Instance health/uptime probe                                                                                      | none         |
 
 ```bash

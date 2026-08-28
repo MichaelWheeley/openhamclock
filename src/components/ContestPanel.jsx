@@ -72,7 +72,10 @@ export const ContestPanel = ({ data, loading }) => {
         return 'var(--accent-purple)';
       case 'FT8':
       case 'FT4':
+      case 'Digital':
         return 'var(--accent-green)';
+      case 'VHF':
+        return 'var(--accent-blue)';
       case 'Mixed':
         return 'var(--text-secondary)';
       default:
