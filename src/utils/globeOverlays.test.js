@@ -37,6 +37,12 @@ function mockCtx() {
     'fillRect',
     'clearRect',
     'fillText',
+    'arc',
+    'closePath',
+    'translate',
+    'rotate',
+    'setLineDash',
+    'drawImage',
   ]) {
     ctx[m] = (...args) => calls.push([m, ...args]);
   }
@@ -394,8 +400,22 @@ describe('paintWorkedGrids', () => {
 });
 
 describe('painter registry', () => {
-  it('registers the five globe-capable layers under their plugin ids', () => {
-    expect(GLOBE_OVERLAY_LAYER_IDS).toEqual(['maidenhead', 'zones', 'drap', 'aurora', 'worked-grids']);
+  it('registers every globe-capable layer under its plugin id, rasters first', () => {
+    expect(GLOBE_OVERLAY_LAYER_IDS).toEqual([
+      'wxradar',
+      'drap',
+      'aurora',
+      'worked-grids',
+      'maidenhead',
+      'zones',
+      'atc-sectors',
+      'tornado-warnings',
+      'earthquakes',
+      'wildfires',
+      'floods',
+      'aircraft',
+      'lightning',
+    ]);
     for (const id of GLOBE_OVERLAY_LAYER_IDS) {
       expect(typeof GLOBE_OVERLAY_PAINTERS[id]).toBe('function');
     }
@@ -407,5 +427,173 @@ describe('painter registry', () => {
     expect(GLOBE_OVERLAY_PAINTERS.drap).toBe(paintDrap);
     expect(GLOBE_OVERLAY_PAINTERS.aurora).toBe(paintAurora);
     expect(GLOBE_OVERLAY_PAINTERS['worked-grids']).toBe(paintWorkedGrids);
+  });
+});
+
+describe('new painters (globe parity batch)', () => {
+  const W = 2048;
+  const H = 1024;
+  const {
+    wxradar: paintWxRadar,
+    lightning: paintLightning,
+    earthquakes: paintEarthquakes,
+    wildfires: paintWildfires,
+    floods: paintFloods,
+    'tornado-warnings': paintTornadoWarnings,
+    aircraft: paintAircraft,
+    'atc-sectors': paintATCSectors,
+  } = GLOBE_OVERLAY_PAINTERS;
+
+  it('all paint nothing without data (the shared contract)', () => {
+    for (const painter of [
+      paintWxRadar,
+      paintLightning,
+      paintEarthquakes,
+      paintWildfires,
+      paintFloods,
+      paintTornadoWarnings,
+      paintAircraft,
+      paintATCSectors,
+    ]) {
+      const ctx = mockCtx();
+      painter(ctx, { width: W, height: H, opacity: 0.8, data: null });
+      expect(ctx.calls.filter((c) => !['save', 'restore'].includes(c[0]))).toEqual([]);
+    }
+  });
+
+  it('wxradar draws the pre-fetched image full-canvas at layer opacity', () => {
+    const ctx = mockCtx();
+    const img = { width: 2048, height: 1024 };
+    paintWxRadar(ctx, { width: W, height: H, opacity: 0.6, data: img });
+    expect(of(ctx, 'drawImage')[0]).toEqual(['drawImage', img, 0, 0, W, H]);
+    expect(of(ctx, 'set:globalAlpha')[0][1]).toBe(0.6);
+  });
+
+  it('lightning ages strikes white → yellow → fading, drops >30 min', () => {
+    const now = Date.now();
+    const ctx = mockCtx();
+    paintLightning(ctx, {
+      width: W,
+      height: H,
+      opacity: 1,
+      data: [
+        { lat: 0, lon: 0, timestamp: now - 30_000 }, // fresh → white
+        { lat: 10, lon: 10, timestamp: now - 5 * 60_000 }, // → yellow
+        { lat: 20, lon: 20, timestamp: now - 60 * 60_000 }, // too old → dropped
+      ],
+    });
+    const fills = of(ctx, 'set:fillStyle').map((c) => c[1]);
+    expect(fills).toHaveLength(2);
+    expect(fills[0]).toContain('255,255,255');
+    expect(fills[1]).toContain('255,221,64');
+    expect(of(ctx, 'arc')).toHaveLength(2);
+  });
+
+  it('earthquakes scale ring radius with magnitude and go red at M5+', () => {
+    const ctx = mockCtx();
+    paintEarthquakes(ctx, {
+      width: W,
+      height: H,
+      opacity: 1,
+      data: [
+        { geometry: { coordinates: [0, 0, 10] }, properties: { mag: 2 } },
+        { geometry: { coordinates: [10, 10, 10] }, properties: { mag: 6 } },
+      ],
+    });
+    const arcs = of(ctx, 'arc');
+    expect(arcs).toHaveLength(2);
+    expect(arcs[1][3]).toBeGreaterThan(arcs[0][3]); // bigger mag → bigger ring
+    const strokes = of(ctx, 'set:strokeStyle').map((c) => c[1]);
+    expect(strokes[1]).toContain('255,68,68');
+  });
+
+  it('EONET painters use the LAST geometry entry (current position)', () => {
+    const ctx = mockCtx();
+    paintWildfires(ctx, {
+      width: W,
+      height: H,
+      opacity: 1,
+      data: [{ geometry: [{ coordinates: [0, 0] }, { coordinates: [90, 45] }] }],
+    });
+    // glow arc + core arc, both at the projected position of [90, 45]
+    const arcs = of(ctx, 'arc');
+    expect(arcs).toHaveLength(2);
+    expect(arcs[0][1]).toBeCloseTo(((90 + 180) / 360) * W, 0);
+    expect(arcs[0][2]).toBeCloseTo(((90 - 45) / 180) * H, 0);
+
+    const ctx2 = mockCtx();
+    paintFloods(ctx2, { width: W, height: H, opacity: 1, data: [{ geometry: [{ coordinates: [10, -20] }] }] });
+    expect(of(ctx2, 'arc')).toHaveLength(2);
+  });
+
+  it('tornado warnings fill AND stroke each polygon', () => {
+    const ctx = mockCtx();
+    paintTornadoWarnings(ctx, {
+      width: W,
+      height: H,
+      opacity: 1,
+      data: [
+        {
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [-97, 35],
+                [-96, 35],
+                [-96, 36],
+                [-97, 35],
+              ],
+            ],
+          },
+        },
+      ],
+    });
+    expect(of(ctx, 'fill')).toHaveLength(1);
+    expect(of(ctx, 'stroke')).toHaveLength(1);
+    expect(of(ctx, 'closePath')).toHaveLength(1);
+  });
+
+  it('aircraft draws one rotated dart per plane and skips null positions', () => {
+    const ctx = mockCtx();
+    paintAircraft(ctx, {
+      width: W,
+      height: H,
+      opacity: 1,
+      data: [
+        { lat: 40, lon: -100, heading: 90 },
+        { lat: null, lon: 5, heading: 0 },
+      ],
+    });
+    expect(of(ctx, 'rotate')).toHaveLength(1);
+    expect(of(ctx, 'closePath')).toHaveLength(1);
+  });
+
+  it('ATC sectors dash oceanic boundaries and stroke the rest solid', () => {
+    const ctx = mockCtx();
+    const square = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 0],
+        ],
+      ],
+    };
+    paintATCSectors(ctx, {
+      width: W,
+      height: H,
+      opacity: 1,
+      data: {
+        sectors: [
+          { geometry: square, oceanic: false },
+          { geometry: square, oceanic: true },
+        ],
+      },
+    });
+    const dashes = of(ctx, 'setLineDash').map((c) => c[1]);
+    expect(dashes).toEqual([[], [6, 5]]);
+    expect(of(ctx, 'stroke')).toHaveLength(2);
   });
 });

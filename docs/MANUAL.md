@@ -71,6 +71,8 @@ A projection toggle on the map switches between three views:
 
 All spot traffic (DX cluster, POTA/SOTA/WWFF/WWBOTA, PSKReporter, WSJT-X) and map overlays render in all three projections. On the globe, zooming in on a satellite swaps its dot for a 3D model — the ISS uses NASA's actual station model; other birds get procedural models matched to their type.
 
+**(Next release)** The globe's overlay coverage now includes the weather and hazard layers: NEXRAD radar, live lightning, earthquakes, wildfires, floods/severe storms, tornado warnings, live aircraft, and ATC sectors all paint onto the 3D globe (joining aurora, D-RAP, zones, Maidenhead, and worked grids). **(Next release)** The **moon** also appears in the 3D scene — at its real position over the Earth, showing its actual current phase via NASA's Dial-A-Moon imagery, refreshed hourly. Size and distance are compressed so it's visible (a to-scale moon would be a sub-pixel dot thirty Earth-widths away); the Earth occludes it correctly as it sets. Both are skipped in Low Memory Mode.
+
 ### Basemap styles
 
 Pick the base tiles from the style dropdown on the map: **Dark** (default), **Satellite** (with real polar imagery on the globe), **Modis Truecolor** (NASA GIBS), **Terrain**, **Streets**, **Topo**, **Ocean**, **Hybrid**, **Gray**, **Nat Geo**, and **Countries**.

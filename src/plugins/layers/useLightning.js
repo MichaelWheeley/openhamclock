@@ -21,7 +21,9 @@ export const metadata = {
 };
 
 // LZW decompression - Blitzortung uses LZW compression for WebSocket data
-function lzwDecode(compressed) {
+// Exported for the 3D globe's lightning overlay, which opens its own
+// Blitzortung socket (the Leaflet layer hooks never mount in globe mode).
+export function lzwDecode(compressed) {
   const dict = {};
   const data = compressed.split('');
   let currChar = data[0];

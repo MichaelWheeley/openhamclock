@@ -411,17 +411,250 @@ export function paintWorkedGrids(ctx, { width, height, opacity = 0.6, data }) {
   ctx.restore();
 }
 
+/**
+ * NEXRAD radar composite as one pre-fetched equirect image.
+ * data: an HTMLImageElement/ImageBitmap already loaded by Globe3D's fetch
+ * effect from the mesonet WMS in EPSG:4326 over the full world extent —
+ * pixel-aligned with the overlay canvas, so a single drawImage suffices.
+ * (The painter contract forbids fetching here.)
+ */
+export function paintWxRadar(ctx, { width, height, opacity = 0.7, data }) {
+  if (!data || !data.width) return;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, opacity);
+  try {
+    ctx.drawImage(data, 0, 0, width, height);
+  } catch {
+    // decode failure — skip quietly, next refresh replaces the image
+  }
+  ctx.restore();
+}
+
+/**
+ * Lightning strikes, aged white → yellow → fading orange.
+ * data: [{ lat, lon, timestamp(ms) }] from the Blitzortung socket Globe3D
+ * opens in globe mode (the Leaflet layer's socket never runs in 3D).
+ */
+export function paintLightning(ctx, { width, height, opacity = 0.9, data }) {
+  if (!Array.isArray(data) || !data.length) return;
+  const now = Date.now();
+  const r = Math.max(1.5, (width / 2048) * 2.2);
+  ctx.save();
+  for (const strike of data) {
+    const ageMin = (now - strike.timestamp) / 60000;
+    if (ageMin > 30) continue;
+    const color =
+      ageMin < 2
+        ? `rgba(255,255,255,${opacity})`
+        : ageMin < 10
+          ? `rgba(255,221,64,${opacity * 0.85})`
+          : `rgba(255,140,50,${opacity * Math.max(0.15, 1 - ageMin / 30)})`;
+    const x = lonToX(strike.lon, width);
+    const y = latToY(strike.lat, height);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/**
+ * Earthquakes as magnitude-scaled rings.
+ * data: USGS GeoJSON features (geometry.coordinates = [lon, lat, depthKm],
+ * properties.mag).
+ */
+export function paintEarthquakes(ctx, { width, height, opacity = 0.8, data }) {
+  if (!Array.isArray(data) || !data.length) return;
+  const k = width / 2048;
+  ctx.save();
+  ctx.lineWidth = Math.max(1, k * 1.5);
+  for (const f of data) {
+    const coords = f?.geometry?.coordinates;
+    if (!Array.isArray(coords)) continue;
+    const mag = f?.properties?.mag ?? 0;
+    const x = lonToX(coords[0], width);
+    const y = latToY(coords[1], height);
+    const r = Math.max(2, mag * 2.2) * k;
+    const strong = mag >= 5;
+    ctx.strokeStyle = strong ? `rgba(255,68,68,${opacity})` : `rgba(255,170,40,${opacity * 0.9})`;
+    ctx.fillStyle = strong ? `rgba(255,68,68,${opacity * 0.25})` : `rgba(255,170,40,${opacity * 0.2})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// EONET events share one position convention: last geometry entry.
+const eonetPosition = (event) => {
+  const geom = event?.geometry;
+  const last = Array.isArray(geom) && geom.length ? geom[geom.length - 1] : null;
+  const coords = last?.coordinates;
+  return Array.isArray(coords) && coords.length >= 2 ? { lon: coords[0], lat: coords[1] } : null;
+};
+
+/** Wildfires — warm dots with a soft glow. data: NASA EONET events. */
+export function paintWildfires(ctx, { width, height, opacity = 0.85, data }) {
+  if (!Array.isArray(data) || !data.length) return;
+  const k = width / 2048;
+  ctx.save();
+  for (const event of data) {
+    const pos = eonetPosition(event);
+    if (!pos) continue;
+    const x = lonToX(pos.lon, width);
+    const y = latToY(pos.lat, height);
+    ctx.fillStyle = `rgba(255,120,40,${opacity * 0.25})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 5 * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(255,80,30,${opacity})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 2.2 * k, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** Floods and severe storms — blue dots. data: NASA EONET events. */
+export function paintFloods(ctx, { width, height, opacity = 0.85, data }) {
+  if (!Array.isArray(data) || !data.length) return;
+  const k = width / 2048;
+  ctx.save();
+  for (const event of data) {
+    const pos = eonetPosition(event);
+    if (!pos) continue;
+    const x = lonToX(pos.lon, width);
+    const y = latToY(pos.lat, height);
+    ctx.fillStyle = `rgba(80,150,255,${opacity * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 4.5 * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(60,130,255,${opacity})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 2 * k, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Shared polygon walker for GeoJSON Polygon/MultiPolygon geometries with
+// antimeridian breaking (same convention as paintZones).
+function tracePolygon(ctx, geom, width, height) {
+  const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+  for (const poly of polys) {
+    if (!Array.isArray(poly)) continue;
+    for (const ring of poly) {
+      if (!Array.isArray(ring) || ring.length < 2) continue;
+      ctx.beginPath();
+      let prevLon = null;
+      for (const pt of ring) {
+        const x = lonToX(pt[0], width);
+        const y = latToY(pt[1], height);
+        if (prevLon === null || Math.abs(pt[0] - prevLon) > 180) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        prevLon = pt[0];
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+}
+
+/**
+ * Active tornado warnings — filled red polygons.
+ * data: api.weather.gov alert features (geometry Polygon|MultiPolygon).
+ */
+export function paintTornadoWarnings(ctx, { width, height, opacity = 0.8, data }) {
+  if (!Array.isArray(data) || !data.length) return;
+  ctx.save();
+  ctx.strokeStyle = `rgba(255,60,60,${opacity})`;
+  ctx.fillStyle = `rgba(255,60,60,${opacity * 0.3})`;
+  ctx.lineWidth = Math.max(1, (width / 2048) * 1.5);
+  for (const f of data) {
+    if (f?.geometry) tracePolygon(ctx, f.geometry, width, height);
+  }
+  ctx.restore();
+}
+
+/**
+ * ATC sectors — boundary strokes, oceanic sectors dashed cyan.
+ * data: { sectors: [{ geometry, oceanic }] } from /api/atc/sectors
+ * (geometries pre-densified by Globe3D's fetch effect).
+ */
+export function paintATCSectors(ctx, { width, height, opacity = 0.7, data }) {
+  const sectors = data?.sectors;
+  if (!Array.isArray(sectors) || !sectors.length) return;
+  ctx.save();
+  ctx.lineWidth = Math.max(1, (width / 2048) * 1.2);
+  ctx.fillStyle = 'rgba(0,0,0,0)';
+  for (const sector of sectors) {
+    if (!sector?.geometry) continue;
+    if (sector.oceanic) {
+      ctx.strokeStyle = `rgba(73,199,217,${opacity * 0.8})`;
+      ctx.setLineDash([6, 5]);
+    } else {
+      ctx.strokeStyle = `rgba(111,159,255,${opacity * 0.8})`;
+      ctx.setLineDash([]);
+    }
+    tracePolygon(ctx, sector.geometry, width, height);
+  }
+  ctx.restore();
+}
+
+/**
+ * Live aircraft — small heading-oriented darts.
+ * data: [{ lat, lon, heading }] from /api/aircraft (world-wide; capped by
+ * Globe3D's fetch effect).
+ */
+export function paintAircraft(ctx, { width, height, opacity = 0.9, data }) {
+  if (!Array.isArray(data) || !data.length) return;
+  const k = width / 2048;
+  const size = 4.5 * k;
+  ctx.save();
+  ctx.fillStyle = `rgba(127,212,255,${opacity})`;
+  for (const plane of data) {
+    if (plane.lat == null || plane.lon == null) continue;
+    const x = lonToX(plane.lon, width);
+    const y = latToY(plane.lat, height);
+    const theta = (((plane.heading ?? 0) - 90) * Math.PI) / 180; // 0° = north/up
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(theta + Math.PI / 2);
+    ctx.beginPath();
+    ctx.moveTo(0, -size);
+    ctx.lineTo(size * 0.6, size);
+    ctx.lineTo(0, size * 0.55);
+    ctx.lineTo(-size * 0.6, size);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 // ── Registry ───────────────────────────────────────────────
 // layerId → painter, keyed by the plugin layer ids from layerRegistry.js.
 // Adding a globe rendering for another layer = add a painter here (plus its
 // data fetch in Globe3D's overlay-data effects); WorldMap's suppressed-layers
 // note picks the id up automatically via GLOBE_OVERLAY_LAYER_IDS.
+// Ordered: rasters first, area fills, then lines, then point markers on top.
 export const GLOBE_OVERLAY_PAINTERS = {
-  maidenhead: paintMaidenhead,
-  zones: paintZones,
+  wxradar: paintWxRadar,
   drap: paintDrap,
   aurora: paintAurora,
   'worked-grids': paintWorkedGrids,
+  maidenhead: paintMaidenhead,
+  zones: paintZones,
+  'atc-sectors': paintATCSectors,
+  'tornado-warnings': paintTornadoWarnings,
+  earthquakes: paintEarthquakes,
+  wildfires: paintWildfires,
+  floods: paintFloods,
+  aircraft: paintAircraft,
+  lightning: paintLightning,
 };
 
 // Plugin layer ids the globe can draw itself (satellites render natively and

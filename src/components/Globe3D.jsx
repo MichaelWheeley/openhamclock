@@ -18,7 +18,8 @@ import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { getBandColor, getBandFromFreq } from '../utils/callsign.js';
-import { getSunPosition } from '../utils/geo.js';
+import { getSunPosition, getMoonPosition, densifyGeoJson } from '../utils/geo.js';
+import { lzwDecode } from '../plugins/layers/useLightning.js';
 import { MAP_STYLES } from '../utils/config.js';
 import { buildGlobeTexture, buildGlobeDetailPatch, chooseGlobeTileZoom } from '../utils/globeTexture.js';
 import { classifySatellite, getArchetypeTemplate, loadIssTemplate } from '../utils/satelliteModels.js';
@@ -1199,6 +1200,88 @@ export default function Globe3D({
     return () => clearInterval(id);
   }, [lowMem]);
 
+  // ── Moon: real position, real phase ──────────────────────
+  // A sprite textured with NASA's Dial-A-Moon render (already proxied at
+  // /api/moon-image, hourly) — the photo shows the actual current phase and
+  // libration, so no phase shader is needed. Additive blending makes the
+  // image's black background vanish against space. Placement follows the
+  // real sublunar point (getMoonPosition) at a compressed distance: far
+  // outside the camera's 8-unit orbit ceiling but inside the starfield, at
+  // an exaggerated size so it reads as the moon rather than a pixel (the
+  // true angular size at this distance would be invisible). Earth occludes
+  // it naturally via the depth test. Skipped in low-memory mode.
+  useEffect(() => {
+    if (lowMem) return undefined;
+    const s = gl.current;
+    if (!s.scene) return undefined;
+
+    const MOON_DIST = 12; // world units (camera maxDistance is 8, starfield ~22+)
+    const MOON_SIZE = 0.85; // sprite diameter in world units
+
+    const material = new THREE.SpriteMaterial({
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      depthTest: true,
+      transparent: true,
+    });
+    const moon = new THREE.Sprite(material);
+    moon.scale.set(MOON_SIZE, MOON_SIZE, 1);
+    moon.visible = false; // until the texture arrives
+    s.scene.add(moon);
+
+    let alive = true;
+    let lastImageBucket = null;
+    const loader = new THREE.TextureLoader();
+
+    const updatePosition = () => {
+      const pos = getMoonPosition(new Date());
+      latLonToVec3(pos.lat, pos.lon, MOON_DIST, moon.position);
+      s.requestRender?.();
+    };
+
+    const updateTexture = () => {
+      const bucket = Math.floor(Date.now() / 3600_000);
+      if (bucket === lastImageBucket) return;
+      lastImageBucket = bucket;
+      loader.load(
+        `/api/moon-image?t=${bucket}`,
+        (texture) => {
+          if (!alive) {
+            texture.dispose();
+            return;
+          }
+          texture.colorSpace = THREE.SRGBColorSpace;
+          const old = material.map;
+          material.map = texture;
+          material.needsUpdate = true;
+          old?.dispose();
+          moon.visible = true;
+          s.requestRender?.();
+        },
+        undefined,
+        () => {
+          // image unavailable — retry next hourly tick
+          lastImageBucket = null;
+        },
+      );
+    };
+
+    updatePosition();
+    updateTexture();
+    const posId = setInterval(updatePosition, 60_000);
+    const texId = setInterval(updateTexture, 600_000); // checks the hour bucket
+
+    return () => {
+      alive = false;
+      clearInterval(posId);
+      clearInterval(texId);
+      s.scene?.remove(moon);
+      material.map?.dispose();
+      material.dispose();
+      s.requestRender?.();
+    };
+  }, [lowMem]);
+
   // ── Plugin overlay layers (Maidenhead / zones / D-RAP / aurora / worked grids) ──────
   // The globe-capable subset of the plugin layers, driven by the same
   // enabled/opacity states the flat map persists (openhamclock_mapSettings
@@ -1211,10 +1294,26 @@ export default function Globe3D({
   const auroraOverlayOn = !lowMem && !!overlayLayerStates?.aurora?.enabled;
   const zonesOverlayOn = !lowMem && !!overlayLayerStates?.zones?.enabled;
   const workedGridsOverlayOn = !lowMem && !!overlayLayerStates?.['worked-grids']?.enabled;
+  const wxradarOverlayOn = !lowMem && !!overlayLayerStates?.wxradar?.enabled;
+  const lightningOverlayOn = !lowMem && !!overlayLayerStates?.lightning?.enabled;
+  const earthquakesOverlayOn = !lowMem && !!overlayLayerStates?.earthquakes?.enabled;
+  const wildfiresOverlayOn = !lowMem && !!overlayLayerStates?.wildfires?.enabled;
+  const floodsOverlayOn = !lowMem && !!overlayLayerStates?.floods?.enabled;
+  const tornadoOverlayOn = !lowMem && !!overlayLayerStates?.['tornado-warnings']?.enabled;
+  const aircraftOverlayOn = !lowMem && !!overlayLayerStates?.aircraft?.enabled;
+  const atcOverlayOn = !lowMem && !!overlayLayerStates?.['atc-sectors']?.enabled;
   const [overlayDrap, setOverlayDrap] = useState(null);
   const [overlayAurora, setOverlayAurora] = useState(null);
   const [overlayZones, setOverlayZones] = useState(null);
   const [overlayWorkedGrids, setOverlayWorkedGrids] = useState(null);
+  const [overlayWxRadar, setOverlayWxRadar] = useState(null);
+  const [overlayLightning, setOverlayLightning] = useState(null);
+  const [overlayEarthquakes, setOverlayEarthquakes] = useState(null);
+  const [overlayWildfires, setOverlayWildfires] = useState(null);
+  const [overlayFloods, setOverlayFloods] = useState(null);
+  const [overlayTornado, setOverlayTornado] = useState(null);
+  const [overlayAircraft, setOverlayAircraft] = useState(null);
+  const [overlayATC, setOverlayATC] = useState(null);
 
   useEffect(() => {
     if (!drapOverlayOn) return undefined;
@@ -1298,6 +1397,253 @@ export default function Globe3D({
     });
   }, [workedGridsOverlayOn]);
 
+  // NEXRAD radar: one full-extent EPSG:4326 WMS image, pixel-aligned with
+  // the 2048×1024 overlay canvas (n0r covers CONUS; elsewhere transparent).
+  // crossOrigin keeps the canvas clean for WebGL texture upload.
+  useEffect(() => {
+    if (!wxradarOverlayOn) return undefined;
+    let alive = true;
+    const fetchRadar = () => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        if (alive) setOverlayWxRadar(img);
+      };
+      img.onerror = () => {
+        if (alive) console.warn('[Globe3D] radar WMS image failed');
+      };
+      img.src =
+        'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi' +
+        '?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=nexrad-n0r' +
+        '&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=2048&HEIGHT=1024' +
+        '&FORMAT=image/png&TRANSPARENT=true&t=' +
+        Math.floor(Date.now() / 120_000); // 2-min buckets, like the flat layer
+    };
+    fetchRadar();
+    const id = setInterval(fetchRadar, 120_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      setOverlayWxRadar(null);
+    };
+  }, [wxradarOverlayOn]);
+
+  // Lightning: own Blitzortung socket (the Leaflet layer's socket never runs
+  // in globe mode). Strikes are buffered and flushed to state every 10 s —
+  // a deliberate cadence compromise between liveness and the globe's
+  // render-on-change design (each flush repaints the whole overlay canvas).
+  useEffect(() => {
+    if (!lightningOverlayOn) return undefined;
+    let alive = true;
+    let ws = null;
+    let serverIdx = 0;
+    const servers = [
+      'wss://ws8.blitzortung.org',
+      'wss://ws7.blitzortung.org',
+      'wss://ws2.blitzortung.org',
+      'wss://ws1.blitzortung.org',
+    ];
+    const buffer = [];
+    const flush = setInterval(() => {
+      if (!alive || !buffer.length) return;
+      const cutoff = Date.now() - 30 * 60 * 1000;
+      const kept = buffer.filter((s) => s.timestamp > cutoff).slice(-500);
+      buffer.length = 0;
+      buffer.push(...kept);
+      setOverlayLightning([...kept]);
+    }, 10_000);
+    const connect = () => {
+      if (!alive) return;
+      try {
+        ws = new WebSocket(servers[serverIdx % servers.length]);
+        ws.onopen = () => ws.send(JSON.stringify({ a: 111 }));
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(lzwDecode(event.data));
+            if (data.time && data.lat != null && data.lon != null) {
+              buffer.push({
+                lat: parseFloat(data.lat),
+                lon: parseFloat(data.lon),
+                timestamp: parseInt(data.time / 1000000, 10),
+              });
+            }
+          } catch {}
+        };
+        ws.onerror = () => {
+          serverIdx++;
+          try {
+            ws.close();
+          } catch {}
+        };
+        ws.onclose = () => {
+          if (alive) setTimeout(connect, 5000);
+        };
+      } catch {
+        serverIdx++;
+        if (alive) setTimeout(connect, 5000);
+      }
+    };
+    connect();
+    return () => {
+      alive = false;
+      clearInterval(flush);
+      try {
+        ws?.close();
+      } catch {}
+      setOverlayLightning(null);
+    };
+  }, [lightningOverlayOn]);
+
+  // Earthquakes: same USGS feed choice the flat layer persists.
+  useEffect(() => {
+    if (!earthquakesOverlayOn) return undefined;
+    let alive = true;
+    let feed = '2.5_day';
+    try {
+      feed = localStorage.getItem('earthquake-feed') || '2.5_day';
+    } catch {}
+    const fetchQuakes = async () => {
+      try {
+        const res = await fetch(`https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/${feed}.geojson`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive && Array.isArray(data.features)) setOverlayEarthquakes(data.features.slice(0, 100));
+      } catch (err) {
+        console.error('[Globe3D] earthquakes fetch error:', err);
+      }
+    };
+    fetchQuakes();
+    const id = setInterval(fetchQuakes, 300_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      setOverlayEarthquakes(null);
+    };
+  }, [earthquakesOverlayOn]);
+
+  // Wildfires + floods: NASA EONET open events, same feeds as the flat layers.
+  useEffect(() => {
+    if (!wildfiresOverlayOn) return undefined;
+    let alive = true;
+    const fetchFires = async () => {
+      try {
+        const res = await fetch('https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive && Array.isArray(data.events)) setOverlayWildfires(data.events.slice(0, 150));
+      } catch (err) {
+        console.error('[Globe3D] wildfires fetch error:', err);
+      }
+    };
+    fetchFires();
+    const id = setInterval(fetchFires, 600_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      setOverlayWildfires(null);
+    };
+  }, [wildfiresOverlayOn]);
+
+  useEffect(() => {
+    if (!floodsOverlayOn) return undefined;
+    let alive = true;
+    const fetchFloods = async () => {
+      try {
+        const [floods, storms] = await Promise.all([
+          fetch('https://eonet.gsfc.nasa.gov/api/v3/events?category=floods&status=open').then((r) =>
+            r.ok ? r.json() : null,
+          ),
+          fetch('https://eonet.gsfc.nasa.gov/api/v3/events?category=severeStorms&status=open').then((r) =>
+            r.ok ? r.json() : null,
+          ),
+        ]);
+        const events = [...(floods?.events || []), ...(storms?.events || [])];
+        if (alive && events.length) setOverlayFloods(events.slice(0, 150));
+      } catch (err) {
+        console.error('[Globe3D] floods fetch error:', err);
+      }
+    };
+    fetchFloods();
+    const id = setInterval(fetchFloods, 600_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      setOverlayFloods(null);
+    };
+  }, [floodsOverlayOn]);
+
+  // Tornado warnings: NWS active alerts, polygon geometries.
+  useEffect(() => {
+    if (!tornadoOverlayOn) return undefined;
+    let alive = true;
+    const fetchWarnings = async () => {
+      try {
+        const res = await fetch('https://api.weather.gov/alerts/active?event=Tornado%20Warning');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive && Array.isArray(data.features)) {
+          setOverlayTornado(data.features.filter((f) => f.geometry).slice(0, 150));
+        }
+      } catch (err) {
+        console.error('[Globe3D] tornado warnings fetch error:', err);
+      }
+    };
+    fetchWarnings();
+    const id = setInterval(fetchWarnings, 120_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      setOverlayTornado(null);
+    };
+  }, [tornadoOverlayOn]);
+
+  // Aircraft: the server's world snapshot (adsb.lol proxy, 60 s cache).
+  // The globe shows the whole planet, so cap hard for canvas sanity.
+  useEffect(() => {
+    if (!aircraftOverlayOn) return undefined;
+    let alive = true;
+    const fetchPlanes = async () => {
+      try {
+        const res = await fetch('/api/aircraft');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive && Array.isArray(data.aircraft)) {
+          setOverlayAircraft(data.aircraft.filter((p) => p.lat != null && p.lon != null && !p.onGround).slice(0, 4000));
+        }
+      } catch (err) {
+        console.error('[Globe3D] aircraft fetch error:', err);
+      }
+    };
+    fetchPlanes();
+    const id = setInterval(fetchPlanes, 60_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      setOverlayAircraft(null);
+    };
+  }, [aircraftOverlayOn]);
+
+  // ATC sectors: static-ish boundaries (7-day server cache), densified like
+  // the flat layer so long edges follow the projection honestly.
+  useEffect(() => {
+    if (!atcOverlayOn) return undefined;
+    let alive = true;
+    fetch('/api/atc/sectors')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (alive && Array.isArray(data?.sectors)) {
+          setOverlayATC({
+            sectors: data.sectors.map((s) => ({ ...s, geometry: densifyGeoJson(s.geometry, 2) })),
+          });
+        }
+      })
+      .catch((err) => console.error('[Globe3D] ATC sectors fetch error:', err));
+    return () => {
+      alive = false;
+      setOverlayATC(null);
+    };
+  }, [atcOverlayOn]);
+
   // Repaint the shared overlay canvas. Content-keyed on the states object so
   // a parent re-render with identical enabled/opacity values repaints nothing.
   const overlayStatesKey = JSON.stringify(overlayLayerStates ?? null);
@@ -1313,6 +1659,14 @@ export default function Globe3D({
       drap: overlayDrap,
       aurora: overlayAurora,
       'worked-grids': overlayWorkedGrids,
+      wxradar: overlayWxRadar,
+      lightning: overlayLightning,
+      earthquakes: overlayEarthquakes,
+      wildfires: overlayWildfires,
+      floods: overlayFloods,
+      'tornado-warnings': overlayTornado,
+      aircraft: overlayAircraft,
+      'atc-sectors': overlayATC,
     };
     let painted = false;
     for (const [id, painter] of Object.entries(GLOBE_OVERLAY_PAINTERS)) {
@@ -1329,7 +1683,22 @@ export default function Globe3D({
     // overlayStatesKey stands in for overlayLayerStates (content compare);
     // lowMem: scene rebuild — repaint onto the fresh canvas.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overlayStatesKey, overlayZones, overlayDrap, overlayAurora, overlayWorkedGrids, lowMem]);
+  }, [
+    overlayStatesKey,
+    overlayZones,
+    overlayDrap,
+    overlayAurora,
+    overlayWorkedGrids,
+    overlayWxRadar,
+    overlayLightning,
+    overlayEarthquakes,
+    overlayWildfires,
+    overlayFloods,
+    overlayTornado,
+    overlayAircraft,
+    overlayATC,
+    lowMem,
+  ]);
 
   // ── Markers + arcs ───────────────────────────────────────
   useEffect(() => {
