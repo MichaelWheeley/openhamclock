@@ -8,6 +8,8 @@ Start here to find the right guide.
 | **[MANUAL.md](MANUAL.md)**                 | The user manual — every panel, map layer, keyboard shortcut, and setting explained                                     |
 | **[DOCKER.md](DOCKER.md)**                 | Docker deep-dive — Compose, Portainer, persistence, reverse proxies, updating                                          |
 | **[N1MM-SETUP.md](N1MM-SETUP.md)**         | Contest logger integration — N1MM+ / DXLog UDP broadcasts onto the map                                                 |
+| **[API.md](API.md)**                       | REST API — the open QSO map-layer write API for external loggers, plus the stable public read endpoints                |
+| **[PLUGINS.md](PLUGINS.md)**               | Plugin development — custom map layers and dockable panels that survive updates                                        |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)**     | Codebase map for contributors — directory structure, key patterns, performance notes                                   |
 | **[emcomm-roadmap.md](emcomm-roadmap.md)** | EmComm layout deep-dive — feature guide, APRS resource tokens, net operations, API details                             |
 

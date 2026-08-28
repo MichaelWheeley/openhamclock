@@ -121,19 +121,20 @@ Around 29 overlay layers can be toggled from **Settings → Map Layers** (groupe
 
 **Overlays and more**
 
-| Layer               | What it shows                                                                    | Key |
-| ------------------- | -------------------------------------------------------------------------------- | --- |
-| Satellite Tracks    | Real-time satellite positions with tracks and footprints (on by default)         | S   |
-| Maidenhead Grid     | Locator grid — fields at low zoom, squares when zoomed in                        | H   |
-| CQ / ITU Zones      | Zone boundaries with zone numbers                                                | Y   |
-| City Lights         | NASA VIIRS nighttime city lights                                                 | C   |
-| Winlink Gateways    | 4,800+ RMS gateways colored by mode (Pactor, VARA, ARDOP, Packet) with filters   | K   |
-| Aircraft            | Live civilian aircraft (adsb.lol), with an optional track-prediction lead time   | X   |
-| ATC Sectors         | FIR/ARTCC boundaries with primary frequencies and LiveATC links                  | Z   |
-| Active Users        | Other OpenHamClock operators, live (opt out in Settings → Station)               | U   |
-| Logged QSOs (N3FJP) | Recently logged QSOs and live entry previews from the N3FJP bridge (self-hosted) | N   |
+| Layer               | What it shows                                                                                 | Key |
+| ------------------- | --------------------------------------------------------------------------------------------- | --- |
+| Satellite Tracks    | Real-time satellite positions with tracks and footprints (on by default)                      | S   |
+| Maidenhead Grid     | Locator grid — fields at low zoom, squares when zoomed in                                     | H   |
+| CQ / ITU Zones      | Zone boundaries with zone numbers                                                             | Y   |
+| City Lights         | NASA VIIRS nighttime city lights                                                              | C   |
+| Winlink Gateways    | 4,800+ RMS gateways colored by mode (Pactor, VARA, ARDOP, Packet) with filters                | K   |
+| Aircraft            | Live civilian aircraft (adsb.lol), with an optional track-prediction lead time                | X   |
+| ATC Sectors         | FIR/ARTCC boundaries with primary frequencies and LiveATC links                               | Z   |
+| Active Users        | Other OpenHamClock operators, live (opt out in Settings → Station)                            | U   |
+| Logged QSOs (N3FJP) | Recently logged QSOs and live entry previews from the N3FJP bridge (self-hosted)              | N   |
+| Logged QSOs (API)   | QSOs pushed by any external logger via the open REST API (self-hosted) — see [API.md](API.md) | —   |
 
-**Write your own layer:** drop a plugin file into `src/plugins/local/` and it's auto-discovered — no registration, and it survives updates. See `src/plugins/OpenHamClock-Plugin-Guide.md`.
+**Write your own layer or panel:** drop a plugin file into `src/plugins/local/` (map layers) or `src/plugins/local/panels/` (dockable panels) and it's auto-discovered — no registration, and it survives updates. See [PLUGINS.md](PLUGINS.md).
 
 ### DE and DX: markers, click-to-set, favorites
 
@@ -244,6 +245,7 @@ In the **Dockable** layout, every panel below can be added from the **+** panel 
 - **Log Stats (next release)** — analytics over the native logbook: a GitHub-style QSOs-per-day heatmap for the trailing 12 months, per-band and per-mode breakdowns, and headline tiles (total QSOs, unique calls, unique grids, best DX distance with the callsign, busiest day, first/latest QSO). Everything updates live as you log or import.
 - **Contest QSOs** — N1MM+/DXLog contacts arrive by UDP and plot as band-colored arcs (see [docs/N1MM-SETUP.md](N1MM-SETUP.md)).
 - **N3FJP** — logged QSOs and live entry previews from N3FJP loggers appear on the map; configure host/port in Settings → Integrations (self-hosted).
+- **Any other logger** — the open REST API accepts QSOs by HTTP POST from anything that can send one, plotting them on the Logged QSOs (API) layer (self-hosted; see [docs/API.md](API.md)).
 
 ### EmComm and mesh
 
@@ -333,6 +335,16 @@ What it does:
 - **Full backup** (next release) — one JSON file with every QSO _and_ all your settings, from **Settings → Profiles → Full Backup** (details below). Once your log tops 50 QSOs, the panel shows a small dismissable reminder when your last backup is more than a month old — **Back up now** downloads the file on the spot.
 
 QSO records are ADIF-aligned internally (band, mode, RST, grids, power, plus arbitrary extra ADIF fields), so round-trips through other software are clean.
+
+### Logbook Sync (Wavelog/Cloudlog, QRZ Logbook, LoTW)
+
+**Settings → Integrations → Logbook Sync** connects the native logbook to the loggers you already use. Everything is opt-in and per-user: your API keys and LoTW login are stored **only in this browser** (never on the server, never in backups or profile share codes), and each request carries your own credentials — so this works on the hosted site too, without sharing anything with other users.
+
+- **Wavelog / Cloudlog push** — enter your instance URL, API key, and Station Profile ID (the **Test** button lists your profiles with their IDs). Every QSO you log in OpenHamClock is pushed automatically; failures go into a retry queue (capped at 100) that drains on retry or via **Push all unsynced**. The pending count shows in the card and in the Logbook panel footer.
+- **QRZ Logbook push** — uses a **QRZ Logbook API key** (Logbook → Settings on qrz.com; requires an XML subscription). This is _not_ the QRZ username/password used for callsign lookups. Same automatic push + retry queue.
+- **LoTW confirmations** — **Sync LoTW confirmations** pulls your confirmed QSLs from Logbook of The World and marks matching local QSOs (call + band + mode + time within ±30 minutes) with a green **LoTW✓** chip. Syncs are incremental (only QSLs since your last sync) and rate-limited to once every 5 minutes — LoTW is slow, be patient with it.
+
+Notes: only QSOs logged in OpenHamClock _while a push integration is enabled_ are queued — importing a 10k-QSO ADIF history won't spam your remote logbook. Editing an already-pushed QSO does not re-push it.
 
 ---
 
@@ -425,6 +437,8 @@ A purpose-built dashboard for ARES/RACES/SKYWARN and served-agency work (Setting
 - **Resource tokens:** structured data in APRS beacon comments — `[Beds 30/100][Power OK][Water -50]` — parsed into capacity bars, need flags, and the aggregate dashboard. Any `[Key Value]` works; built-ins include Beds, Water, Food, Power, Fuel, Med, Staff, Evac, Comms, Gen.
 - **Telemetry:** APRS telemetry frames become per-station sensor dashboards with trend sparklines.
 - **Winlink:** the gateway map layer and panel, plus Pat client messaging through rig-bridge.
+- **Event Log _(next release)_:** significant events — net check-ins/outs, APRS messages sent and received, new NWS alerts, shelter and field reports, first-heard EmComm stations — are recorded automatically in your browser (capped at 2000). Export the log as **CSV** or a print-friendly **After Action Report** (with operator callsign, station location, and operation date range; use your browser's print dialog to save as PDF), or clear it between operations.
+- **Field Reports _(next release)_:** Winlink Express at an EOC accumulates a CSV of received forms (Field Situation Reports, Damage Assessments) with embedded geolocation. Point the rig-bridge `winlink-express-csv` plugin at that file and new rows appear in the Field Reports panel and as 📋 map markers — form type, callsign, age, position, and free text. See the [rig-bridge README](https://github.com/accius/openhamclock/blob/main/rig-bridge/README.md#winlink-express-csv-ingest-beta) for setup.
 
 Deep dive: [docs/emcomm-roadmap.md](emcomm-roadmap.md).
 

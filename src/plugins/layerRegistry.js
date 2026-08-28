@@ -7,6 +7,7 @@
  */
 
 import * as N3FJPLoggedQSOsPlugin from './layers/useN3FJPLoggedQSOs.js';
+import * as QsoApiLayerPlugin from './layers/useQsoApiLayer.js';
 import * as WXRadarPlugin from './layers/useWXRadar.js';
 import * as OWMCloudsPlugin from './layers/useOWMClouds.js';
 import * as CityLightsPlugin from './layers/useCityLights.js';
@@ -69,6 +70,7 @@ const layerPlugins = [
   RBNPlugin,
   ContestQsosPlugin,
   N3FJPLoggedQSOsPlugin,
+  QsoApiLayerPlugin,
   GreatCirclePlugin,
   VOACAPHeatmapPlugin,
   MUFMapPlugin,
@@ -121,7 +123,7 @@ const PINNED_SHORTCUTS = {
   maidenhead: 'h', // maidenHead grid
   drap: 'j',
   zones: 'y',
-  // 'worked-grids' has no shortcut — all 26 letters are pinned above.
+  // 'worked-grids' and 'qso-api' have no shortcut — all 26 letters are pinned above.
 };
 
 export function getAllLayers() {

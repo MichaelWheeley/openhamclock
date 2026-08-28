@@ -57,6 +57,8 @@ import LogbookPanel from './components/LogbookPanel.jsx';
 import AwardsPanel from './components/AwardsPanel.jsx';
 
 import { resetLayout, loadLayout, saveLayout } from './store/layoutStore.js';
+import { getPanelPlugins, getPanelPluginById } from './plugins/panelRegistry.js';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { DockableLayoutProvider } from './contexts';
 import { useRig } from './contexts/RigContext.jsx';
 import { calculateBearing, calculateDistance, formatDistance } from './utils/geo.js';
@@ -454,7 +456,7 @@ export const DockableApp = ({
       }
     })();
 
-    return {
+    const defs = {
       'world-map': { name: 'World Map', icon: '🗺️' },
       'map-list-view': { name: 'Map Data (text view)', icon: '👁️‍🗨️' },
       'de-location': { name: 'DE Location', icon: '📍' },
@@ -509,6 +511,14 @@ export const DockableApp = ({
       'digital-modes': { name: 'Digital Modes', icon: '📻', group: 'Rig Bridge' },
       winlink: { name: 'Winlink', icon: '📬', group: 'Rig Bridge' },
     };
+
+    // Append auto-discovered panel plugins (src/plugins/local/panels/*.jsx).
+    // Built-in ids are passed so a plugin can never shadow a built-in panel.
+    for (const plugin of getPanelPlugins(new Set(Object.keys(defs)))) {
+      defs[plugin.id] = { name: plugin.name, icon: plugin.icon, group: 'Plugins' };
+    }
+
+    return defs;
   }, [isLocalInstall]);
 
   // Add panel
@@ -1308,13 +1318,28 @@ export const DockableApp = ({
           );
           break;
 
-        default:
-          content = (
-            <div style={{ padding: '20px', color: '#ff6b6b', textAlign: 'center' }}>
-              <div style={{ fontSize: '14px', marginBottom: '8px' }}>Outdated panel: {component}</div>
-              <div style={{ fontSize: '12px', color: '#888' }}>Click "Reset" button below to update layout</div>
-            </div>
-          );
+        default: {
+          // Auto-discovered panel plugins (src/plugins/local/panels/*.jsx).
+          // v1 props contract: { config, t } only — see docs/PLUGINS.md.
+          const plugin = getPanelPluginById(component);
+          if (plugin) {
+            const PluginPanel = plugin.Panel;
+            content = (
+              <div className="panel" style={{ height: '100%', overflow: 'auto' }}>
+                <ErrorBoundary>
+                  <PluginPanel config={config} t={t} />
+                </ErrorBoundary>
+              </div>
+            );
+          } else {
+            content = (
+              <div style={{ padding: '20px', color: '#ff6b6b', textAlign: 'center' }}>
+                <div style={{ fontSize: '14px', marginBottom: '8px' }}>Outdated panel: {component}</div>
+                <div style={{ fontSize: '12px', color: '#888' }}>Click "Reset" button below to update layout</div>
+              </div>
+            );
+          }
+        }
       }
 
       // Apply per-panel zoom
@@ -1376,6 +1401,7 @@ export const DockableApp = ({
       handleToggleDxLock,
       panelZoom,
       keybindingsList,
+      t,
     ],
   );
 
@@ -1690,7 +1716,7 @@ export const DockableApp = ({
                             paddingTop: '8px',
                           }}
                         >
-                          {group} Sub-panels
+                          {group === 'Plugins' ? 'Plugins' : `${group} Sub-panels`}
                         </div>
                         {items.map((p) => (
                           <button

@@ -257,6 +257,10 @@ export const useLayer = ({ map, enabled, config }) => {
 
 Local plugins in `src/plugins/local/` need no registration at all — Vite's glob import picks them up. Built-in plugins in `src/plugins/layers/` are imported in `src/plugins/layerRegistry.js` (add one import + one array entry, and optionally a pinned keyboard shortcut). See `src/plugins/OpenHamClock-Plugin-Guide.md` for the full plugin API.
 
+### Panel Plugins
+
+Custom dockable panels work the same way: drop a `.jsx` file into `src/plugins/local/panels/` exporting `metadata` (`{ id, name, icon }`) and a `Panel` component. Panels receive a stable v1 props contract of `{ config, t }` only, appear under **Plugins** in the "+" panel picker, and are wrapped in an ErrorBoundary so a broken plugin can't crash the app. See [docs/PLUGINS.md](docs/PLUGINS.md) for the full guide to both plugin types, including a working example panel.
+
 ### Theming
 
 Five themes: `dark`, `light`, `legacy`, `retro`, and `custom` (user-editable). **Never hardcode colors** — always use CSS variables:
