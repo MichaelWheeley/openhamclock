@@ -86,13 +86,23 @@ module.exports = function (app, ctx) {
   let alertsCache = null; // { data, timestamp }
   const ALERTS_CACHE_TTL = 5 * 60 * 1000;
 
-  app.get('/api/swpc/alerts', async (req, res) => {
-    try {
-      if (alertsCache && Date.now() - alertsCache.timestamp < ALERTS_CACHE_TTL) {
-        res.set('Cache-Control', 'no-store');
-        return res.json(alertsCache.data);
-      }
+  // Listeners notified with the parsed alert array after every FRESH upstream
+  // fetch (never on cache hits or stale-on-error). Consumers: the Web Push
+  // route (server/routes/push.js) watches for new severe alerts to broadcast.
+  const refreshListeners = [];
 
+  /**
+   * Fetch + parse SWPC alerts through the shared cache. Returns the cached
+   * array when fresh; otherwise hits upstream, refreshes the cache and
+   * notifies listeners. Throws only when upstream fails AND no stale cache
+   * exists (callers decide how to surface that).
+   */
+  async function refreshSwpcAlerts() {
+    if (alertsCache && Date.now() - alertsCache.timestamp < ALERTS_CACHE_TTL) {
+      return alertsCache.data;
+    }
+
+    try {
       const response = await fetch(SWPC_ALERTS_URL, {
         headers: { 'User-Agent': `OpenHamClock/${ctx.CONFIG?.version || '1.0'}` },
       });
@@ -107,15 +117,38 @@ module.exports = function (app, ctx) {
 
       logDebug(`[SWPC] Alerts: ${alerts.length} products`);
       alertsCache = { data: alerts, timestamp: Date.now() };
-      res.json(alerts);
+      for (const cb of refreshListeners) {
+        try {
+          cb(alerts);
+        } catch (err) {
+          logErrorOnce('SWPC-Alerts-Listener', err.message);
+        }
+      }
+      return alerts;
     } catch (error) {
       logErrorOnce('SWPC-Alerts', error.message);
       // Serve stale cache rather than failing — alerts age gracefully
-      if (alertsCache) {
-        res.set('Cache-Control', 'no-store');
-        return res.json(alertsCache.data);
-      }
+      if (alertsCache) return alertsCache.data;
+      throw error;
+    }
+  }
+
+  app.get('/api/swpc/alerts', async (req, res) => {
+    try {
+      const cachedBefore = alertsCache; // to detect cache-served responses (fresh hit or stale-on-error)
+      const alerts = await refreshSwpcAlerts();
+      if (cachedBefore && alerts === cachedBefore.data) res.set('Cache-Control', 'no-store');
+      res.json(alerts);
+    } catch {
       res.status(500).json({ error: 'Failed to fetch SWPC alerts' });
     }
   });
+
+  return {
+    refreshSwpcAlerts,
+    /** Register a callback invoked with the alert array after each fresh fetch. */
+    onSwpcAlertsRefreshed(cb) {
+      if (typeof cb === 'function') refreshListeners.push(cb);
+    },
+  };
 };

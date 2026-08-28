@@ -169,6 +169,55 @@ async function handleApi(event, req) {
   }
 }
 
+// ── Web Push: server-sent notifications (closed-browser alerts) ───────────
+// The server (server/routes/push.js) sends a JSON payload:
+//   { title, body, tag }
+// Parsing is defensive — a malformed or empty payload still shows a generic
+// notification, because Chrome punishes push events that show nothing.
+self.addEventListener('push', function (event) {
+  var payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    try {
+      payload = { body: event.data.text() };
+    } catch (e2) {
+      payload = {};
+    }
+  }
+  if (!payload || typeof payload !== 'object') payload = {};
+  var title = typeof payload.title === 'string' && payload.title ? payload.title : 'OpenHamClock';
+  var options = {
+    body: typeof payload.body === 'string' ? payload.body : '',
+    tag: typeof payload.tag === 'string' && payload.tag ? payload.tag : 'ohc-push',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Clicking the notification focuses an existing OpenHamClock tab/window if
+// one is open, otherwise opens a fresh one.
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  event.waitUntil(
+    (async function () {
+      var clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (var i = 0; i < clientList.length; i++) {
+        if ('focus' in clientList[i]) {
+          try {
+            await clientList[i].focus();
+            return;
+          } catch (e) {
+            // Fall through to the next client / openWindow.
+          }
+        }
+      }
+      if (self.clients.openWindow) await self.clients.openWindow('/');
+    })(),
+  );
+});
+
 /** Keep the API cache bounded (oldest-first, cap in sw-policy.js). */
 async function pruneApiCache(cache) {
   try {

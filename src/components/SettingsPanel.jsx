@@ -17,13 +17,24 @@ import {
   exportProfile,
   exportCurrentState,
   importProfile,
+  exportProfileShareCode,
+  importProfileFromShareCode,
 } from '../utils/profiles.js';
+import { buildBackup, restoreBackup, backupFilename, markBackupDone, getLastBackupAt } from '../utils/backup.js';
 import { useTheme } from '../theme/useTheme';
 import ThemeSelector from './ThemeSelector';
 import CustomThemeEditor from './CustomThemeEditor';
 import { emojiToIso2 } from '../utils/countryFlags';
 import { getAlertSettings, saveAlertSettings, playTone, TONE_PRESETS, ALERT_FEEDS } from '../utils/audioAlerts';
 import { getNotificationPermission, requestNotificationPermission } from '../utils/notifications';
+import {
+  isPushSupported,
+  getServerPushStatus,
+  getPushSubscription,
+  subscribeToPush,
+  unsubscribeFromPush,
+  sendTestPush,
+} from '../utils/push';
 import { setRelaySessionId, setRelayConfigured, clearRelaySession } from '../utils/relaySession';
 import { getCallbookCredentials, setCallbookCredentials } from '../utils/callbookAuth.js';
 import { getCartoApiKey, CARTO_KEY_STORAGE } from '../utils/config.js';
@@ -81,6 +92,7 @@ export const SettingsPanel = ({
   const [showWhatsNew, setShowWhatsNew] = useState(config.showWhatsNew); // set in config.js
   const [propMode, setPropMode] = useState(config?.propagation?.mode || 'SSB');
   const [propPower, setPropPower] = useState(config?.propagation?.power || 100);
+  const [licenseClass, setLicenseClass] = useState(config?.licenseClass || 'other');
   const [rigEnabled, setRigEnabled] = useState(config?.rigControl?.enabled || false);
   const [rigHost, setRigHost] = useState(config?.rigControl?.host || 'http://localhost');
   const [rigPort, setRigPort] = useState(normalizeRigPort(config?.rigControl?.port));
@@ -251,6 +263,12 @@ export const SettingsPanel = ({
   const [profileMessage, setProfileMessage] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Full backup / restore + profile share codes
+  const backupInputRef = useRef(null);
+  const [lastBackupAt, setLastBackupAt] = useState(null);
+  const [shareCodeInput, setShareCodeInput] = useState('');
+  const [shareCodeFallback, setShareCodeFallback] = useState(null); // {name, code} when clipboard is unavailable
+
   // QRZ API state
   const [qrzUsername, setQrzUsername] = useState(() => getCallbookCredentials().qrzUsername || '');
   const [qrzPassword, setQrzPassword] = useState('');
@@ -276,6 +294,92 @@ export const SettingsPanel = ({
   const refreshProfiles = () => {
     setProfilesList(getProfiles());
     setActiveProfileName(getActiveProfile());
+    setLastBackupAt(getLastBackupAt());
+  };
+
+  const flashProfileMessage = (type, text) => {
+    setProfileMessage({ type, text });
+    setTimeout(() => setProfileMessage(null), 5000);
+  };
+
+  // ── Full backup / restore ─────────────────────────────────────────────────
+  const handleExportBackup = async () => {
+    try {
+      persistCurrentSettings();
+      const bundle = await buildBackup();
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = backupFilename();
+      a.click();
+      URL.revokeObjectURL(url);
+      markBackupDone();
+      setLastBackupAt(getLastBackupAt());
+      flashProfileMessage('success', t('station.settings.profiles.backup.exported', { count: bundle.logbook.length }));
+    } catch (err) {
+      flashProfileMessage('error', String(err?.message || err));
+    }
+  };
+
+  const handleRestoreBackupFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      let bundle;
+      try {
+        bundle = JSON.parse(ev.target.result);
+      } catch {
+        flashProfileMessage('error', t('station.settings.profiles.backup.invalid'));
+        return;
+      }
+      const qsoCount = Array.isArray(bundle?.logbook) ? bundle.logbook.length : 0;
+      const created = bundle?.created_at ? new Date(bundle.created_at).toLocaleString() : '?';
+      const ok = window.confirm(t('station.settings.profiles.backup.confirm', { date: created, count: qsoCount }));
+      if (!ok) return;
+      try {
+        const result = await restoreBackup(bundle, { merge: true });
+        window.alert(
+          t('station.settings.profiles.backup.done', {
+            settings: result.settingsRestored,
+            imported: result.imported,
+            skipped: result.skipped,
+          }),
+        );
+        window.location.reload();
+      } catch {
+        flashProfileMessage('error', t('station.settings.profiles.backup.invalid'));
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // ── Profile share codes ───────────────────────────────────────────────────
+  const handleCopyShareCode = async (name) => {
+    setShareCodeFallback(null);
+    const code = await exportProfileShareCode(name);
+    if (!code) {
+      flashProfileMessage('error', t('station.settings.profiles.share.invalid'));
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(code);
+      flashProfileMessage('success', t('station.settings.profiles.share.copied', { name }));
+    } catch {
+      // Clipboard blocked (permissions, http) — show the code for manual copy
+      setShareCodeFallback({ name, code });
+    }
+  };
+
+  const handleImportShareCode = async () => {
+    const imported = await importProfileFromShareCode(shareCodeInput);
+    if (imported) {
+      refreshProfiles();
+      setShareCodeInput('');
+      flashProfileMessage('success', t('station.settings.profiles.share.imported', { name: imported }));
+    } else {
+      flashProfileMessage('error', t('station.settings.profiles.share.invalid'));
+    }
   };
 
   const toggleUnitType = (t) => {
@@ -314,6 +418,7 @@ export const SettingsPanel = ({
       setPressUnits(config.allUnits?.press || config.units || 'imperial');
       setPropMode(config.propagation?.mode || 'SSB');
       setPropPower(config.propagation?.power || 100);
+      setLicenseClass(config.licenseClass || 'other');
       setRigEnabled(config.rigControl?.enabled || false);
       setRigHost(config.rigControl?.host || 'http://localhost');
       setRigPort(normalizeRigPort(config.rigControl?.port));
@@ -579,6 +684,7 @@ export const SettingsPanel = ({
       // units,
       allUnits: { dist: distUnits, temp: tempUnits, press: pressUnits },
       propagation: { mode: propMode, power: parseFloat(propPower) || 100 },
+      licenseClass,
       wsjtxRelayMulticast: { enabled: wsjtxMulticastEnabled, address: wsjtxMulticastAddress },
       rigControl: {
         enabled: rigEnabled,
@@ -1972,6 +2078,47 @@ export const SettingsPanel = ({
                                 : 'significant disadvantage — only strong openings'
                     }`;
                   })()}
+                </div>
+              </div>
+
+              {/* License Class (US privileges on the band plan bar + tune warnings) */}
+              <div style={{ marginBottom: '20px' }}>
+                <label
+                  htmlFor="license-class-select"
+                  style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    color: 'var(--text-muted)',
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                  }}
+                >
+                  🪪 {t('station.settings.licenseClass.title')}
+                </label>
+                <select
+                  id="license-class-select"
+                  value={licenseClass}
+                  onChange={(e) => setLicenseClass(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: 'var(--bg-tertiary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    color: 'var(--accent-green)',
+                    fontSize: '14px',
+                    fontFamily: 'var(--font-mono)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="other">{t('station.settings.licenseClass.other')}</option>
+                  <option value="technician">{t('station.settings.licenseClass.technician')}</option>
+                  <option value="general">{t('station.settings.licenseClass.general')}</option>
+                  <option value="extra">{t('station.settings.licenseClass.extra')}</option>
+                </select>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  {t('station.settings.licenseClass.hint')}
                 </div>
               </div>
 
@@ -5339,6 +5486,23 @@ export const SettingsPanel = ({
                                 >
                                   ⤓
                                 </button>
+                                {/* Copy share code */}
+                                <button
+                                  onClick={() => handleCopyShareCode(name)}
+                                  title={t('station.settings.profiles.share.copy')}
+                                  aria-label={t('station.settings.profiles.share.copy')}
+                                  style={{
+                                    padding: '5px 8px',
+                                    background: 'var(--bg-primary)',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '4px',
+                                    color: 'var(--text-muted)',
+                                    fontSize: '11px',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  🔗
+                                </button>
                                 {/* Delete */}
                                 <button
                                   onClick={() => {
@@ -5370,6 +5534,98 @@ export const SettingsPanel = ({
                       })}
                   </div>
                 )}
+              </div>
+
+              {/* Clipboard-blocked fallback: show the share code for manual copy */}
+              {shareCodeFallback && (
+                <div
+                  style={{
+                    padding: '10px 12px',
+                    background: 'var(--bg-tertiary)',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                    {t('station.settings.profiles.share.copyFailed', { name: shareCodeFallback.name })}
+                  </div>
+                  <textarea
+                    readOnly
+                    value={shareCodeFallback.code}
+                    onFocus={(e) => e.target.select()}
+                    rows={3}
+                    aria-label={t('station.settings.profiles.share.copy')}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '6px 8px',
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      color: 'var(--text-primary)',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      resize: 'vertical',
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Import a profile from a share code */}
+              <div
+                style={{
+                  padding: '12px',
+                  background: 'var(--bg-tertiary)',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                }}
+              >
+                <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--accent-amber)', marginBottom: '8px' }}>
+                  🔗 {t('station.settings.profiles.share.title')}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', lineHeight: 1.4 }}>
+                  {t('station.settings.profiles.share.describe')}
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                  <textarea
+                    value={shareCodeInput}
+                    onChange={(e) => setShareCodeInput(e.target.value)}
+                    placeholder={t('station.settings.profiles.share.placeholder')}
+                    aria-label={t('station.settings.profiles.share.title')}
+                    rows={2}
+                    style={{
+                      flex: 1,
+                      padding: '8px 10px',
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      color: 'var(--text-primary)',
+                      fontSize: '11px',
+                      fontFamily: 'var(--font-mono)',
+                      resize: 'vertical',
+                      minWidth: 0,
+                    }}
+                  />
+                  <button
+                    onClick={handleImportShareCode}
+                    disabled={!shareCodeInput.trim()}
+                    style={{
+                      padding: '8px 14px',
+                      background: shareCodeInput.trim()
+                        ? 'linear-gradient(135deg, #00ff88 0%, #00ddff 100%)'
+                        : 'var(--bg-primary)',
+                      border: shareCodeInput.trim() ? 'none' : '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      color: shareCodeInput.trim() ? '#000' : 'var(--text-muted)',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      cursor: shareCodeInput.trim() ? 'pointer' : 'default',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t('station.settings.profiles.share.import')}
+                  </button>
+                </div>
               </div>
 
               {/* Open-Meteo API Key (optional) */}
@@ -5519,6 +5775,72 @@ export const SettingsPanel = ({
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '8px' }}>
                   Share profile files between devices or operators. Exported files contain all settings, layout
                   preferences, map layers, and filter configurations.
+                </div>
+              </div>
+
+              {/* Full backup / restore (settings + profiles + logbook) */}
+              <div
+                style={{
+                  padding: '12px',
+                  background: 'var(--bg-tertiary)',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                }}
+              >
+                <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--accent-amber)', marginBottom: '8px' }}>
+                  🗄️ {t('station.settings.profiles.backup.title')}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', lineHeight: 1.4 }}>
+                  {t('station.settings.profiles.backup.describe')}
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <input
+                    ref={backupInputRef}
+                    type="file"
+                    accept=".json"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      handleRestoreBackupFile(e.target.files?.[0]);
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    onClick={handleExportBackup}
+                    style={{
+                      padding: '8px 14px',
+                      background: 'linear-gradient(135deg, #00ff88 0%, #00ddff 100%)',
+                      border: 'none',
+                      borderRadius: '4px',
+                      color: '#000',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      fontWeight: '700',
+                    }}
+                  >
+                    ⤓ {t('station.settings.profiles.backup.export')}
+                  </button>
+                  <button
+                    onClick={() => backupInputRef.current?.click()}
+                    style={{
+                      padding: '8px 14px',
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      color: 'var(--text-secondary)',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                    }}
+                  >
+                    ⤒ {t('station.settings.profiles.backup.restore')}
+                  </button>
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                  {lastBackupAt
+                    ? t('station.settings.profiles.backup.last', {
+                        date: new Date(lastBackupAt).toLocaleString(),
+                      })
+                    : t('station.settings.profiles.backup.never')}
                 </div>
               </div>
             </div>
@@ -6531,6 +6853,149 @@ export const SettingsPanel = ({
 
 export default SettingsPanel;
 
+/**
+ * Push (closed-browser) — Space Weather card in the Alerts tab.
+ *
+ * True Web Push: the server broadcasts severe (scale >= 2) NOAA space
+ * weather alerts to subscribed browsers even when OpenHamClock is closed.
+ * Shows a dormant state when the server has no VAPID keys configured
+ * (self-hosters: see docs/MANUAL.md and .env.example).
+ */
+function WebPushCard({ notifPermission }) {
+  const { t } = useTranslation();
+  const supported = isPushSupported();
+  const [serverConfigured, setServerConfigured] = useState(null); // null = checking
+  const [subscribed, setSubscribed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [testState, setTestState] = useState(null); // null | 'sending' | 'sent' | 'failed'
+
+  useEffect(() => {
+    if (!supported) {
+      setServerConfigured(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const [status, sub] = await Promise.all([getServerPushStatus(), getPushSubscription()]);
+      if (cancelled) return;
+      setServerConfigured(status.configured);
+      setSubscribed(!!sub);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supported]);
+
+  const available = supported && serverConfigured === true && notifPermission !== 'denied';
+
+  const toggle = async () => {
+    if (busy || !available) return;
+    setBusy(true);
+    setTestState(null);
+    try {
+      if (subscribed) {
+        const res = await unsubscribeFromPush();
+        if (res.ok) setSubscribed(false);
+      } else {
+        const res = await subscribeToPush();
+        if (res.ok) setSubscribed(true);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendTest = async () => {
+    if (busy || testState === 'sending') return;
+    setTestState('sending');
+    const res = await sendTestPush();
+    setTestState(res.ok ? 'sent' : 'failed');
+  };
+
+  return (
+    <div
+      style={{
+        background: 'var(--bg-tertiary)',
+        border: `1px solid ${subscribed ? 'var(--accent-amber)' : 'var(--border-color)'}`,
+        borderRadius: '8px',
+        padding: '14px',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}>
+          {t('station.settings.alerts.push.title')}
+        </span>
+        <button
+          onClick={toggle}
+          disabled={!available || busy}
+          style={{
+            background: subscribed ? 'var(--accent-amber)' : 'var(--bg-secondary)',
+            color: subscribed ? '#000' : 'var(--text-muted)',
+            border: `1px solid ${subscribed ? 'var(--accent-amber)' : 'var(--border-color)'}`,
+            borderRadius: '4px',
+            padding: '4px 12px',
+            fontSize: '11px',
+            fontWeight: 600,
+            cursor: !available || busy ? 'not-allowed' : 'pointer',
+            opacity: !available || busy ? 0.5 : 1,
+            fontFamily: 'var(--font-mono)',
+          }}
+        >
+          {busy ? '…' : subscribed ? 'ON' : 'OFF'}
+        </button>
+      </div>
+      <div style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: '1.5', marginTop: '6px' }}>
+        {t('station.settings.alerts.push.description')}
+      </div>
+      {!supported && (
+        <div style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: '1.5', marginTop: '6px' }}>
+          {t('station.settings.alerts.push.unsupported')}
+        </div>
+      )}
+      {supported && serverConfigured === false && (
+        <div style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: '1.5', marginTop: '6px' }}>
+          {t('station.settings.alerts.push.serverDormant')}
+        </div>
+      )}
+      {supported && serverConfigured && notifPermission === 'denied' && (
+        <div style={{ color: 'var(--accent-red, #ef4444)', fontSize: '11px', lineHeight: '1.5', marginTop: '6px' }}>
+          {t('station.settings.alerts.notify.denied')}
+        </div>
+      )}
+      {subscribed && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+          <button
+            onClick={sendTest}
+            disabled={testState === 'sending'}
+            style={{
+              background: 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              padding: '4px 12px',
+              fontSize: '11px',
+              cursor: testState === 'sending' ? 'wait' : 'pointer',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {t('station.settings.alerts.push.sendTest')}
+          </button>
+          {testState === 'sent' && (
+            <span style={{ color: 'var(--accent-green, #22c55e)', fontSize: '11px' }}>
+              {t('station.settings.alerts.push.testSent')}
+            </span>
+          )}
+          {testState === 'failed' && (
+            <span style={{ color: 'var(--accent-red, #ef4444)', fontSize: '11px' }}>
+              {t('station.settings.alerts.push.testFailed')}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Audio Alerts settings tab */
 function AudioAlertsTab() {
   const { t } = useTranslation();
@@ -6608,6 +7073,9 @@ function AudioAlertsTab() {
           </div>
         )}
       </div>
+
+      {/* Web Push — closed-browser space weather alerts */}
+      <WebPushCard notifPermission={notifPermission} />
 
       {/* Volume */}
       <div
