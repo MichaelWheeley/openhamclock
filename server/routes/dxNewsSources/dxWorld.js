@@ -73,14 +73,34 @@ function parseDxWorldFeed(feed) {
  * @param {object} [ctx] — server context object (unused for DX-World, included for API symmetry)
  * @returns {Promise<{ items: Array<object> }>}
  */
-async function fetchDxWorld(ctx) {
-  const res = await fetch(DX_WORLD_FEED_URL, {
-    headers: DX_WORLD_FETCH_HEADERS,
+async function fetchFeedXml(url, headers) {
+  const res = await fetch(url, {
+    headers,
     redirect: 'follow',
     signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) throw new Error(`DX-World feed HTTP ${res.status}`);
-  const feed = await parser.parseString(await res.text());
+  return res.text();
+}
+
+async function fetchDxWorld(ctx) {
+  // DX-World's Cloudflare blocks datacenter egress IPs (Railway) outright, so
+  // hosted deployments set DXWORLD_PROXY_URL to the dx-relay Cloudflare Worker
+  // (see dx-relay/). Direct fetch remains the default and the fallback.
+  const proxyUrl = process.env.DXWORLD_PROXY_URL;
+  let xml;
+  if (proxyUrl) {
+    try {
+      const headers = {};
+      if (process.env.DXWORLD_PROXY_KEY) headers['x-relay-key'] = process.env.DXWORLD_PROXY_KEY;
+      xml = await fetchFeedXml(proxyUrl, headers);
+    } catch (err) {
+      xml = await fetchFeedXml(DX_WORLD_FEED_URL, DX_WORLD_FETCH_HEADERS);
+    }
+  } else {
+    xml = await fetchFeedXml(DX_WORLD_FEED_URL, DX_WORLD_FETCH_HEADERS);
+  }
+  const feed = await parser.parseString(xml);
   return { items: parseDxWorldFeed(feed) };
 }
 
