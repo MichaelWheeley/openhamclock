@@ -1397,3 +1397,110 @@ pre,
   border-width: 2px !important;
   backdrop-filter: none !important;
 }
+
+/* ── Matrix: CRT terminal chrome ─────────────────────────── */
+
+/* Sharp terminal rectangles with a phosphor bloom */
+[data-theme='matrix'] .panel {
+  border-radius: 0 !important;
+  box-shadow:
+    0 0 10px rgba(0, 255, 65, 0.12),
+    inset 0 0 18px rgba(0, 255, 65, 0.04) !important;
+  backdrop-filter: none !important;
+}
+
+/* Inverted selection, like a terminal cursor sweep */
+[data-theme='matrix'] ::selection {
+  background: #00ff41;
+  color: #000;
+}
+
+/* Green terminal scrollbars */
+[data-theme='matrix'] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 65, 0.35) !important;
+  border-radius: 0 !important;
+}
+[data-theme='matrix'] ::-webkit-scrollbar-track {
+  background: rgba(0, 40, 10, 0.6) !important;
+}
+
+/* ── 8-Bit: console dialog chrome ────────────────────────── */
+
+/* NES dialog frames: white inner border, gap, colored outer frame */
+[data-theme='eightbit'] .panel {
+  border: 2px solid #f8f8f8 !important;
+  box-shadow:
+    0 0 0 2px #0f0f23,
+    0 0 0 4px #5f5fd3 !important;
+  backdrop-filter: none !important;
+}
+
+/* Hard offset button shadows — press to "push in" */
+[data-theme='eightbit'] button {
+  border-radius: 0 !important;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.7);
+}
+[data-theme='eightbit'] button:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+/* Chunky square scrollbars */
+[data-theme='eightbit'] ::-webkit-scrollbar-thumb {
+  background: #5f5fd3 !important;
+  border-radius: 0 !important;
+  border: 2px solid #0f0f23 !important;
+}
+[data-theme='eightbit'] ::-webkit-scrollbar-track {
+  background: #1a1a2e !important;
+}
+
+/* Nearest-neighbor map tiles — the world as sprites when zoomed */
+[data-theme='eightbit'] .leaflet-tile {
+  image-rendering: pixelated;
+}
+
+/* ── Steampunk: brass and rivets ─────────────────────────── */
+
+/* Double brass frame with a lamp-lit inner shadow */
+[data-theme='steampunk'] .panel {
+  position: relative;
+  border: 1px solid #8a6a2f !important;
+  border-radius: 8px !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(227, 167, 47, 0.25),
+    inset 0 0 26px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Corner rivets */
+[data-theme='steampunk'] .panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle 2.5px at 7px 7px, rgba(227, 167, 47, 0.55) 100%, transparent 0),
+    radial-gradient(circle 2.5px at calc(100% - 7px) 7px, rgba(227, 167, 47, 0.55) 100%, transparent 0),
+    radial-gradient(circle 2.5px at 7px calc(100% - 7px), rgba(227, 167, 47, 0.55) 100%, transparent 0),
+    radial-gradient(circle 2.5px at calc(100% - 7px) calc(100% - 7px), rgba(227, 167, 47, 0.55) 100%, transparent 0);
+  background-repeat: no-repeat;
+}
+
+/* Engraved-plate panel headers */
+[data-theme='steampunk'] .panel > div:first-child {
+  font-family: Georgia, 'Times New Roman', serif !important;
+  letter-spacing: 1px;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+}
+
+/* Aged-paper map tiles */
+[data-theme='steampunk'] .leaflet-tile {
+  filter: sepia(0.45) saturate(0.85) brightness(0.95);
+}
+
+/* Brass scrollbars */
+[data-theme='steampunk'] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(#d4a017, #8a6a2f) !important;
+}
