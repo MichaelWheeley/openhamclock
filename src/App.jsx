@@ -12,6 +12,7 @@ import DockableLayout from './layouts/DockableLayout.jsx';
 import ClassicLayout from './layouts/ClassicLayout.jsx';
 import ModernLayout from './layouts/ModernLayout.jsx';
 import EmcommLayout from './layouts/EmcommLayout.jsx';
+import ContestLayout from './layouts/ContestLayout.jsx';
 
 import { resetLayout } from './store/layoutStore.js';
 import { RigProvider } from './contexts/RigContext.jsx';
@@ -873,6 +874,8 @@ const App = () => {
         <RigProvider rigConfig={config.rigControl || { enabled: false, host: 'http://localhost', port: 5555 }}>
           {config.layout === 'emcomm' ? (
             <EmcommLayout {...layoutProps} />
+          ) : config.layout === 'contest' ? (
+            <ContestLayout {...layoutProps} />
           ) : config.layout === 'dockable' ? (
             <DockableLayout
               key={layoutResetKey}

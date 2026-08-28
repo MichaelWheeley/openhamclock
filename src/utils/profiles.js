@@ -28,6 +28,7 @@ const SNAPSHOT_KEYS = [
   'openhamclock_wwbotaFilters',
   'openhamclock_canparksFilters',
   'openhamclock_callsignSearchHistory',
+  'openhamclock_contestSession',
   'openhamclock_freqMemories',
   'openhamclock_netSchedule',
   'openhamclock_pskPanelMode',

@@ -37,6 +37,7 @@ export const HELP_TOPICS = {
   'rig-bridge': 'rig-control-and-rig-bridge',
   wsjtx: 'wsjt-x-and-digital-modes',
   emcomm: 'the-emcomm-layout',
+  contest: 'contest-mode',
   alerts: 'alerts-and-notifications',
   offline: 'offline-mode-pwa',
   'layouts-themes-profiles': 'layouts-themes-and-profiles',

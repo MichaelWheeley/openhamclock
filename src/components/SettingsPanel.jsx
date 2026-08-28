@@ -38,6 +38,7 @@ import {
 import { setRelaySessionId, setRelayConfigured, clearRelaySession } from '../utils/relaySession';
 import { getCallbookCredentials, setCallbookCredentials } from '../utils/callbookAuth.js';
 import { getCartoApiKey, CARTO_KEY_STORAGE } from '../utils/config.js';
+import LogSyncSettings from './LogSyncSettings.jsx';
 import { CALLBOOKS, getCallbook } from '../utils/callbook.js';
 import { HELP_EVENT, settingsTabHelpTopic, layerHelpTopic } from '../utils/helpTopics.js';
 import HelpTab from './HelpTab.jsx';
@@ -779,6 +780,7 @@ export const SettingsPanel = ({
     compact: t('station.settings.layout.compact.describe'),
     dockable: t('station.settings.layout.dockable.describe'),
     emcomm: t('station.settings.layout.emcomm.describe'),
+    contest: t('station.settings.layout.contest.describe'),
   };
 
   const unitString = (t) => {
@@ -2915,6 +2917,10 @@ export const SettingsPanel = ({
                 </div>
               </div>
 
+              {/* Logbook Sync (Wavelog/Cloudlog, QRZ Logbook, LoTW) — per-user
+                  credentials, browser-local, works on hosted instances too */}
+              <LogSyncSettings />
+
               {/* Local-only group */}
               <div
                 style={{
@@ -4219,7 +4225,7 @@ export const SettingsPanel = ({
                   {t('station.settings.layout')}
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                  {['modern', 'classic', 'tablet', 'compact', 'dockable', 'emcomm'].map((l) => (
+                  {['modern', 'classic', 'tablet', 'compact', 'dockable', 'emcomm', 'contest'].map((l) => (
                     <button
                       key={l}
                       onClick={() => setLayout(l)}
@@ -4244,7 +4250,9 @@ export const SettingsPanel = ({
                               ? '📊'
                               : l === 'emcomm'
                                 ? '📍'
-                                : '⊞'}{' '}
+                                : l === 'contest'
+                                  ? '🏆'
+                                  : '⊞'}{' '}
                       {l === 'dockable' ? t('station.settings.layout.dockable') : t('station.settings.layout.' + l)}
                     </button>
                   ))}

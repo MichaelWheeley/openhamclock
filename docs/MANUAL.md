@@ -484,14 +484,26 @@ Separately from the PWA, the app polls the server version and — on the hosted 
 
 ### Layouts (Settings → Display)
 
-| Layout       | Best for                                                                            |
-| ------------ | ----------------------------------------------------------------------------------- |
-| **Modern**   | Widescreen monitors — responsive 3-column grid around the map                       |
-| **Classic**  | Dedicated displays and Pi kiosks — the original HamClock look, refreshed            |
-| **Tablet**   | 7–10" widescreen displays (16:9)                                                    |
-| **Compact**  | 4:3 and smaller screens — data-first                                                |
-| **Dockable** | Power users — every panel draggable, tabbable, resizable; layout lock; reset button |
-| **EmComm**   | Emergency communications operations (beta)                                          |
+| Layout       | Best for                                                                                        |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| **Modern**   | Widescreen monitors — responsive 3-column grid around the map                                   |
+| **Classic**  | Dedicated displays and Pi kiosks — the original HamClock look, refreshed                        |
+| **Tablet**   | 7–10" widescreen displays (16:9)                                                                |
+| **Compact**  | 4:3 and smaller screens — data-first                                                            |
+| **Dockable** | Power users — every panel draggable, tabbable, resizable; layout lock; reset button             |
+| **EmComm**   | Emergency communications operations (beta)                                                      |
+| **Contest**  | Contest operating — quick-log strip, dupe check, rate meter, session multipliers (next release) |
+
+### Contest mode
+
+**(Next release.)** A dedicated single-screen layout for contest weekends — no map, maximum information density, and everything one keystroke away.
+
+- **Quick-log strip.** A persistent callsign box sits right under the header. As you type, it renders an instant verdict for the current band+mode: **DUPE** (already worked on this band+mode), **WKD** (in the log, but not on this band+mode), or **NEW** — plus a **NEW ENTITY** / **NEW BAND** flag when the call's DXCC entity would be an all-time or band new one. Press **Enter** and the QSO is logged straight into the native logbook with the rig's current frequency and mode (or the manual band/mode picks when no rig is connected), the box clears, and focus stays put for the next call. **Esc** clears without logging. RST defaults follow the mode (59 phone / 599 everything else), and QSOs flow to Wavelog/QRZ push if those integrations are on.
+- **Rate meter.** QSOs in the last 10 and 60 minutes, the extrapolated hourly rate, and a trailing-hour sparkline in 5-minute buckets.
+- **Session multipliers.** Click **Start contest** in the header (name optional) to drop a session marker. From then on the multiplier tracker counts unique DXCC entities, CQ zones, and US states (when QSOs carry an ADIF STATE field) worked since that moment, overall and per band, using the same cty.dat resolution as the Awards panel. The **score estimate** is simply QSOs × multipliers — a generic figure, deliberately not any specific contest's rules. **Stop** only clears the marker: every QSO stays in the shared logbook.
+- **Spot-and-pounce.** The right side is a full-height DX cluster pane — the same worked/dupe/NEW badges from [Worked-before badges](#worked-before-badges) do the heavy lifting — with the PSK Reporter / WSJT-X panel below it. Click a spot to tune the rig.
+
+The session marker syncs and profiles like any other setting, so a mid-contest browser restart (or a second screen on the same instance) picks up where you left off.
 
 ### Themes (Settings → Display)
 
