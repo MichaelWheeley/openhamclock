@@ -774,14 +774,26 @@ export default function Globe3D({
         const near = s.camera.position.length() < SAT_MODEL_LOD_DIST;
         const h = s.renderer.domElement.clientHeight || 1;
         const fovK = 2 * Math.tan((s.camera.fov * Math.PI) / 360);
+        const dots = s.satDotSizes;
+        let dotsChanged = false;
         for (let i = 0; i < s.satModels.length; i++) {
           const m = s.satModels[i];
           const show = near || m.userData.satSelected;
           m.visible = show;
+          // Hide the dot under a visible model — it would sit on top of the
+          // mesh and obscure it. Sat i's model and dot share an index.
+          if (dots && i < dots.attr.count) {
+            const want = show ? 0 : dots.base[i];
+            if (dots.attr.array[i] !== want) {
+              dots.attr.array[i] = want;
+              dotsChanged = true;
+            }
+          }
           if (!show) continue;
           const px = m.userData.satSelected ? 46 : 34;
           m.scale.setScalar((px * fovK * s.camera.position.distanceTo(m.position)) / h);
         }
+        if (dotsChanged && dots) dots.attr.needsUpdate = true;
       }
       // Sun direction is fixed in world space; convert to view space per frame.
       if (s.sunWorld) {
@@ -1147,6 +1159,7 @@ export default function Globe3D({
     }
     s.satData = [];
     s.satModels = [];
+    s.satDotSizes = null; // the size attribute above was just disposed
     // Invalidate any in-flight ISS glb swap on every rebuild path, including
     // the disabled/empty early return below — a late .then must never add to
     // a group that has since been cleared.
@@ -1185,6 +1198,9 @@ export default function Globe3D({
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    // renderFrame zeroes a dot's size while its 3D model is visible so the
+    // dot doesn't sit on top of the mesh; it restores from this copy.
+    s.satDotSizes = { attr: geo.getAttribute('size'), base: sizes.slice() };
 
     const mat = new THREE.ShaderMaterial({
       uniforms: {
