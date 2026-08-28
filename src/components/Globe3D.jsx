@@ -174,6 +174,12 @@ const SAT_SELECTED_KEY = 'selected_satellites';
 // dots to 3D models. Selected satellites show their model at any distance.
 const SAT_MODEL_LOD_DIST = 2.6;
 
+// Built globe textures, keyed by template|zoom|lang. Entries are 4096- or
+// 8192-wide canvases (up to ~130 MB each), so keep only the last two — enough
+// that the detail upgrade and a style toggle don't refetch their tiles.
+const textureCanvasCache = new Map();
+const TEXTURE_CACHE_MAX = 2;
+
 function readSelectedSats() {
   try {
     const raw = sessionStorage.getItem(SAT_SELECTED_KEY);
@@ -362,6 +368,15 @@ export default function Globe3D({
     }, AUTOROTATE_IDLE_MS);
   }, []);
   const [textureLoading, setTextureLoading] = useState(true);
+  // One-way per-session detail upgrade: once the camera has been close enough
+  // that tile resolution visibly limits the basemap (labels pixelate), the
+  // texture rebuilds at +1 tile zoom in the background. Sticky so zooming
+  // back out doesn't thrash rebuilds.
+  const [detailBump, setDetailBump] = useState(false);
+  const detailBumpRef = useRef(false);
+  // template|lang of the texture currently on the sphere — tells the texture
+  // effect whether a rebuild is a silent detail upgrade or a visible change.
+  const appliedTextureKeyRef = useRef('');
   const [textureProgress, setTextureProgress] = useState(0);
   const [tooltip, setTooltip] = useState(null);
   // On by default, but remembered — otherwise switching it off would not
@@ -795,6 +810,18 @@ export default function Globe3D({
         }
         if (dotsChanged && dots) dots.attr.needsUpdate = true;
       }
+      // Close-zoom detail: when the camera first dwells inside the sphere's
+      // pixelation range on capable hardware, trigger the one-way texture
+      // upgrade. GPU must fit an 8192-wide texture; lowMem never upgrades.
+      if (
+        !detailBumpRef.current &&
+        !lowMem &&
+        s.camera.position.length() < 1.8 &&
+        (s.renderer?.capabilities?.maxTextureSize ?? 0) >= 8192
+      ) {
+        detailBumpRef.current = true;
+        setDetailBump(true);
+      }
       // Sun direction is fixed in world space; convert to view space per frame.
       if (s.sunWorld) {
         s.earthMat.uniforms.uSunDir.value.copy(s.sunWorld).transformDirection(s.camera.matrixWorldInverse);
@@ -902,49 +929,73 @@ export default function Globe3D({
     if (!template) return undefined;
 
     const ac = new AbortController();
-    setTextureLoading(true);
-    setTextureProgress(0);
+    const baseZoom = chooseGlobeTileZoom({ lowMemory: lowMem, pixelRatio: window.devicePixelRatio || 1 });
+    const zoom = Math.min(5, baseZoom + (detailBump && !lowMem ? 1 : 0));
+    const cacheKey = `${template}|${zoom}|${mapLang}`;
+    // A detail upgrade replaces a texture this style is already showing — do
+    // it silently in the background rather than blanking the globe with the
+    // loading overlay. Style/language changes keep the visible progress.
+    const isUpgrade = appliedTextureKeyRef.current === `${template}|${mapLang}`;
+    if (!isUpgrade) {
+      setTextureLoading(true);
+      setTextureProgress(0);
+    }
+
+    const applyBuilt = ({ canvas, meanLuma }) => {
+      const s = gl.current;
+      if (!s.earthMat) return;
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = s.renderer?.capabilities.getMaxAnisotropy?.() ?? 1;
+      tex.wrapS = THREE.RepeatWrapping;
+      const old = s.earthMat.uniforms.uMap.value;
+      s.earthMat.uniforms.uMap.value = tex;
+      old?.dispose?.();
+      // Dark basemaps read as a black ball on a sphere; lift them toward the
+      // brightness satellite imagery already has (mean luma ≈ 0.30) while
+      // leaving anything that bright untouched — the clamp floor of 1 means
+      // this only ever brightens.
+      s.earthMat.uniforms.uBrightness.value = THREE.MathUtils.clamp(0.3 / Math.max(meanLuma, 0.001), 1, 4);
+      appliedTextureKeyRef.current = `${template}|${mapLang}`;
+      s.requestRender?.();
+      setTextureLoading(false);
+    };
+
+    const cached = textureCanvasCache.get(cacheKey);
+    if (cached) {
+      applyBuilt(cached);
+      return () => ac.abort();
+    }
 
     buildGlobeTexture({
       tileUrlTemplate: template,
-      tileZoom: chooseGlobeTileZoom({ lowMemory: lowMem, pixelRatio: window.devicePixelRatio || 1 }),
+      tileZoom: zoom,
       lang: mapLang,
       // Countries ships transparent overlay tiles; flat mode paints this same
       // blue behind them via the map div's background.
       baseColor: MAP_STYLES[style].countriesOverlay ? '#4a90d9' : undefined,
       // Real imagery for the polar caps, where this basemap has a polar source.
       polar: MAP_STYLES[style].polar,
-      onProgress: (p) => setTextureProgress(p),
+      onProgress: isUpgrade ? undefined : (p) => setTextureProgress(p),
       signal: ac.signal,
     })
-      .then(({ canvas, meanLuma }) => {
+      .then((built) => {
         if (ac.signal.aborted) return;
-        const s = gl.current;
-        if (!s.earthMat) return;
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.anisotropy = s.renderer?.capabilities.getMaxAnisotropy?.() ?? 1;
-        tex.wrapS = THREE.RepeatWrapping;
-        const old = s.earthMat.uniforms.uMap.value;
-        s.earthMat.uniforms.uMap.value = tex;
-        old?.dispose?.();
-        // Dark basemaps read as a black ball on a sphere; lift them toward the
-        // brightness satellite imagery already has (mean luma ≈ 0.30) while
-        // leaving anything that bright untouched — the clamp floor of 1 means
-        // this only ever brightens.
-        s.earthMat.uniforms.uBrightness.value = THREE.MathUtils.clamp(0.3 / Math.max(meanLuma, 0.001), 1, 4);
-        s.requestRender?.();
-        setTextureLoading(false);
+        textureCanvasCache.set(cacheKey, built);
+        while (textureCanvasCache.size > TEXTURE_CACHE_MAX) {
+          textureCanvasCache.delete(textureCanvasCache.keys().next().value);
+        }
+        applyBuilt(built);
       })
       .catch((e) => {
         if (!ac.signal.aborted) {
           console.warn('[Globe3D] texture build failed:', e);
-          setTextureLoading(false);
+          if (!isUpgrade) setTextureLoading(false);
         }
       });
 
     return () => ac.abort();
-  }, [tileStyle, lowMem, mapLang]);
+  }, [tileStyle, lowMem, mapLang, detailBump]);
 
   // ── Terminator: track the subsolar point ─────────────────
   // Depends on lowMem because a scene rebuild loses s.sunWorld, which would

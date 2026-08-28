@@ -12,11 +12,6 @@
 const DEG = Math.PI / 180;
 const MAX_MERCATOR_LAT = 85.0511287798066;
 
-// Widest horizontal blur applied inside a polar cap, as a fraction of texture
-// width — reached at the pole, zero at the boundary. 1/64 is about 5.6° of
-// longitude at the equator, which is enough to erase the repeated row's fine
-// detail while keeping its broad light and dark areas.
-const CAP_BLUR_MAX_FRACTION = 1 / 64;
 const MAX_CONCURRENT = 6;
 
 const subdomains = ['a', 'b', 'c'];
@@ -156,13 +151,11 @@ export async function buildGlobeTexture({ tileUrlTemplate, tileZoom = 3, lang, b
   }
 
   // Polar caps: basemaps with a polar source (Satellite) get real imagery
-  // drawn into the cap; every basemap then gets its remaining cap rows
-  // settled — blended into the average of the band below and blurred — so
-  // the clamped Mercator repeat never renders as a pinwheel of wedges at
-  // the poles. Without a polar source drawPolarImagery fetches nothing and
-  // reports the full cap as unfilled, which routes the whole cap to the
-  // settle pass (the same already-exercised path a failed imagery fetch
-  // takes).
+  // drawn into the cap; every basemap then has its remaining cap rows faded
+  // into a flat disc of the boundary band's average colour, so the clamped
+  // Mercator repeat never renders as wedges or as blur rings at the poles.
+  // Without a polar source drawPolarImagery fetches nothing and reports the
+  // full cap as unfilled, which routes the whole cap to the settle pass.
   const capRows = Math.floor(((90 - MAX_MERCATOR_LAT) / 180) * outH);
   if (capRows >= 1) {
     const hole = await drawPolarImagery(ectx, outW, outH, capRows, polar, signal);
@@ -387,48 +380,28 @@ function settlePolarCap(ctx, width, height, edge, dir, rows) {
   if (blockRows < 1) return;
 
   const settled = averageRow(ctx, width, edge);
-  const maxRadius = Math.max(1, Math.round(width * CAP_BLUR_MAX_FRACTION));
   const ease = (t) => t * t * (3 - 2 * t);
+  // The cap becomes a flat disc of the settled colour, reached within the
+  // first ~40% of the cap. The short feather fades each column's clamped
+  // streak before it can read as a wedge; going flat immediately after kills
+  // both the striping a pure blend leaves AND the concentric pucker a
+  // progressive horizontal blur produces on busy basemaps.
+  const FEATHER = 0.4;
 
   const img = ctx.getImageData(0, blockTop, width, blockRows);
   const d = img.data;
-  const src = new Uint8ClampedArray(d); // blur reads the original, writes to d
 
   for (let i = 1; i <= blockRows; i++) {
     const row = edge + dir * i - blockTop;
     if (row < 0 || row >= blockRows) continue;
 
     const base = row * width * 4;
-    const radius = Math.round((i / rows) * maxRadius);
-    const alpha = ease(i / rows);
-    const span = radius * 2 + 1;
-    const wrap = (x) => base + (((x % width) + width) % width) * 4;
-
-    // Running sum over the wrapped window: O(width) per row, not O(width·radius).
-    let sr = 0;
-    let sg = 0;
-    let sb = 0;
-    if (radius >= 1) {
-      for (let k = -radius; k <= radius; k++) {
-        const q = wrap(k);
-        sr += src[q];
-        sg += src[q + 1];
-        sb += src[q + 2];
-      }
-    }
+    const alpha = ease(Math.min(1, i / rows / FEATHER));
 
     for (let x = 0; x < width; x++) {
       const o = base + x * 4;
-      const blurred = radius >= 1 ? [sr / span, sg / span, sb / span] : [src[o], src[o + 1], src[o + 2]];
       for (let c = 0; c < 3; c++) {
-        d[o + c] = blurred[c] * (1 - alpha) + settled[c] * alpha;
-      }
-      if (radius >= 1) {
-        const leaving = wrap(x - radius);
-        const entering = wrap(x + radius + 1);
-        sr += src[entering] - src[leaving];
-        sg += src[entering + 1] - src[leaving + 1];
-        sb += src[entering + 2] - src[leaving + 2];
+        d[o + c] = d[o + c] * (1 - alpha) + settled[c] * alpha;
       }
     }
   }
