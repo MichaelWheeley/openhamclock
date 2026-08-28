@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRig } from '../../contexts/RigContext.jsx';
 import { useWorkedBefore } from '../../hooks/useWorkedBefore.js';
 import { useAwards } from '../../hooks/useAwards.js';
+import { useGroupLog } from '../../hooks/useGroupLog.js';
 import { add as addQso, consumePendingPrefill, subscribePrefill } from '../../services/logbookStore.js';
 import { onQsoLogged } from '../../utils/logsync.js';
 import { getBandFromFreq } from '../../utils/callsign.js';
@@ -141,6 +142,10 @@ export const ContestLogStrip = ({
   const { connected, freq: rigFreqHz, mode: rigModeRaw, tuneEnabled } = useRig();
   const { getStatus: getWorkedStatus, hasData: hasLogData } = useWorkedBefore();
   const { getSpotStatus: getAwardStatus } = useAwards();
+  // Group session (Field Day multi-station logging). Mounting the hook here
+  // also resumes a persisted session in the Contest layout, so mirroring
+  // keeps running even when no Logbook panel is open.
+  const { session: groupSession, qsos: groupQsos, findDupes: findGroupDupes } = useGroupLog();
 
   const [call, setCall] = useState('');
   const [manualBand, setManualBand] = useState('20m');
@@ -299,7 +304,23 @@ export const ContestLogStrip = ({
     () => (trimmed.length >= 3 ? getAwardStatus(trimmed, freqMHz) : null),
     [trimmed, freqMHz, getAwardStatus],
   );
-  const badge = trimmed.length >= 3 ? BADGES[workedStatus || 'new'] : null;
+  // Group-session dupe: another station in the session already worked this
+  // call on this band+mode. Own contacts are covered by the personal DUPE
+  // badge (they're in the local log too), so only cross-station hits get the
+  // distinct badge — and it names the operator, so you can shout across the
+  // tent.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const groupDupeBy = useMemo(() => {
+    if (!groupSession || trimmed.length < 3) return null;
+    const dupe = findGroupDupes(trimmed, band, mode).find((q) => q.operator && q.operator !== groupSession.call);
+    return dupe ? dupe.operator : null;
+  }, [groupSession, groupQsos, trimmed, band, mode, findGroupDupes]);
+  const badge =
+    trimmed.length >= 3
+      ? groupDupeBy
+        ? { text: 'GRP DUPE', color: '#ef4444', title: `Already worked by ${groupDupeBy} on this band+mode` }
+        : BADGES[workedStatus || 'new']
+      : null;
   const awardBadge = awardStatus ? AWARD_BADGES[awardStatus] : null;
 
   // ── Log it ────────────────────────────────────────────────────────────────
