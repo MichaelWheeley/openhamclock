@@ -175,7 +175,15 @@ export default function FocusLayout(props) {
   const { breakpoint } = useBreakpoint();
   const isNarrow = breakpoint !== 'desktop';
 
-  // ── Apply the focus layer preset once per entry ─────────────────────────
+  // ── Focus layer presets: full reset semantics ───────────────────────────
+  // Entering the first focus layout snapshots the user's layer state (the
+  // "baseline"). Every focus layout then applies its preset EXHAUSTIVELY:
+  // declared plugin layers on, every other plugin layer off, declared
+  // mapLayers flags as specified and undeclared ones back to baseline —
+  // so each focus layout always looks the same regardless of what was on
+  // before. Leaving the focus layouts (or switching between them, which
+  // restores and immediately re-applies) puts the baseline back, so
+  // Modern/Classic/Dockable return exactly as the user left them.
   const mapLayerToggles = {
     showDeDxMarkers: toggleDeDxMarkers,
     showDXPaths: toggleDXPaths,
@@ -187,12 +195,45 @@ export default function FocusLayout(props) {
     showSatellites: toggleSatellites,
     showPSKReporter: togglePSKReporter,
   };
+  const MANAGED_MAP_FLAGS = Object.keys(mapLayerToggles);
+  // Refs so the cleanup sees live values, not the ones from effect setup
+  const mapLayersRef = useRef(mapLayers);
+  mapLayersRef.current = mapLayers;
+  const togglesRef = useRef(mapLayerToggles);
+  togglesRef.current = mapLayerToggles;
+
   useEffect(() => {
-    // App-level toggles: flip only where actual state differs from wanted
-    for (const [key, want] of Object.entries(spec.mapLayers)) {
-      if (!!mapLayers[key] !== want) mapLayerToggles[key]?.();
+    const BASELINE_KEY = 'ohc_focus_layer_baseline';
+    const readJson = (key) => {
+      try {
+        return JSON.parse(localStorage.getItem(key) || 'null');
+      } catch {
+        return null;
+      }
+    };
+
+    // 1. Capture the baseline once, on first entry into the focus world
+    let baseline = readJson(BASELINE_KEY);
+    if (!baseline) {
+      const settings = readJson('openhamclock_mapSettings') || {};
+      baseline = {
+        mapLayers: Object.fromEntries(MANAGED_MAP_FLAGS.map((k) => [k, !!mapLayersRef.current[k]])),
+        pluginLayers: settings.layers || {},
+      };
+      try {
+        localStorage.setItem(BASELINE_KEY, JSON.stringify(baseline));
+      } catch {}
     }
-    // Plugin layers: the bridge appears once WorldMap mounts — retry briefly
+
+    // 2. App-level flags: spec wins, undeclared flags return to baseline
+    for (const key of MANAGED_MAP_FLAGS) {
+      const want = key in spec.mapLayers ? spec.mapLayers[key] : !!baseline.mapLayers[key];
+      if (!!mapLayersRef.current[key] !== want) togglesRef.current[key]?.();
+    }
+
+    // 3. Plugin layers, exhaustively: declared ids on, everything else off.
+    // ('satellites' is governed by showSatellites above, so it is left
+    // alone here.) The bridge appears once WorldMap mounts — retry briefly.
     let tries = 0;
     const id = setInterval(() => {
       const ctl = window.hamclockLayerControls;
@@ -200,13 +241,43 @@ export default function FocusLayout(props) {
         if (++tries > 20) clearInterval(id);
         return;
       }
-      for (const [layerId, want] of Object.entries(spec.pluginLayers)) {
-        const layer = ctl.layers.find((l) => l.id === layerId);
-        if (layer && layer.enabled !== want) ctl.toggleLayer(layerId, want);
+      for (const layer of ctl.layers) {
+        if (layer.id === 'satellites') continue;
+        const want = !!spec.pluginLayers[layer.id];
+        if (layer.enabled !== want) ctl.toggleLayer(layer.id, want);
       }
       clearInterval(id);
     }, 500);
-    return () => clearInterval(id);
+
+    return () => {
+      clearInterval(id);
+      // Restore the baseline. On focus→focus the next effect run re-captures
+      // (identical) and re-applies its own preset; on focus→normal-layout the
+      // user's own layer state is back. Storage writes matter even without a
+      // live bridge — the next WorldMap mount reads them.
+      const b = readJson(BASELINE_KEY);
+      if (!b) return;
+      for (const key of MANAGED_MAP_FLAGS) {
+        if (!!mapLayersRef.current[key] !== !!b.mapLayers[key]) togglesRef.current[key]?.();
+      }
+      const ctl = window.hamclockLayerControls;
+      if (ctl?.layers?.length) {
+        for (const layer of ctl.layers) {
+          if (layer.id === 'satellites') continue;
+          const want = !!(b.pluginLayers[layer.id]?.enabled ?? layer.defaultEnabled);
+          if (layer.enabled !== want) ctl.toggleLayer(layer.id, want);
+        }
+      } else {
+        const settings = readJson('openhamclock_mapSettings') || {};
+        settings.layers = b.pluginLayers;
+        try {
+          localStorage.setItem('openhamclock_mapSettings', JSON.stringify(settings));
+        } catch {}
+      }
+      try {
+        localStorage.removeItem(BASELINE_KEY);
+      } catch {}
+    };
     // Intentionally keyed on the focus only — this is an entry action, not sync
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus]);

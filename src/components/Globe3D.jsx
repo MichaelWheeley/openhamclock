@@ -23,7 +23,7 @@ import { lzwDecode } from '../plugins/layers/useLightning.js';
 import { MAP_STYLES } from '../utils/config.js';
 import { buildGlobeTexture, buildGlobeDetailPatch, chooseGlobeTileZoom } from '../utils/globeTexture.js';
 import { classifySatellite, getArchetypeTemplate, loadIssTemplate } from '../utils/satelliteModels.js';
-import { GLOBE_OVERLAY_PAINTERS, ZONE_SOURCES, workedGridCounts } from '../utils/globeOverlays.js';
+import { GLOBE_OVERLAY_PAINTERS, ZONE_SOURCES, workedGridCounts, decimateAircraft } from '../utils/globeOverlays.js';
 import logbookStore from '../services/logbookStore.js';
 import { ACTIVITY_COLORS } from '../utils/activityColors.js';
 // Project icon set — exists because bare glyphs/emoji render inconsistently
@@ -1689,7 +1689,6 @@ export default function Globe3D({
       wildfires: overlayWildfires,
       floods: overlayFloods,
       'tornado-warnings': overlayTornado,
-      aircraft: overlayAircraft,
       'atc-sectors': overlayATC,
     };
     let painted = false;
@@ -1719,10 +1718,120 @@ export default function Globe3D({
     overlayWildfires,
     overlayFloods,
     overlayTornado,
-    overlayAircraft,
     overlayATC,
     lowMem,
   ]);
+
+  // ── Aircraft: native 3D models ───────────────────────────
+  // One InstancedMesh of flat airliner silhouettes (one draw call for
+  // thousands of aircraft), each positioned just above the surface and
+  // rotated to its true heading along the local tangent plane. Replaces
+  // the old equirect-canvas darts — actual objects on the globe instead
+  // of low-res arrows baked into a 2048px texture. Rebuilt when the 60 s
+  // snapshot refreshes; nothing animates per-frame, so the parked render
+  // loop stays parked.
+  useEffect(() => {
+    const s = gl.current;
+    if (!s.scene) return undefined;
+
+    const disposeMesh = () => {
+      if (s.aircraftMesh) {
+        s.scene.remove(s.aircraftMesh);
+        s.aircraftMesh.geometry.dispose();
+        s.aircraftMesh.material.dispose();
+        s.aircraftMesh = null;
+        s.requestRender?.();
+      }
+    };
+
+    if (!aircraftOverlayOn || !overlayAircraft?.length) {
+      disposeMesh();
+      return undefined;
+    }
+
+    const AIRCRAFT_ALT = 1.007; // above the overlay shell, below markers
+    const AIRCRAFT_SIZE = 0.0085; // world units — exaggerated for visibility
+    const opacity = overlayLayerStates?.aircraft?.opacity ?? 0.9;
+
+    const planes = decimateAircraft(overlayAircraft, 0.9);
+
+    // Airliner silhouette (top view, nose +Y), symmetric about the Y axis.
+    const half = [
+      [0, 1],
+      [0.07, 0.72],
+      [0.09, 0.28],
+      [0.78, -0.2],
+      [0.78, -0.32],
+      [0.1, -0.15],
+      [0.07, -0.6],
+      [0.34, -0.82],
+      [0.34, -0.92],
+      [0.04, -0.86],
+    ];
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 1);
+    for (const [x, y] of half.slice(1)) shape.lineTo(x, y);
+    shape.lineTo(0, -0.95);
+    for (const [x, y] of half.slice(1).reverse()) shape.lineTo(-x, y);
+    shape.closePath();
+    const geometry = new THREE.ShapeGeometry(shape);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xd7ecff,
+      side: THREE.DoubleSide,
+      transparent: opacity < 1,
+      opacity,
+      depthWrite: false,
+    });
+
+    disposeMesh();
+    const mesh = new THREE.InstancedMesh(geometry, material, planes.length);
+    mesh.frustumCulled = false;
+
+    const matrix = new THREE.Matrix4();
+    const pos = new THREE.Vector3();
+    const posUnit = new THREE.Vector3();
+    const northPt = new THREE.Vector3();
+    const eastPt = new THREE.Vector3();
+    const north = new THREE.Vector3();
+    const east = new THREE.Vector3();
+    const dir = new THREE.Vector3();
+    const xAxis = new THREE.Vector3();
+    const scale = new THREE.Vector3(AIRCRAFT_SIZE, AIRCRAFT_SIZE, AIRCRAFT_SIZE);
+
+    planes.forEach((plane, i) => {
+      latLonToVec3(plane.lat, plane.lon, AIRCRAFT_ALT, pos);
+      latLonToVec3(plane.lat, plane.lon, 1, posUnit);
+      // Local tangent frame, derived numerically so it matches whatever
+      // axis convention latLonToVec3 uses.
+      latLonToVec3(Math.min(89.5, plane.lat + 0.5), plane.lon, 1, northPt)
+        .sub(posUnit)
+        .normalize();
+      north.copy(northPt);
+      latLonToVec3(plane.lat, plane.lon + 0.5, 1, eastPt)
+        .sub(posUnit)
+        .normalize();
+      east.copy(eastPt);
+      const h = (((plane.heading ?? 0) % 360) * Math.PI) / 180;
+      dir.copy(north).multiplyScalar(Math.cos(h)).addScaledVector(east, Math.sin(h));
+      // Orthonormalize against the surface normal
+      posUnit.normalize();
+      dir.addScaledVector(posUnit, -dir.dot(posUnit)).normalize();
+      xAxis.crossVectors(dir, posUnit).normalize();
+      matrix.makeBasis(xAxis, dir, posUnit);
+      matrix.scale(scale);
+      matrix.setPosition(pos);
+      mesh.setMatrixAt(i, matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    s.scene.add(mesh);
+    s.aircraftMesh = mesh;
+    s.requestRender?.();
+
+    return disposeMesh;
+    // overlayLayerStates is content-keyed elsewhere; opacity changes ride
+    // the aircraftOverlayOn/data refresh cadence.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aircraftOverlayOn, overlayAircraft, lowMem]);
 
   // ── Markers + arcs ───────────────────────────────────────
   useEffect(() => {

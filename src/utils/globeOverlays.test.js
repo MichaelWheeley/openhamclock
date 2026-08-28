@@ -19,6 +19,7 @@ import {
   GLOBE_OVERLAY_PAINTERS,
   GLOBE_OVERLAY_LAYER_IDS,
   ZONE_SOURCES,
+  decimateAircraft,
 } from './globeOverlays.js';
 
 // Mock 2D context that records every draw call (and style assignment) in
@@ -413,12 +414,15 @@ describe('painter registry', () => {
       'earthquakes',
       'wildfires',
       'floods',
-      'aircraft',
       'lightning',
+      // aircraft has no painter — Globe3D renders it as instanced 3D models —
+      // but the id must stay in the list for state plumbing + suppression note
+      'aircraft',
     ]);
-    for (const id of GLOBE_OVERLAY_LAYER_IDS) {
+    for (const id of Object.keys(GLOBE_OVERLAY_PAINTERS)) {
       expect(typeof GLOBE_OVERLAY_PAINTERS[id]).toBe('function');
     }
+    expect(GLOBE_OVERLAY_PAINTERS.aircraft).toBeUndefined();
   });
 
   it('registered painters are the exported ones', () => {
@@ -440,7 +444,6 @@ describe('new painters (globe parity batch)', () => {
     wildfires: paintWildfires,
     floods: paintFloods,
     'tornado-warnings': paintTornadoWarnings,
-    aircraft: paintAircraft,
     'atc-sectors': paintATCSectors,
   } = GLOBE_OVERLAY_PAINTERS;
 
@@ -452,7 +455,6 @@ describe('new painters (globe parity batch)', () => {
       paintWildfires,
       paintFloods,
       paintTornadoWarnings,
-      paintAircraft,
       paintATCSectors,
     ]) {
       const ctx = mockCtx();
@@ -553,35 +555,19 @@ describe('new painters (globe parity batch)', () => {
     expect(of(ctx, 'closePath')).toHaveLength(1);
   });
 
-  it('aircraft draws one outlined dart per plane and skips null positions', () => {
-    const ctx = mockCtx();
-    paintAircraft(ctx, {
-      width: W,
-      height: H,
-      opacity: 1,
-      data: [
-        { lat: 40, lon: -100, heading: 90, alt_ft: 35000 },
-        { lat: null, lon: 5, heading: 0 },
+  it('decimateAircraft keeps one plane per cell (highest altitude) and skips null positions', () => {
+    const out = decimateAircraft(
+      [
+        { lat: 40, lon: -100, alt_ft: 10000 }, // same cell, lower
+        { lat: 40.01, lon: -100.01, alt_ft: 38000 }, // same cell, higher — kept
+        { lat: -30, lon: 140, alt_ft: 30000 }, // far away — kept
+        { lat: null, lon: 5 }, // no position — dropped
       ],
-    });
-    expect(of(ctx, 'rotate')).toHaveLength(1);
-    expect(of(ctx, 'closePath')).toHaveLength(1);
-    expect(of(ctx, 'stroke')).toHaveLength(1); // dark outline for readability
-  });
-
-  it('aircraft decimates to one plane per canvas cell, highest altitude wins', () => {
-    const ctx = mockCtx();
-    paintAircraft(ctx, {
-      width: W,
-      height: H,
-      opacity: 1,
-      data: [
-        { lat: 40, lon: -100, heading: 0, alt_ft: 10000 }, // same cell, lower
-        { lat: 40.01, lon: -100.01, heading: 0, alt_ft: 38000 }, // same cell, higher — kept
-        { lat: -30, lon: 140, heading: 0, alt_ft: 30000 }, // far away — kept
-      ],
-    });
-    expect(of(ctx, 'closePath')).toHaveLength(2);
+      1,
+    );
+    expect(out).toHaveLength(2);
+    expect(out.find((p) => p.lat === 40.01).alt_ft).toBe(38000);
+    expect(decimateAircraft(null)).toEqual([]);
   });
 
   it('ATC sectors dash oceanic boundaries and stroke the rest solid', () => {

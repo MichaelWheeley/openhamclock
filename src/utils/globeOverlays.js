@@ -605,54 +605,22 @@ export function paintATCSectors(ctx, { width, height, opacity = 0.7, data }) {
 }
 
 /**
- * Live aircraft — heading-oriented darts with spatial decimation.
- * data: [{ lat, lon, heading, alt_ft }] from /api/aircraft — the FULL
- * world snapshot (~12k airborne). Never slice that array upstream:
- * adsb.lol returns it ordered west-to-east by longitude, so any prefix
- * cap silently drops everything east of some meridian. Instead we thin
- * here, one aircraft per canvas grid cell (highest altitude wins — the
- * long-haul traffic worth seeing at planetary zoom), which keeps dense
- * corridors readable and coverage worldwide.
+ * Spatially decimate the aircraft snapshot: one aircraft per lat/lon cell,
+ * highest altitude winning (the long-haul traffic worth seeing at planetary
+ * zoom). Never prefix-slice the raw array instead: adsb.lol returns it
+ * ordered west→east by longitude, so any cap silently drops everything east
+ * of some meridian. Used by Globe3D's native 3D aircraft rendering.
  */
-export function paintAircraft(ctx, { width, height, opacity = 0.9, data }) {
-  if (!Array.isArray(data) || !data.length) return;
-  const k = width / 2048;
-  const size = 5 * k;
-
-  // One plane per ~12 px cell; higher altitude replaces lower.
-  const cellPx = 12 * k;
+export function decimateAircraft(data, cellDeg = 1) {
+  if (!Array.isArray(data)) return [];
   const best = new Map();
   for (const plane of data) {
     if (plane.lat == null || plane.lon == null) continue;
-    const x = lonToX(plane.lon, width);
-    const y = latToY(plane.lat, height);
-    const key = `${Math.floor(x / cellPx)},${Math.floor(y / cellPx)}`;
+    const key = `${Math.round(plane.lat / cellDeg)},${Math.round(plane.lon / cellDeg)}`;
     const prev = best.get(key);
-    if (!prev || (plane.alt_ft ?? 0) > (prev.plane.alt_ft ?? 0)) {
-      best.set(key, { plane, x, y });
-    }
+    if (!prev || (plane.alt_ft ?? 0) > (prev.alt_ft ?? 0)) best.set(key, plane);
   }
-
-  ctx.save();
-  ctx.fillStyle = `rgba(140,220,255,${opacity})`;
-  ctx.strokeStyle = `rgba(0,20,40,${Math.min(1, opacity + 0.1)})`;
-  ctx.lineWidth = Math.max(0.8, k);
-  for (const { plane, x, y } of best.values()) {
-    const theta = (((plane.heading ?? 0) - 90) * Math.PI) / 180; // 0° = north/up
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(theta + Math.PI / 2);
-    ctx.beginPath();
-    ctx.moveTo(0, -size);
-    ctx.lineTo(size * 0.6, size);
-    ctx.lineTo(0, size * 0.55);
-    ctx.lineTo(-size * 0.6, size);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
-  ctx.restore();
+  return [...best.values()];
 }
 
 // ── Registry ───────────────────────────────────────────────
@@ -673,10 +641,11 @@ export const GLOBE_OVERLAY_PAINTERS = {
   earthquakes: paintEarthquakes,
   wildfires: paintWildfires,
   floods: paintFloods,
-  aircraft: paintAircraft,
   lightning: paintLightning,
 };
 
-// Plugin layer ids the globe can draw itself (satellites render natively and
-// are handled separately).
-export const GLOBE_OVERLAY_LAYER_IDS = Object.keys(GLOBE_OVERLAY_PAINTERS);
+// Plugin layer ids the globe can draw itself. Aircraft has no canvas
+// painter — Globe3D renders it natively as instanced 3D models — but it
+// belongs here so its enabled/opacity state reaches Globe3D and it stays
+// out of WorldMap's suppressed-layers note (like satellites).
+export const GLOBE_OVERLAY_LAYER_IDS = [...Object.keys(GLOBE_OVERLAY_PAINTERS), 'aircraft'];
