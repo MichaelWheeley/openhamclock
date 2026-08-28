@@ -992,7 +992,7 @@ module.exports = function (app, ctx) {
         {
           id: 'ohc',
           name: 'OpenHamClock Cluster',
-          description: 'Our own cluster node — the only source on the hosted site',
+          description: 'Our own cluster node — RBN, HamQTH, POTA, SOTA, WWFF, Parks n Peaks, DX Summit + user spots',
         },
       ]);
     }
@@ -1010,7 +1010,8 @@ module.exports = function (app, ctx) {
             {
               id: 'ohc',
               name: 'OpenHamClock Cluster ⭐',
-              description: 'Our own cluster node — RBN skimmers, human spots, and OHC user spots',
+              description:
+                'Our own cluster node — RBN, HamQTH, POTA, SOTA, WWFF, Parks n Peaks, DX Summit + user spots',
             },
           ]
         : []),
