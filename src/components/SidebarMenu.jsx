@@ -15,6 +15,13 @@ import LayoutPresetControl from './LayoutPresetControl.jsx';
 
 const COLLAPSED_WIDTH = 40;
 const EXPANDED_WIDTH = 180;
+// Press Start 2P (8-bit theme) runs ~2× wider than the UI font — the same
+// labels need a wider expanded menu or they clip.
+const EXPANDED_WIDTH_EIGHTBIT = 240;
+const expandedWidth = () =>
+  typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'eightbit'
+    ? EXPANDED_WIDTH_EIGHTBIT
+    : EXPANDED_WIDTH;
 const HOVER_DELAY = 150;
 const EDGE_TRIGGER_WIDTH = 6; // Invisible hover strip when fully hidden
 
@@ -81,8 +88,16 @@ export default function SidebarMenu({
   const isExpanded = mode === MODE_PINNED || hoverExpanded;
   const isVisible = mode !== MODE_HIDDEN || hoverExpanded;
 
+  // Re-render on theme switches so the 8-bit width applies immediately
+  const [, setThemeTick] = useState(0);
+  useEffect(() => {
+    const onTheme = () => setThemeTick((n) => n + 1);
+    window.addEventListener('openhamclock-theme-change', onTheme);
+    return () => window.removeEventListener('openhamclock-theme-change', onTheme);
+  }, []);
+
   // Compute rendered width
-  const currentWidth = !isVisible ? 0 : isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
+  const currentWidth = !isVisible ? 0 : isExpanded ? expandedWidth() : COLLAPSED_WIDTH;
 
   const handleMouseEnter = useCallback(() => {
     clearTimeout(hideTimeout.current);
@@ -412,6 +427,7 @@ export default function SidebarMenu({
 // Export constants so App.jsx can compute sidebar width
 SidebarMenu.COLLAPSED_WIDTH = COLLAPSED_WIDTH;
 SidebarMenu.EXPANDED_WIDTH = EXPANDED_WIDTH;
+SidebarMenu.expandedWidth = expandedWidth; // theme-aware (8-bit needs more room)
 SidebarMenu.MODE_HIDDEN = MODE_HIDDEN;
 SidebarMenu.MODE_ICONS = MODE_ICONS;
 SidebarMenu.MODE_PINNED = MODE_PINNED;

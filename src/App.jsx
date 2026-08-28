@@ -808,7 +808,7 @@ const App = () => {
     return savedMode === 'hidden'
       ? 0
       : savedMode === 'pinned'
-        ? SidebarMenu.EXPANDED_WIDTH
+        ? SidebarMenu.expandedWidth()
         : SidebarMenu.COLLAPSED_WIDTH;
   });
 
@@ -816,11 +816,21 @@ const App = () => {
     const onModeChange = (e) => {
       const m = e.detail?.mode;
       if (m === 'hidden') setSidebarWidth(0);
-      else if (m === 'pinned') setSidebarWidth(SidebarMenu.EXPANDED_WIDTH);
+      else if (m === 'pinned') setSidebarWidth(SidebarMenu.expandedWidth());
       else setSidebarWidth(SidebarMenu.COLLAPSED_WIDTH);
     };
+    // The pinned width is theme-dependent (8-bit pixel font needs more room),
+    // so a theme switch re-measures it too.
+    const onThemeChange = () => {
+      const m = localStorage.getItem('openhamclock_sidebarMode') || 'icons';
+      if (m === 'pinned') setSidebarWidth(SidebarMenu.expandedWidth());
+    };
     window.addEventListener('sidebar-mode-change', onModeChange);
-    return () => window.removeEventListener('sidebar-mode-change', onModeChange);
+    window.addEventListener('openhamclock-theme-change', onThemeChange);
+    return () => {
+      window.removeEventListener('sidebar-mode-change', onModeChange);
+      window.removeEventListener('openhamclock-theme-change', onThemeChange);
+    };
   }, []);
 
   useEffect(() => {

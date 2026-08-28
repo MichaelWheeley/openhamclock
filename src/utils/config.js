@@ -344,6 +344,12 @@ export const isConfigIncomplete = () => {
  */
 export const applyTheme = (theme) => {
   document.documentElement.setAttribute('data-theme', theme);
+  // Theme-aware chrome (e.g. the sidebar's 8-bit width) re-measures on this.
+  try {
+    window.dispatchEvent(new CustomEvent('openhamclock-theme-change', { detail: { theme } }));
+  } catch {
+    /* non-browser env */
+  }
 };
 
 /**
