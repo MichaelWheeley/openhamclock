@@ -4,6 +4,8 @@ Everything OpenHamClock can do, and how to use it. New here? Do the five-minute 
 
 Features tagged **(next release)** are already merged and will ship in the next monthly drop — you'll see them on the staging site and in fresh git checkouts before they reach the hosted site.
 
+**(Next release)** this manual is also built into the app: **Settings → Help** renders it with a searchable contents sidebar, and the small ❓ icons on panels, map layers, and settings tabs jump straight to the relevant section.
+
 ## Contents
 
 - [The basics](#the-basics)
@@ -156,7 +158,7 @@ The **Map Data (text view)** panel renders the map's content as structured, scre
 
 Press **`?`** anywhere to open the shortcuts panel. Shortcuts are ignored while typing in a text field, while a modal is open, or when Ctrl/Alt/Cmd is held. Layer keys are pinned — adding new layers never reshuffles them.
 
-**Command palette (next release).** Press **Ctrl+K** (⌘K on Mac) for a fuzzy-searchable list of most things you can do: toggle map layers, switch layouts, open Settings on a specific tab, jump to a manual topic, toggle fullscreen, open What's New — and, in the Dockable layout, open or focus any panel. Arrow keys select, Enter runs, Esc closes.
+**Command palette (next release).** Press **Ctrl+K** (⌘K on Mac) for a fuzzy-searchable list of most things you can do: toggle map layers, switch layouts (named dockable presets included, as "Dockable — _name_"), open Settings on a specific tab, jump to a manual topic, toggle fullscreen, open What's New — and, in the Dockable layout, open or focus any panel. Arrow keys select, Enter runs, Esc closes.
 
 | Key | Action                                   |
 | --- | ---------------------------------------- |
@@ -198,7 +200,7 @@ Mouse extras: **Shift+click** the map turns a connected rotator; holding **Ctrl*
 
 ## Panels
 
-In the **Dockable** layout, every panel below can be added from the **+** panel picker, then dragged, tabbed, split, and resized however you like (a lock toggle freezes the arrangement). Other layouts include a curated subset.
+In the **Dockable** layout, every panel below can be added from the **+** panel picker — a category-grouped, multi-column grid that scrolls — then dragged, tabbed, split, and resized however you like (a lock toggle freezes the arrangement). Other layouts include a curated subset.
 
 ### Spots and activity
 
@@ -243,7 +245,7 @@ In the **Dockable** layout, every panel below can be added from the **+** panel 
 ### Logging
 
 - **Logbook** — the native in-browser logbook. Detailed below in [The logbook](#the-logbook).
-- **Awards (next release)** — DXCC, WAZ, WAS, and VUCC progress computed live from the logbook, with per-band detail views and "needed" flags feeding the spot panels.
+- **Awards (next release)** — DXCC, WAZ, WAS, and VUCC progress computed live from the logbook, with per-band detail views. The same tracking feeds the red **NEW** / **BAND** needed flags on spots — see [Worked-before badges](#worked-before-badges).
 - **Log Stats (next release)** — analytics over the native logbook: a GitHub-style QSOs-per-day heatmap for the trailing 12 months, per-band and per-mode breakdowns, and headline tiles (total QSOs, unique calls, unique grids, best DX distance with the callsign, busiest day, first/latest QSO). Everything updates live as you log or import.
 - **Contest QSOs** — N1MM+/DXLog contacts arrive by UDP and plot as band-colored arcs (see [docs/N1MM-SETUP.md](N1MM-SETUP.md)).
 - **N3FJP** — logged QSOs and live entry previews from N3FJP loggers appear on the map; configure host/port in Settings → Integrations (self-hosted).
@@ -315,7 +317,9 @@ Spots are cross-referenced against your QSOs (native logbook + N3FJP + N1MM feed
 
 - **DUPE** — you've worked this call on this band and mode. Contesters, skip it.
 - **WORKED** — the call is in your log, but not on this band+mode. Still worth a QSO.
-- No badge — not in your log. Implicitly, a new one.
+- **NEW** (next release) — this spot's DXCC entity isn't in your logbook at all — an ATNO, flagged in red by the same live award tracking behind the Awards panel.
+- **BAND** (next release) — the entity is in your log, but not on this band. A new band slot.
+- No badge — the call isn't in your log, but it's nothing you're missing either.
 
 Portable prefixes are normalized (`5Z4/OZ6ABL` matches `OZ6ABL`) and phone/digital submodes are collapsed sensibly (USB/LSB → SSB, PSK31/63 → PSK).
 
@@ -553,6 +557,7 @@ A quick map of where things live (⚙ Settings, via the gear or your callsign):
 | 🌐 **Community**    | GitHub, Facebook group, Reddit; core maintainers and the contributors wall; the privacy statement (no cookies, no tracking, anonymized stats)                                                                                                                         |
 | 🔔 **Alerts**       | Per-feed audio alerts, tones, master volume, browser notifications (next release)                                                                                                                                                                                     |
 | 📻 **Rig Bridge**   | Enable/connect, downloads for each OS, API token, click-to-tune and auto-mode, plugin overview, Cloud Relay                                                                                                                                                           |
+| ❓ **Help**         | This manual, rendered in-app with a searchable contents sidebar (next release); the ❓ icons throughout the app deep-link here                                                                                                                                        |
 
 Settings save to your browser; **Save Settings** applies them. Most `.env` variables mirror a Settings option — the browser value wins.
 
