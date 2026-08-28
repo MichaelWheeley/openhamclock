@@ -958,6 +958,8 @@ export const DockableApp = ({
               showOnMap={mapLayersEff.showDXPaths}
               onToggleMap={toggleDXPathsEff}
               userCallsign={config.callsign}
+              deLat={config.location?.lat}
+              deLon={config.location?.lon}
             />
           );
           break;

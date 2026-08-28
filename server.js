@@ -247,6 +247,7 @@ require('./server/routes/rotator')(app, ctx);
 require('./server/routes/spots')(app, ctx);
 require('./server/routes/emcomm')(app, ctx);
 require('./server/routes/swpc-alerts')(app, ctx);
+require('./server/routes/websdr')(app, ctx);
 require('./server/routes/dxpeditions')(app, ctx);
 require('./server/routes/aircraft')(app, ctx);
 require('./server/routes/atc-sectors')(app, ctx);

@@ -399,6 +399,8 @@ export default function ModernLayout(props) {
       showOnMap={mapLayers.showDXPaths}
       onToggleMap={toggleDXPaths}
       userCallsign={config.callsign}
+      deLat={config.location?.lat}
+      deLon={config.location?.lon}
     />
   );
 

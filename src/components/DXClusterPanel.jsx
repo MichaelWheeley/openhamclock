@@ -13,7 +13,7 @@ import { useCallsignPopup } from './CallsignPopupManager.jsx';
 import { classifySpotMode } from '../hooks/useBandHealth.js';
 import { useWorkedBefore } from '../hooks/useWorkedBefore.js';
 import { apiFetch } from '../utils/apiFetch';
-import { getListenUrl } from '../utils/webSdr.js';
+import { getListenUrl, loadNearbyReceivers } from '../utils/webSdr.js';
 
 // Mirrors the server-side validator — good enough to gate the Spot button.
 const isValidCallsign = (call) =>
@@ -33,9 +33,25 @@ export const DXClusterPanel = ({
   showOnMap,
   onToggleMap,
   userCallsign,
+  deLat,
+  deLon,
 }) => {
   const { t } = useTranslation();
   const { showPopup } = useCallsignPopup();
+
+  // Warm the nearby web-SDR receiver cache (KiwiSDR public directory) so the
+  // 🎧 links can be computed synchronously at render time. One re-render when
+  // the list lands; getListenUrl() reads the module-level cache directly.
+  const [, setSdrDirectoryTick] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    loadNearbyReceivers(deLat, deLon).then((list) => {
+      if (!cancelled && list) setSdrDirectoryTick((n) => n + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [deLat, deLon]);
 
   // Worked-before / dupe flags from live logged QSOs (N3FJP + N1MM/DXLog).
   // getStatus returns null for every call when neither source has data, so
