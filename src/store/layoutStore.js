@@ -110,6 +110,9 @@ export const PANEL_DEFINITIONS = {
   'dx-news': { name: 'DX News', icon: '📰', description: 'Multi-source DX news reader' },
   'solar-cycle': { name: 'Solar Cycle', icon: '📈', description: 'Sunspot history vs cycle-25 forecast' },
   'log-stats': { name: 'Log Stats', icon: '📊', description: 'Logbook analytics and QSO heatmap' },
+  'sked-planner': { name: 'Sked Planner', icon: '🤝', description: 'Best 48h windows to work the DX target' },
+  ionosonde: { name: 'Ionosondes', icon: '📡', description: 'Live foF2/MUF from nearby digisondes' },
+  'prop-verify': { name: 'Prediction Check', icon: '🎯', description: 'VOACAP prediction vs observed spots' },
   'on-air': { name: 'On Air', icon: '🔴', description: 'Large TX status indicator' },
   meshtastic: { name: 'Meshtastic', icon: '📡', description: 'Mesh network nodes and messages' },
 };

@@ -48,6 +48,9 @@ import {
   DXNewsPanel,
   SolarCyclePanel,
   LogStatsPanel,
+  SkedPlannerPanel,
+  IonosondePanel,
+  PropVerifyPanel,
 } from './components';
 import MeshtasticPanel from './components/MeshtasticPanel.jsx';
 import LogbookPanel from './components/LogbookPanel.jsx';
@@ -470,6 +473,9 @@ export const DockableApp = ({
       'band-activity': { name: 'Band Activity (Continent)', icon: '🔥' },
       'psk-bands': { name: 'Band Activity (PSKR)', icon: '📡' },
       ibp: { name: 'IBP Beacons', icon: '📡', group: 'Propagation' },
+      'sked-planner': { name: 'Sked Planner', icon: '🤝', group: 'Propagation' },
+      ionosonde: { name: 'Ionosondes', icon: '📡', group: 'Propagation' },
+      'prop-verify': { name: 'Prediction Check', icon: '🎯', group: 'Propagation' },
       'dx-cluster': { name: 'DX Cluster', icon: '📻' },
       logbook: { name: 'Logbook', icon: '📓' },
       awards: { name: 'Awards', icon: '🏆' },
@@ -1217,6 +1223,40 @@ export const DockableApp = ({
 
         case 'log-stats':
           content = <LogStatsPanel deLocation={config.location} units={config.allUnits?.dist} />;
+          break;
+
+        case 'sked-planner':
+          content = (
+            <SkedPlannerPanel
+              propagation={propagation.data}
+              loading={propagation.loading}
+              deLocation={config.location}
+              dxLocation={dxLocation}
+              dxCallsign={dxCallsign}
+              propConfig={config.propagation}
+              timeZone={config.timezone}
+              dxTimezone={dxTimezone}
+              dxSolarFallback={dxSolarFallback}
+              allUnits={config.allUnits}
+            />
+          );
+          break;
+
+        case 'ionosonde':
+          content = <IonosondePanel deLocation={config.location} units={config.allUnits?.dist} />;
+          break;
+
+        case 'prop-verify':
+          content = (
+            <PropVerifyPanel
+              deLocation={config.location}
+              deCallsign={config.callsign}
+              dxSpots={dxClusterData.spots}
+              pskReporter={pskReporter}
+              solarIndices={solarIndices}
+              propConfig={config.propagation}
+            />
+          );
           break;
 
         case 'on-air':

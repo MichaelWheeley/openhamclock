@@ -51,3 +51,6 @@ export { default as CallsignSearchPanel } from './CallsignSearchPanel.jsx';
 export { default as DXNewsPanel } from './DXNewsPanel.jsx';
 export { default as SolarCyclePanel } from './SolarCyclePanel.jsx';
 export { default as LogStatsPanel } from './LogStatsPanel.jsx';
+export { default as SkedPlannerPanel } from './SkedPlannerPanel.jsx';
+export { default as IonosondePanel } from './IonosondePanel.jsx';
+export { default as PropVerifyPanel } from './PropVerifyPanel.jsx';

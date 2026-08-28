@@ -279,6 +279,7 @@ const propagationExports = require('./server/routes/propagation')(app, ctx);
 Object.assign(ctx, propagationExports);
 
 require('./server/routes/p533-data')(app, ctx);
+require('./server/routes/ionosonde')(app, ctx);
 require('./server/routes/winlink')(app, ctx);
 
 require('./server/routes/contests')(app, ctx);
