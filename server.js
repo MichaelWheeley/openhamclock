@@ -5,7 +5,7 @@
  * 1. Serves the static web application
  * 2. Proxies API requests to avoid CORS issues
  * 3. Provides HF propagation predictions via ITU-R P.533-14 (ITURHFProp)
- * 4. Provides WebSocket support for future real-time features
+ * 4. Streams real-time updates to clients via Server-Sent Events (SSE)
  *
  * Configuration:
  * - Copy .env.example to .env and customize

@@ -8,9 +8,6 @@ module.exports = function (app, ctx) {
 
   // Centralized cache for NOAA data (5-minute cache)
   const noaaCache = {
-    flux: { data: null, timestamp: 0 },
-    kindex: { data: null, timestamp: 0 },
-    sunspots: { data: null, timestamp: 0 },
     xray: { data: null, timestamp: 0 },
     aurora: { data: null, timestamp: 0 },
     solarIndices: { data: null, timestamp: 0 },
@@ -83,57 +80,6 @@ module.exports = function (app, ctx) {
       vhfConditions,
     };
   }
-
-  // NOAA Space Weather - Solar Flux
-  app.get('/api/noaa/flux', async (req, res) => {
-    try {
-      if (noaaCache.flux.data && Date.now() - noaaCache.flux.timestamp < NOAA_CACHE_TTL) {
-        return res.json(noaaCache.flux.data);
-      }
-      const response = await fetch('https://services.swpc.noaa.gov/json/f107_cm_flux.json');
-      const data = await response.json();
-      noaaCache.flux = { data, timestamp: Date.now() };
-      res.json(data);
-    } catch (error) {
-      logErrorOnce('NOAA Flux', error.message);
-      if (noaaCache.flux.data) return res.json(noaaCache.flux.data);
-      res.status(500).json({ error: 'Failed to fetch solar flux data' });
-    }
-  });
-
-  // NOAA Space Weather - K-Index
-  app.get('/api/noaa/kindex', async (req, res) => {
-    try {
-      if (noaaCache.kindex.data && Date.now() - noaaCache.kindex.timestamp < NOAA_CACHE_TTL) {
-        return res.json(noaaCache.kindex.data);
-      }
-      const response = await fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json');
-      const data = await response.json();
-      noaaCache.kindex = { data, timestamp: Date.now() };
-      res.json(data);
-    } catch (error) {
-      logErrorOnce('NOAA K-Index', error.message);
-      if (noaaCache.kindex.data) return res.json(noaaCache.kindex.data);
-      res.status(500).json({ error: 'Failed to fetch K-index data' });
-    }
-  });
-
-  // NOAA Space Weather - Sunspots
-  app.get('/api/noaa/sunspots', async (req, res) => {
-    try {
-      if (noaaCache.sunspots.data && Date.now() - noaaCache.sunspots.timestamp < NOAA_CACHE_TTL) {
-        return res.json(noaaCache.sunspots.data);
-      }
-      const response = await fetch('https://services.swpc.noaa.gov/json/solar-cycle/observed-solar-cycle-indices.json');
-      const data = await response.json();
-      noaaCache.sunspots = { data, timestamp: Date.now() };
-      res.json(data);
-    } catch (error) {
-      logErrorOnce('NOAA Sunspots', error.message);
-      if (noaaCache.sunspots.data) return res.json(noaaCache.sunspots.data);
-      res.status(500).json({ error: 'Failed to fetch sunspot data' });
-    }
-  });
 
   // Solar Indices with History and Kp Forecast
   app.get('/api/solar-indices', async (req, res) => {
@@ -684,22 +630,6 @@ module.exports = function (app, ctx) {
         return res.json({ ...n0nbhCache.data, fetchedAt: n0nbhCache.timestamp, stale: true });
       }
       res.status(500).json({ error: 'Failed to fetch N0NBH data' });
-    }
-  });
-
-  // Legacy raw XML endpoint
-  app.get('/api/hamqsl/conditions', async (req, res) => {
-    try {
-      if (n0nbhCache.data && Date.now() - n0nbhCache.timestamp < N0NBH_CACHE_TTL) {
-        // Re-fetch raw XML from cache won't work since we only store parsed
-      }
-      const response = await fetch('https://www.hamqsl.com/solarxml.php');
-      const text = await response.text();
-      res.set('Content-Type', 'application/xml');
-      res.send(text);
-    } catch (error) {
-      logErrorOnce('HamQSL', error.message);
-      res.status(500).json({ error: 'Failed to fetch band conditions' });
     }
   });
 
