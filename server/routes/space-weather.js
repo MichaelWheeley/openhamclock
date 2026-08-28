@@ -235,6 +235,89 @@ module.exports = function (app, ctx) {
     }
   });
 
+  // Solar Cycle — observed monthly SSN history vs the SWPC cycle-25 predicted
+  // range, for the Solar Cycle panel. Monthly data changes once a month, so a
+  // 24h cache is plenty. Observed history is trimmed to 2015+ (tail of cycle
+  // 24 for context through all of cycle 25) — the raw feed goes back to 1749.
+  const solarCycleCache = { data: null, timestamp: 0 };
+  const SOLAR_CYCLE_TTL = 24 * 60 * 60 * 1000;
+  const SOLAR_CYCLE_FROM = '2015-01';
+
+  app.get('/api/solar-cycle', async (req, res) => {
+    try {
+      if (solarCycleCache.data && Date.now() - solarCycleCache.timestamp < SOLAR_CYCLE_TTL) {
+        return res.json(solarCycleCache.data);
+      }
+
+      const [obsRes, predRes] = await Promise.allSettled([
+        fetch('https://services.swpc.noaa.gov/json/solar-cycle/observed-solar-cycle-indices.json', {
+          headers: { 'User-Agent': `OpenHamClock/${APP_VERSION}` },
+          signal: AbortSignal.timeout(15000),
+        }),
+        fetch('https://services.swpc.noaa.gov/products/solar-cycle-25-ssn-predicted-range.json', {
+          headers: { 'User-Agent': `OpenHamClock/${APP_VERSION}` },
+          signal: AbortSignal.timeout(15000),
+        }),
+      ]);
+
+      const result = { observed: [], predicted: [], timestamp: new Date().toISOString() };
+
+      // Observed: { time-tag 'YYYY-MM', ssn, smoothed_ssn, f10.7, ... }
+      // NOAA uses -1 as "not yet available" for smoothed values.
+      if (obsRes.status === 'fulfilled' && obsRes.value.ok) {
+        const data = await obsRes.value.json();
+        if (Array.isArray(data)) {
+          result.observed = data
+            .filter((d) => typeof d['time-tag'] === 'string' && d['time-tag'] >= SOLAR_CYCLE_FROM)
+            .map((d) => ({
+              t: d['time-tag'],
+              ssn: Number.isFinite(d.ssn) && d.ssn >= 0 ? Math.round(d.ssn * 10) / 10 : null,
+              smoothed:
+                Number.isFinite(d.smoothed_ssn) && d.smoothed_ssn >= 0 ? Math.round(d.smoothed_ssn * 10) / 10 : null,
+              sfi: Number.isFinite(d['f10.7']) && d['f10.7'] >= 0 ? Math.round(d['f10.7'] * 10) / 10 : null,
+            }));
+        }
+      }
+
+      // Predicted range: { time-tag 'YYYY-MM', smoothed_ssn_min, smoothed_ssn_max }
+      if (predRes.status === 'fulfilled' && predRes.value.ok) {
+        const data = await predRes.value.json();
+        if (Array.isArray(data)) {
+          result.predicted = data
+            .filter(
+              (d) =>
+                typeof d['time-tag'] === 'string' &&
+                Number.isFinite(d.smoothed_ssn_min) &&
+                Number.isFinite(d.smoothed_ssn_max),
+            )
+            .map((d) => ({
+              t: d['time-tag'],
+              min: Math.max(0, Math.round(d.smoothed_ssn_min * 10) / 10),
+              max: Math.max(0, Math.round(d.smoothed_ssn_max * 10) / 10),
+            }));
+          // The feed's tail runs to 2040 with near-zero values — trim the
+          // dead years (predicted max under 5 ≈ solar minimum) so the
+          // chart's x-domain ends where the cycle effectively does.
+          while (result.predicted.length && result.predicted[result.predicted.length - 1].max < 5) {
+            result.predicted.pop();
+          }
+        }
+      }
+
+      if (result.observed.length === 0 && result.predicted.length === 0) {
+        throw new Error('Both SWPC solar-cycle feeds returned no data');
+      }
+
+      solarCycleCache.data = result;
+      solarCycleCache.timestamp = Date.now();
+      res.json(result);
+    } catch (error) {
+      logErrorOnce('Solar Cycle', error.message);
+      if (solarCycleCache.data) return res.json({ ...solarCycleCache.data, stale: true });
+      res.status(502).json({ error: 'Failed to fetch solar cycle data' });
+    }
+  });
+
   // NASA SDO Solar Image Proxy
   const sdoImageCache = new Map();
   const SDO_CACHE_TTL = 15 * 60 * 1000;

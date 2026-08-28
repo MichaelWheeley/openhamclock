@@ -16,6 +16,7 @@
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDXNews } from '../hooks/useDXNews.js';
 
 // Base font sizes (px) — all sizes are derived by multiplying with textScale
 const BASE_LABEL_SIZE = 10; // source label, separator ◆
@@ -35,9 +36,9 @@ function isDXNewsEnabled() {
 }
 
 export const DXNewsTicker = ({ sidebar = false }) => {
-  const [news, setNews] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(isDXNewsEnabled);
+  // Shared fetch path with the DX News reader panel (30-min refresh)
+  const { items: news, loading } = useDXNews(visible);
   const tickerRef = useRef(null);
   const contentRef = useRef(null);
   const [animDuration, setAnimDuration] = useState(120);
@@ -85,34 +86,6 @@ export const DXNewsTicker = ({ sidebar = false }) => {
       window.removeEventListener('storage', checkVisibility);
     };
   }, []);
-
-  // Fetch news
-  useEffect(() => {
-    if (!visible) return;
-
-    const fetchNews = async () => {
-      try {
-        const res = await fetch('/api/dxnews');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.items && data.items.length > 0) {
-            setNews(data.items);
-          } else {
-            setNews([]);
-          }
-        }
-      } catch (err) {
-        console.error('DX News ticker fetch error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNews();
-    // Refresh every 30 minutes
-    const interval = setInterval(fetchNews, 30 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [visible]);
 
   // Calculate animation duration based on content width.
   // textScale is included so speed recalculates after a font-size change

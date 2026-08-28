@@ -45,6 +45,9 @@ import {
   FrequencyMemoriesPanel,
   NetSchedulePanel,
   CallsignSearchPanel,
+  DXNewsPanel,
+  SolarCyclePanel,
+  LogStatsPanel,
 } from './components';
 import MeshtasticPanel from './components/MeshtasticPanel.jsx';
 import LogbookPanel from './components/LogbookPanel.jsx';
@@ -488,6 +491,9 @@ export const DockableApp = ({
       'freq-memories': { name: 'Frequencies', icon: '📻' },
       'net-schedule': { name: 'Nets', icon: '🕐' },
       'callsign-search': { name: 'Callsign Lookup', icon: '🔎' },
+      'dx-news': { name: 'DX News', icon: '📰' },
+      'solar-cycle': { name: 'Solar Cycle', icon: '📈' },
+      'log-stats': { name: 'Log Stats', icon: '📊' },
       'on-air': { name: 'On Air', icon: '🔴' },
       'id-timer': { name: 'ID Timer', icon: '📢' },
       image: { name: 'Custom Image', icon: '🖼️' },
@@ -1199,6 +1205,18 @@ export const DockableApp = ({
               dxLocked={dxLocked}
             />
           );
+          break;
+
+        case 'dx-news':
+          content = <DXNewsPanel />;
+          break;
+
+        case 'solar-cycle':
+          content = <SolarCyclePanel solarIndices={solarIndices} />;
+          break;
+
+        case 'log-stats':
+          content = <LogStatsPanel deLocation={config.location} units={config.allUnits?.dist} />;
           break;
 
         case 'on-air':

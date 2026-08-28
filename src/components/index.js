@@ -48,3 +48,6 @@ export { default as MeteorShowerPanel } from './MeteorShowerPanel.jsx';
 export { default as FrequencyMemoriesPanel } from './FrequencyMemoriesPanel.jsx';
 export { default as NetSchedulePanel } from './NetSchedulePanel.jsx';
 export { default as CallsignSearchPanel } from './CallsignSearchPanel.jsx';
+export { default as DXNewsPanel } from './DXNewsPanel.jsx';
+export { default as SolarCyclePanel } from './SolarCyclePanel.jsx';
+export { default as LogStatsPanel } from './LogStatsPanel.jsx';

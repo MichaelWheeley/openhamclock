@@ -107,6 +107,9 @@ export const PANEL_DEFINITIONS = {
   'freq-memories': { name: 'Frequencies', icon: '📻', description: 'Saved named frequencies with click-to-tune' },
   'net-schedule': { name: 'Nets', icon: '🕐', description: 'Recurring net schedule with countdowns' },
   'callsign-search': { name: 'Callsign Lookup', icon: '🔎', description: 'Callbook search with set-as-DX' },
+  'dx-news': { name: 'DX News', icon: '📰', description: 'Multi-source DX news reader' },
+  'solar-cycle': { name: 'Solar Cycle', icon: '📈', description: 'Sunspot history vs cycle-25 forecast' },
+  'log-stats': { name: 'Log Stats', icon: '📊', description: 'Logbook analytics and QSO heatmap' },
   'on-air': { name: 'On Air', icon: '🔴', description: 'Large TX status indicator' },
   meshtastic: { name: 'Meshtastic', icon: '📡', description: 'Mesh network nodes and messages' },
 };
