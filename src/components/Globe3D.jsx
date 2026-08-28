@@ -27,7 +27,7 @@ import logbookStore from '../services/logbookStore.js';
 import { ACTIVITY_COLORS } from '../utils/activityColors.js';
 // Project icon set — exists because bare glyphs/emoji render inconsistently
 // (or as tofu) depending on the platform's font coverage.
-import { IconRefresh } from './Icons.jsx';
+import { LiEye, LiEyeOff, LiRotate } from './Icons.jsx';
 import SatelliteInfoPanel from './SatelliteInfoPanel.jsx';
 
 const DEG = Math.PI / 180;
@@ -2030,7 +2030,7 @@ export default function Globe3D({
               onClick={onToggleHideUi}
               title={hideUi ? t('app.mapUi.show') : t('app.mapUi.hide')}
             >
-              {hideUi ? '👁' : '🙈'}
+              {hideUi ? <LiEye size={22} style={iconStyle} /> : <LiEyeOff size={22} style={iconStyle} />}
             </button>
           )}
           {!hideUi && (
@@ -2052,7 +2052,7 @@ export default function Globe3D({
                 onClick={() => setAutoRotate((v) => !v)}
                 title={autoRotate ? 'Auto-rotate on — turns after 30 s idle' : 'Auto-rotate off'}
               >
-                <IconRefresh size={15} style={iconStyle} />
+                <LiRotate size={22} style={iconStyle} />
               </button>
 
               {/* Night overlay darkness — shares state with the flat map's slider */}

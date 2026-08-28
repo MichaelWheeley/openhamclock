@@ -9,7 +9,7 @@
  */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { IconGear, IconExpand, IconShrink } from './Icons.jsx';
+import { IconGear, IconExpand, IconShrink, SETTINGS_TAB_ICONS, LiLock, LiUnlock, LiRotate } from './Icons.jsx';
 import DonateButton from './DonateButton.jsx';
 
 const COLLAPSED_WIDTH = 40;
@@ -253,8 +253,20 @@ export default function SidebarMenu({
               onMouseOver={(e) => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
               onMouseOut={(e) => (e.currentTarget.style.background = 'none')}
             >
-              <span aria-hidden="true" style={{ fontSize: '18px', flexShrink: 0, width: '24px', textAlign: 'center' }}>
-                {item.icon}
+              <span
+                aria-hidden="true"
+                style={{
+                  flexShrink: 0,
+                  width: '24px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {(() => {
+                  const TabIcon = SETTINGS_TAB_ICONS[item.id];
+                  return TabIcon ? <TabIcon size={20} /> : item.icon;
+                })()}
               </span>
               {isExpanded && <span aria-hidden="true">{item.label}</span>}
             </button>
@@ -287,8 +299,8 @@ export default function SidebarMenu({
                 color: layoutLocked ? 'var(--accent-amber)' : 'var(--text-secondary)',
               }}
             >
-              <span aria-hidden="true" style={{ fontSize: '14px', flexShrink: 0 }}>
-                {layoutLocked ? '🔒' : '🔓'}
+              <span aria-hidden="true" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}>
+                {layoutLocked ? <LiLock size={20} /> : <LiUnlock size={20} />}
               </span>
               {isExpanded && <span aria-hidden="true">{layoutLocked ? 'Locked' : 'Unlocked'}</span>}
             </button>
@@ -350,8 +362,8 @@ export default function SidebarMenu({
                 cursor: updateInProgress ? 'wait' : 'pointer',
               }}
             >
-              <span aria-hidden="true" style={{ fontSize: '16px', flexShrink: 0 }}>
-                🔄
+              <span aria-hidden="true" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}>
+                <LiRotate size={20} />
               </span>
               {isExpanded && <span aria-hidden="true">{updateInProgress ? 'Updating...' : 'Update'}</span>}
             </button>

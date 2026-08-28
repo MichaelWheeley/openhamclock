@@ -511,6 +511,8 @@ The session marker syncs and profiles like any other setting, so a mid-contest b
 
 ### Themes (Settings → Display)
 
+**(Next release.)** The interface chrome — panel picker, settings tabs, sidebar, and map control buttons — now uses a stroke-based line-icon set instead of emoji, so icons render identically on every OS and follow your theme colors. Panels added by plugins keep showing their emoji.
+
 **Dark** (default), **Light**, **Legacy** (green CRT terminal), **Retro** (90s Windows), and **Custom** — a full editor for backgrounds, text, borders, map ocean, and every accent color. You can also pick the monospace font used for callsigns and frequencies (JetBrains Mono, Fira Code, IBM Plex Mono — the latter two with slashed zeros).
 
 Display extras: header size slider, local-time-first clock swap, mutual-reception star toggle, a **Display Schedule** (sleep/wake times for shack TVs, with an option to keep the HDMI signal alive), **Keep Awake** wake-lock, and **Low Memory Mode** for machines under 8 GB.

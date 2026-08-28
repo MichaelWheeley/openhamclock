@@ -6,6 +6,7 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { Layout, Model, Actions, DockLocation } from 'flexlayout-react';
 import { loadLayout, saveLayout, resetLayout, DEFAULT_LAYOUT, PANEL_DEFINITIONS } from '../store/layoutStore.js';
+import { PanelIcon } from './Icons.jsx';
 import '../styles/flexlayout-openhamclock.css';
 
 // Icons for toolbar
@@ -331,7 +332,7 @@ export const DockableLayout = ({
                       marginBottom: '4px',
                     }}
                   >
-                    <span style={{ fontSize: '18px' }}>{panel.icon}</span>
+                    <PanelIcon panelId={panel.id} icon={panel.icon} iconColor={panel.iconColor} size={20} />
                     <span
                       style={{
                         color: '#e2e8f0',

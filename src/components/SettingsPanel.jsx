@@ -41,6 +41,14 @@ import { getCartoApiKey, CARTO_KEY_STORAGE } from '../utils/config.js';
 import LogSyncSettings from './LogSyncSettings.jsx';
 import { CALLBOOKS, getCallbook } from '../utils/callbook.js';
 import { HELP_EVENT, settingsTabHelpTopic, layerHelpTopic } from '../utils/helpTopics.js';
+import { SETTINGS_TAB_ICONS } from './Icons.jsx';
+
+// Line icon shown before each settings tab label (chrome icon redesign):
+// 20px, inherits the tab's text color via currentColor.
+const SettingsTabIcon = ({ tab }) => {
+  const Cmp = SETTINGS_TAB_ICONS[tab];
+  return Cmp ? <Cmp size={20} style={{ verticalAlign: '-5px', marginRight: '6px' }} /> : null;
+};
 import HelpTab from './HelpTab.jsx';
 import HelpLink from './HelpLink.jsx';
 
@@ -875,7 +883,8 @@ export const SettingsPanel = ({
               fontFamily: 'var(--font-mono)',
             }}
           >
-            📻 {t('station.settings.tab.title.station')}
+            <SettingsTabIcon tab="station" />
+            {t('station.settings.tab.title.station')}
           </button>
 
           <button
@@ -899,7 +908,8 @@ export const SettingsPanel = ({
               fontFamily: 'var(--font-mono)',
             }}
           >
-            🔌 {t('station.settings.tab.title.integrations')}
+            <SettingsTabIcon tab="integrations" />
+            {t('station.settings.tab.title.integrations')}
           </button>
 
           <button
@@ -923,7 +933,8 @@ export const SettingsPanel = ({
               fontFamily: 'var(--font-mono)',
             }}
           >
-            🎨 {t('station.settings.tab.title.display')}
+            <SettingsTabIcon tab="display" />
+            {t('station.settings.tab.title.display')}
           </button>
 
           <button
@@ -947,7 +958,8 @@ export const SettingsPanel = ({
               fontFamily: 'var(--font-mono)',
             }}
           >
-            🗺️ {t('station.settings.tab.title.mapLayers')}
+            <SettingsTabIcon tab="layers" />
+            {t('station.settings.tab.title.mapLayers')}
           </button>
 
           <button
@@ -971,7 +983,8 @@ export const SettingsPanel = ({
               fontFamily: 'var(--font-mono)',
             }}
           >
-            🛰️ {t('station.settings.tab.title.satellites')}
+            <SettingsTabIcon tab="satellites" />
+            {t('station.settings.tab.title.satellites')}
           </button>
 
           <button
@@ -998,7 +1011,8 @@ export const SettingsPanel = ({
               fontFamily: 'var(--font-mono)',
             }}
           >
-            👤 {t('station.settings.tab.title.profiles')}
+            <SettingsTabIcon tab="profiles" />
+            {t('station.settings.tab.title.profiles')}
           </button>
 
           <button
@@ -1022,7 +1036,8 @@ export const SettingsPanel = ({
               fontFamily: 'var(--font-mono)',
             }}
           >
-            🌐 {t('station.settings.tab.title.community')}
+            <SettingsTabIcon tab="community" />
+            {t('station.settings.tab.title.community')}
           </button>
 
           <button
@@ -1046,7 +1061,8 @@ export const SettingsPanel = ({
               fontFamily: 'var(--font-mono)',
             }}
           >
-            🔔 {t('station.settings.tab.title.alerts')}
+            <SettingsTabIcon tab="alerts" />
+            {t('station.settings.tab.title.alerts')}
           </button>
 
           <button
@@ -1070,7 +1086,8 @@ export const SettingsPanel = ({
               fontFamily: 'var(--font-mono)',
             }}
           >
-            📻 {t('station.settings.tab.title.rig-bridge')}
+            <SettingsTabIcon tab="rig-bridge" />
+            {t('station.settings.tab.title.rig-bridge')}
           </button>
 
           <button
@@ -1094,7 +1111,8 @@ export const SettingsPanel = ({
               fontFamily: 'var(--font-mono)',
             }}
           >
-            ❓ {t('station.settings.tab.title.help')}
+            <SettingsTabIcon tab="help" />
+            {t('station.settings.tab.title.help')}
           </button>
         </div>
 

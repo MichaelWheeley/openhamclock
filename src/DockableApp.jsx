@@ -69,6 +69,7 @@ import { DXCallsignInput } from './components/DXCallsignInput.jsx';
 import { DXFavorites } from './components/DXFavorites.jsx';
 import DXCCSelect from './components/DXCCSelect.jsx';
 import HelpLink from './components/HelpLink.jsx';
+import { PanelIcon } from './components/Icons.jsx';
 import { panelHelpTopic } from './utils/helpTopics.js';
 import './styles/flexlayout-openhamclock.css';
 import useMapLayers from './hooks/app/useMapLayers';
@@ -1676,9 +1677,13 @@ export const DockableApp = ({
                           e.currentTarget.style.borderColor = '#2d3748';
                         }}
                       >
-                        <span style={{ fontSize: '16px', marginRight: '8px', color: p.iconColor || 'inherit' }}>
-                          {p.icon}
-                        </span>
+                        <PanelIcon
+                          panelId={p.id}
+                          icon={p.icon}
+                          iconColor={p.iconColor}
+                          size={20}
+                          style={{ marginRight: '8px' }}
+                        />
                         <span style={{ color: '#e2e8f0', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
                           {p.name}
                         </span>
@@ -1718,9 +1723,13 @@ export const DockableApp = ({
                               e.currentTarget.style.borderColor = '#2d3748';
                             }}
                           >
-                            <span style={{ fontSize: '14px', marginRight: '6px', color: p.iconColor || 'inherit' }}>
-                              {p.icon}
-                            </span>
+                            <PanelIcon
+                              panelId={p.id}
+                              icon={p.icon}
+                              iconColor={p.iconColor}
+                              size={20}
+                              style={{ marginRight: '6px' }}
+                            />
                             <span style={{ color: '#cbd5e0', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
                               {p.name}
                             </span>

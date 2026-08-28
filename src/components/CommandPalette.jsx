@@ -22,6 +22,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { buildPanelDefs } from '../panelDefs.js';
+import { PanelIcon } from './Icons.jsx';
 import { fuzzyFilter } from '../utils/fuzzyMatch.js';
 import { HELP_TOPICS, openHelp } from '../utils/helpTopics.js';
 
@@ -82,7 +83,8 @@ export const CommandPalette = ({
         items.push({
           id: `panel:${id}`,
           category: t('commandPalette.cat.panels', { defaultValue: 'Panel' }),
-          icon: def.icon || '▦',
+          // Registry line icon; plugin panels fall back to their emoji string.
+          icon: <PanelIcon panelId={id} icon={def.icon || '▦'} iconColor={def.iconColor} size={20} />,
           label: t('commandPalette.openPanel', { defaultValue: 'Open panel: {{name}}', name: def.name }),
           run: () => window.dispatchEvent(new CustomEvent('openhamclock:add-panel', { detail: { panelId: id } })),
         });
@@ -301,7 +303,17 @@ export const CommandPalette = ({
                 borderLeft: i === selected ? '2px solid var(--accent-cyan)' : '2px solid transparent',
               }}
             >
-              <span aria-hidden="true" style={{ fontSize: '13px', width: '18px', textAlign: 'center' }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  fontSize: '13px',
+                  width: '20px',
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
                 {cmd.icon}
               </span>
               <span

@@ -52,6 +52,7 @@ import { use630mBandEnabled } from '../hooks/use630mBandEnabled.js';
 // DX cluster data, POTA/SOTA spots, and WSJT-X decodes come from external sources
 // and could contain malicious HTML/script tags in callsigns, comments, or park names.
 import { esc } from '../utils/escapeHtml.js';
+import { LiEye, LiEyeOff, LiLock, LiUnlock, LiPlus, LiMinus, LiRotate } from './Icons.jsx';
 
 // Lightweight error boundary for the non-Leaflet projections (azimuthal canvas,
 // 3D globe) — falls back to Mercator instead of crashing the entire dashboard.
@@ -2679,9 +2680,16 @@ export const WorldMap = ({
               fontFamily: 'var(--font-mono)',
               cursor: 'pointer',
               lineHeight: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            {mapUiHidden ? '👁' : '🙈'}
+            {mapUiHidden ? (
+              <LiEye size={22} style={{ flexShrink: 0 }} />
+            ) : (
+              <LiEyeOff size={22} style={{ flexShrink: 0 }} />
+            )}
           </button>
 
           {!mapUiHidden && (
@@ -2710,10 +2718,16 @@ export const WorldMap = ({
                   fontFamily: 'var(--font-mono)',
                   cursor: 'pointer',
                   lineHeight: 1,
-                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                {mapLocked ? '🔒' : '🔓'}
+                {mapLocked ? (
+                  <LiLock size={22} style={{ flexShrink: 0 }} />
+                ) : (
+                  <LiUnlock size={22} style={{ flexShrink: 0 }} />
+                )}
               </button>
 
               {onToggleDXLabels && showDXPaths && Array.isArray(dxPaths) && dxPaths.length > 0 && (
@@ -2751,11 +2765,13 @@ export const WorldMap = ({
                   fontFamily: 'var(--font-mono)',
                   cursor: mapLocked ? 'not-allowed' : 'pointer',
                   opacity: mapLocked ? 0.45 : 1,
-                  textAlign: 'center',
-                  padding: '0 8px',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                +
+                <LiPlus size={22} style={{ flexShrink: 0 }} />
               </button>
 
               <button
@@ -2772,11 +2788,13 @@ export const WorldMap = ({
                   fontFamily: 'var(--font-mono)',
                   cursor: mapLocked ? 'not-allowed' : 'pointer',
                   opacity: mapLocked ? 0.45 : 1,
-                  textAlign: 'center',
-                  padding: '0 8px',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                −
+                <LiMinus size={22} style={{ flexShrink: 0 }} />
               </button>
 
               <div
@@ -2981,24 +2999,7 @@ export const WorldMap = ({
               cursor: 'pointer',
             }}
           >
-            <svg
-              aria-hidden="true"
-              width="17"
-              height="17"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.25"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="4" y1="6" x2="20" y2="6" />
-              <circle cx="9" cy="6" r="2" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <circle cx="15" cy="12" r="2" />
-              <line x1="4" y1="18" x2="20" y2="18" />
-              <circle cx="11" cy="18" r="2" />
-            </svg>
+            <LiRotate size={18} style={{ flexShrink: 0 }} />
           </button>
           {showMapRotationMenu && (
             <div

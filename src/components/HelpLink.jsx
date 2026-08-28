@@ -9,6 +9,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { openHelp } from '../utils/helpTopics.js';
+import { LiHelp } from './Icons.jsx';
 
 /**
  * @param {string} topic - key into HELP_TOPICS (falls back to basics)
@@ -67,7 +68,10 @@ export const HelpLink = ({ topic, label, className, style }) => {
       }}
       style={{ ...defaultStyle, ...style }}
     >
-      ?
+      {/* Tabset toolbar buttons use the line-icon glyph; the small bordered
+          circle elsewhere keeps its typographic "?" (it already draws its
+          own ring — nesting i-help's circle would double it up). */}
+      {className ? <LiHelp size={20} style={{ display: 'block' }} /> : '?'}
     </button>
   );
 };
