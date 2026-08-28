@@ -155,10 +155,16 @@ export async function buildGlobeTexture({ tileUrlTemplate, tileZoom = 3, lang, b
     ectx.drawImage(merc, 0, srcY, dim, 1, 0, y, outW, 1);
   }
 
-  // Polar caps are only touched for basemaps that publish polar imagery. Every
-  // other source keeps the plain clamped rows it has always had.
-  if (polar) {
-    const capRows = Math.floor(((90 - MAX_MERCATOR_LAT) / 180) * outH);
+  // Polar caps: basemaps with a polar source (Satellite) get real imagery
+  // drawn into the cap; every basemap then gets its remaining cap rows
+  // settled — blended into the average of the band below and blurred — so
+  // the clamped Mercator repeat never renders as a pinwheel of wedges at
+  // the poles. Without a polar source drawPolarImagery fetches nothing and
+  // reports the full cap as unfilled, which routes the whole cap to the
+  // settle pass (the same already-exercised path a failed imagery fetch
+  // takes).
+  const capRows = Math.floor(((90 - MAX_MERCATOR_LAT) / 180) * outH);
+  if (capRows >= 1) {
     const hole = await drawPolarImagery(ectx, outW, outH, capRows, polar, signal);
     settlePolarCap(ectx, outW, outH, hole.north, -1, hole.north);
     settlePolarCap(ectx, outW, outH, outH - 1 - hole.south, 1, hole.south);
