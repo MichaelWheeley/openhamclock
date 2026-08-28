@@ -56,6 +56,7 @@ const SPECS = {
   weather: {
     title: 'WEATHER',
     accent: 'var(--accent-cyan)',
+    bareMap: true, // weather / geological / hazards only — no ham traffic
     panels: ['de-weather', 'swpc-alerts', 'swpc-trends'],
     mapLayers: {
       showPOTA: false,
@@ -80,6 +81,7 @@ const SPECS = {
   airtraffic: {
     title: 'AIR TRAFFIC',
     accent: 'var(--accent-blue)',
+    bareMap: true, // aviation only — no ham traffic
     panels: ['aircraft-nearby', 'world-clocks', 'de-weather'],
     mapLayers: {
       showPOTA: false,
@@ -175,6 +177,7 @@ export default function FocusLayout(props) {
   } = props;
 
   const spec = SPECS[focus] || SPECS.activator;
+  const bareMap = !!spec.bareMap;
   const { tuneTo } = useRig();
   const { breakpoint } = useBreakpoint();
   const isNarrow = breakpoint !== 'desktop';
@@ -343,7 +346,7 @@ export default function FocusLayout(props) {
             onOpenFilters={() => setShowDXFilters(true)}
             onHoverSpot={setHoveredSpot}
             onSpotClick={handleDXSpotClick}
-            hoveredSpot={hoveredSpot}
+            hoveredSpot={bareMap ? null : hoveredSpot}
             showOnMap={mapLayers.showDXPaths}
             onToggleMap={toggleDXPaths}
             userCallsign={config.callsign}
@@ -445,18 +448,18 @@ export default function FocusLayout(props) {
         dxLocation={dxLocation}
         onDXChange={handleDXChange}
         dxLocked={dxLocked}
-        potaSpots={filteredPotaSpots ? filteredPotaSpots : potaSpots.data}
-        wwffSpots={filteredWwffSpots ? filteredWwffSpots : wwffSpots.data}
-        sotaSpots={filteredSotaSpots ? filteredSotaSpots : sotaSpots.data}
-        wwbotaSpots={filteredWwbotaSpots ? filteredWwbotaSpots : wwbotaSpots.data}
-        canparksSpots={filteredCanparksSpots ? filteredCanparksSpots : canparksSpots.data}
-        mySpots={mySpots.data}
-        dxPaths={dxClusterData.paths}
+        potaSpots={bareMap ? [] : filteredPotaSpots ? filteredPotaSpots : potaSpots.data}
+        wwffSpots={bareMap ? [] : filteredWwffSpots ? filteredWwffSpots : wwffSpots.data}
+        sotaSpots={bareMap ? [] : filteredSotaSpots ? filteredSotaSpots : sotaSpots.data}
+        wwbotaSpots={bareMap ? [] : filteredWwbotaSpots ? filteredWwbotaSpots : wwbotaSpots.data}
+        canparksSpots={bareMap ? [] : filteredCanparksSpots ? filteredCanparksSpots : canparksSpots.data}
+        mySpots={bareMap ? [] : mySpots.data}
+        dxPaths={bareMap ? [] : dxClusterData.paths}
         dxFilters={dxFilters}
         mapBandFilter={mapBandFilter}
         onMapBandFilterChange={setMapBandFilter}
-        satellites={filteredSatellites}
-        pskReporterSpots={filteredPskSpots}
+        satellites={bareMap ? [] : filteredSatellites}
+        pskReporterSpots={bareMap ? [] : filteredPskSpots}
         showDeDxMarkers={mapLayers.showDeDxMarkers}
         showDXPaths={mapLayers.showDXPaths}
         showDXLabels={mapLayers.showDXLabels}
@@ -475,11 +478,11 @@ export default function FocusLayout(props) {
         showPSKReporter={mapLayers.showPSKReporter}
         showPSKPaths={mapLayers.showPSKPaths}
         showMutualReception={config.showMutualReception !== false}
-        wsjtxSpots={wsjtxMapSpots}
+        wsjtxSpots={bareMap ? [] : wsjtxMapSpots}
         showWSJTX={mapLayers.showWSJTX}
         showDXNews={mapLayers.showDXNews}
         onToggleSatellites={toggleSatellites}
-        hoveredSpot={hoveredSpot}
+        hoveredSpot={bareMap ? null : hoveredSpot}
         callsign={config.callsign}
         lowMemoryMode={config.lowMemoryMode}
         allUnits={config.allUnits}
