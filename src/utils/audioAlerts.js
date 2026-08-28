@@ -46,9 +46,10 @@ const LS_KEY = 'ohc_audio_alerts';
 export function getAlertSettings() {
   const defaults = {};
   for (const [id, feed] of Object.entries(ALERT_FEEDS)) {
-    defaults[id] = { enabled: false, tone: feed.defaultTone };
+    defaults[id] = { enabled: false, tone: feed.defaultTone, notify: false };
   }
   defaults.volume = 0.5;
+  defaults.notifications = false; // master switch for browser notifications
   try {
     const stored = localStorage.getItem(LS_KEY);
     if (stored) {

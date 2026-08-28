@@ -23,6 +23,7 @@ import ThemeSelector from './ThemeSelector';
 import CustomThemeEditor from './CustomThemeEditor';
 import { emojiToIso2 } from '../utils/countryFlags';
 import { getAlertSettings, saveAlertSettings, playTone, TONE_PRESETS, ALERT_FEEDS } from '../utils/audioAlerts';
+import { getNotificationPermission, requestNotificationPermission } from '../utils/notifications';
 import { setRelaySessionId, setRelayConfigured, clearRelaySession } from '../utils/relaySession';
 import { getCallbookCredentials, setCallbookCredentials } from '../utils/callbookAuth.js';
 import { getCartoApiKey, CARTO_KEY_STORAGE } from '../utils/config.js';
@@ -6460,16 +6461,80 @@ export default SettingsPanel;
 
 /** Audio Alerts settings tab */
 function AudioAlertsTab() {
+  const { t } = useTranslation();
   const [alertSettings, setAlertSettingsState] = useState(() => getAlertSettings());
+  const [notifPermission, setNotifPermission] = useState(() => getNotificationPermission());
   const updateSettings = (newSettings) => {
     setAlertSettingsState(newSettings);
     saveAlertSettings(newSettings);
   };
+
+  const notificationsOn = !!alertSettings.notifications && notifPermission === 'granted';
+  const toggleNotifications = async () => {
+    if (alertSettings.notifications) {
+      updateSettings({ ...alertSettings, notifications: false });
+      return;
+    }
+    // Permission request must happen inside this click (user gesture).
+    const perm = await requestNotificationPermission();
+    setNotifPermission(perm);
+    if (perm === 'granted') {
+      updateSettings({ ...alertSettings, notifications: true });
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.5' }}>
         Play audio tones when new items appear in data feeds. Each feed can have its own tone. Alerts are suppressed on
         initial page load and when returning to a background tab.
+      </div>
+
+      {/* Browser notifications master switch */}
+      <div
+        style={{
+          background: 'var(--bg-tertiary)',
+          border: `1px solid ${notificationsOn ? 'var(--accent-amber)' : 'var(--border-color)'}`,
+          borderRadius: '8px',
+          padding: '14px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}>
+            {t('station.settings.alerts.notify.title')}
+          </span>
+          <button
+            onClick={toggleNotifications}
+            disabled={notifPermission === 'unsupported' || notifPermission === 'denied'}
+            style={{
+              background: notificationsOn ? 'var(--accent-amber)' : 'var(--bg-secondary)',
+              color: notificationsOn ? '#000' : 'var(--text-muted)',
+              border: `1px solid ${notificationsOn ? 'var(--accent-amber)' : 'var(--border-color)'}`,
+              borderRadius: '4px',
+              padding: '4px 12px',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: notifPermission === 'unsupported' || notifPermission === 'denied' ? 'not-allowed' : 'pointer',
+              opacity: notifPermission === 'unsupported' || notifPermission === 'denied' ? 0.5 : 1,
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {notificationsOn ? 'ON' : 'OFF'}
+          </button>
+        </div>
+        <div style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: '1.5', marginTop: '6px' }}>
+          {t('station.settings.alerts.notify.description')}
+        </div>
+        {notifPermission === 'denied' && (
+          <div style={{ color: 'var(--accent-red, #ef4444)', fontSize: '11px', lineHeight: '1.5', marginTop: '6px' }}>
+            {t('station.settings.alerts.notify.denied')}
+          </div>
+        )}
+        {notifPermission === 'unsupported' && (
+          <div style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: '1.5', marginTop: '6px' }}>
+            {t('station.settings.alerts.notify.unsupported')}
+          </div>
+        )}
       </div>
 
       {/* Volume */}
@@ -6583,6 +6648,29 @@ function AudioAlertsTab() {
                   }}
                 >
                   🔊
+                </button>
+                <button
+                  onClick={() =>
+                    updateSettings({
+                      ...alertSettings,
+                      [feedId]: { ...feedConf, notify: !feedConf.notify },
+                    })
+                  }
+                  title={t('station.settings.alerts.notify.feedToggle')}
+                  aria-label={t('station.settings.alerts.notify.feedToggle')}
+                  aria-pressed={!!feedConf.notify}
+                  style={{
+                    background: feedConf.notify ? 'var(--accent-amber)' : 'var(--bg-secondary)',
+                    border: `1px solid ${feedConf.notify ? 'var(--accent-amber)' : 'var(--border-color)'}`,
+                    borderRadius: '4px',
+                    padding: '5px 10px',
+                    color: feedConf.notify ? '#000' : 'var(--text-primary)',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    opacity: notificationsOn ? 1 : 0.5,
+                  }}
+                >
+                  🔔
                 </button>
               </div>
             )}

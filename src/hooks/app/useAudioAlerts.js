@@ -1,10 +1,12 @@
 /**
  * useAudioAlerts Hook
- * Monitors data feed arrays for new items and plays audio tones.
+ * Monitors data feed arrays for new items and plays audio tones, and
+ * (when enabled per feed) fires a browser notification for the same event.
  * Settings are read from localStorage (ohc_audio_alerts).
  */
 import { useEffect, useRef } from 'react';
-import { getAlertSettings, playTone } from '../../utils/audioAlerts';
+import { getAlertSettings, playTone, ALERT_FEEDS } from '../../utils/audioAlerts';
+import { formatAlertBody, showAlertNotification } from '../../utils/notifications';
 
 const COOLDOWN_MS = 10000; // Min 10s between tones per feed
 const VISIBILITY_GRACE_MS = 5000; // Suppress alerts for 5s after tab becomes visible
@@ -62,8 +64,19 @@ export default function useAudioAlerts(feeds) {
       const feedSettings = settings[feedId];
       if (!feedSettings?.enabled) continue;
 
-      // Build current key set
-      const currentKeys = new Set(data.map((item) => itemKey(feedId, item)));
+      // Build current key set and find new items in one pass
+      const prevKeys = prevKeysRef.current[feedId] || new Set();
+      const currentKeys = new Set();
+      let firstNewItem = null;
+      let newCount = 0;
+      for (const item of data) {
+        const key = itemKey(feedId, item);
+        currentKeys.add(key);
+        if (!prevKeys.has(key)) {
+          newCount += 1;
+          if (!firstNewItem) firstNewItem = item;
+        }
+      }
 
       // First load — set baseline, no alert
       if (!isFirstLoadRef.current[feedId]) {
@@ -72,22 +85,21 @@ export default function useAudioAlerts(feeds) {
         continue;
       }
 
-      const prevKeys = prevKeysRef.current[feedId] || new Set();
-
-      // Check for any new keys
-      let hasNew = false;
-      for (const key of currentKeys) {
-        if (!prevKeys.has(key)) {
-          hasNew = true;
-          break;
-        }
-      }
-
-      if (hasNew) {
-        // Cooldown check
+      if (newCount > 0) {
+        // Cooldown check — shared by tone and notification so they fire
+        // (or stay quiet) together.
         const lastTone = lastToneRef.current[feedId] || 0;
         if (now - lastTone >= COOLDOWN_MS) {
           playTone(feedSettings.tone, settings.volume ?? 0.5);
+          if (settings.notifications && feedSettings.notify) {
+            const body = formatAlertBody(feedId, firstNewItem);
+            const suffix = newCount > 1 ? `+${newCount - 1} more` : '';
+            showAlertNotification({
+              feedId,
+              title: ALERT_FEEDS[feedId]?.label || feedId,
+              body: [body, suffix].filter(Boolean).join(' · '),
+            });
+          }
           lastToneRef.current[feedId] = now;
         }
       }
