@@ -503,15 +503,21 @@ Separately from the PWA, the app polls the server version and — on the hosted 
 
 ### Layouts (Settings → Display)
 
-| Layout       | Best for                                                                                        |
-| ------------ | ----------------------------------------------------------------------------------------------- |
-| **Modern**   | Widescreen monitors — responsive 3-column grid around the map                                   |
-| **Classic**  | Dedicated displays and Pi kiosks — the original HamClock look, refreshed                        |
-| **Tablet**   | 7–10" widescreen displays (16:9)                                                                |
-| **Compact**  | 4:3 and smaller screens — data-first                                                            |
-| **Dockable** | Power users — every panel draggable, tabbable, resizable; layout lock; reset button             |
-| **EmComm**   | Emergency communications operations (beta)                                                      |
-| **Contest**  | Contest operating — quick-log strip, dupe check, rate meter, session multipliers (next release) |
+| Layout                         | Best for                                                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Modern**                     | Widescreen monitors — responsive 3-column grid around the map                                                                  |
+| **Classic**                    | Dedicated displays and Pi kiosks — the original HamClock look, refreshed                                                       |
+| **Tablet**                     | 7–10" widescreen displays (16:9)                                                                                               |
+| **Compact**                    | 4:3 and smaller screens — data-first                                                                                           |
+| **Dockable**                   | Power users — every panel draggable, tabbable, resizable; layout lock; reset button                                            |
+| **EmComm**                     | Emergency communications operations (beta)                                                                                     |
+| **Contest**                    | Contest operating — quick-log strip, dupe check, rate meter, session multipliers (next release)                                |
+| **Activator** (next release)   | In the field: POTA self-spotting, activations, RBN "am I being heard", nearby repeaters — park/summit map overlays switched on |
+| **Hunter** (next release)      | Chasing activators: DX cluster, every activation program, sun & moon — spot overlays and DX paths switched on                  |
+| **Weather** (next release)     | Radar, lightning, natural-hazard, and aurora overlays on a big map, with terrestrial + space weather panels                    |
+| **Air Traffic** (next release) | Live aircraft and ATC sector overlays over a dominant map, with world clocks                                                   |
+
+The four focus layouts (Activator/Hunter/Weather/Air Traffic) apply their map-overlay preset each time you switch into them — that's the "reset to the standard view" gesture. Any layer you toggle afterwards stays as you set it until you re-enter the layout.
 
 **Named dockable layouts (next release).** The Dockable layout can hold more than one arrangement. In the sidebar's layout controls (next to the lock and reset buttons), **⧉ Duplicate** saves the current arrangement as a named preset — up to 10 — and the dropdown switches between them live. Rename (✎) and delete (✕) manage your presets; the built-in **Default** is your original layout and can't be renamed or deleted. Presets are included in profiles, backups, and settings sync like everything else.
 

@@ -796,6 +796,20 @@ export const SettingsPanel = ({
     dockable: t('station.settings.layout.dockable.describe'),
     emcomm: t('station.settings.layout.emcomm.describe'),
     contest: t('station.settings.layout.contest.describe'),
+    activator: t('station.settings.layout.activator.describe', {
+      defaultValue:
+        'In the field: self-spotting, activations, RBN checks, and nearby repeaters — park/summit overlays on.',
+    }),
+    hunter: t('station.settings.layout.hunter.describe', {
+      defaultValue:
+        'Chasing activators: cluster, all activation programs, and greyline — spot overlays and DX paths on.',
+    }),
+    weather: t('station.settings.layout.weather.describe', {
+      defaultValue: 'Radar, lightning, hazards, and aurora on the map, with terrestrial and space weather panels.',
+    }),
+    airtraffic: t('station.settings.layout.airtraffic.describe', {
+      defaultValue: 'Live aircraft and ATC sectors over a big map, plus world clocks.',
+    }),
   };
 
   const unitString = (t) => {
@@ -4250,7 +4264,19 @@ export const SettingsPanel = ({
                   {t('station.settings.layout')}
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                  {['modern', 'classic', 'tablet', 'compact', 'dockable', 'emcomm', 'contest'].map((l) => (
+                  {[
+                    'modern',
+                    'classic',
+                    'tablet',
+                    'compact',
+                    'dockable',
+                    'emcomm',
+                    'contest',
+                    'activator',
+                    'hunter',
+                    'weather',
+                    'airtraffic',
+                  ].map((l) => (
                     <button
                       key={l}
                       onClick={() => setLayout(l)}
@@ -4265,20 +4291,19 @@ export const SettingsPanel = ({
                         fontWeight: layout === l ? '600' : '400',
                       }}
                     >
-                      {l === 'modern'
-                        ? '🖥️'
-                        : l === 'classic'
-                          ? '📺'
-                          : l === 'tablet'
-                            ? '📱'
-                            : l === 'compact'
-                              ? '📊'
-                              : l === 'emcomm'
-                                ? '📍'
-                                : l === 'contest'
-                                  ? '🏆'
-                                  : '⊞'}{' '}
-                      {l === 'dockable' ? t('station.settings.layout.dockable') : t('station.settings.layout.' + l)}
+                      {{
+                        modern: '🖥️',
+                        classic: '📺',
+                        tablet: '📱',
+                        compact: '📊',
+                        emcomm: '📍',
+                        contest: '🏆',
+                        activator: '▲',
+                        hunter: '🎯',
+                        weather: '🌩️',
+                        airtraffic: '✈️',
+                      }[l] || '⊞'}{' '}
+                      {t('station.settings.layout.' + l)}
                     </button>
                   ))}
                 </div>
@@ -4392,6 +4417,10 @@ export const SettingsPanel = ({
                         ...presetIds,
                         'emcomm',
                         'contest',
+                        'activator',
+                        'hunter',
+                        'weather',
+                        'airtraffic',
                         ...profileIds,
                       ].map((l) => {
                         const presetName = l.startsWith('dockable#')

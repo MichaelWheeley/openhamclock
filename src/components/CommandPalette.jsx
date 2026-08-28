@@ -27,7 +27,19 @@ import { fuzzyFilter } from '../utils/fuzzyMatch.js';
 import { HELP_TOPICS, openHelp } from '../utils/helpTopics.js';
 import { listPresets, getActivePresetId, activatePreset } from '../store/layoutStore.js';
 
-const LAYOUT_IDS = ['modern', 'classic', 'tablet', 'compact', 'dockable', 'emcomm', 'contest'];
+const LAYOUT_IDS = [
+  'modern',
+  'classic',
+  'tablet',
+  'compact',
+  'dockable',
+  'emcomm',
+  'contest',
+  'activator',
+  'hunter',
+  'weather',
+  'airtraffic',
+];
 const SETTINGS_TAB_IDS = [
   'station',
   'integrations',

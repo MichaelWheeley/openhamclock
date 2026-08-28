@@ -13,6 +13,7 @@ import ClassicLayout from './layouts/ClassicLayout.jsx';
 import ModernLayout from './layouts/ModernLayout.jsx';
 import EmcommLayout from './layouts/EmcommLayout.jsx';
 import ContestLayout from './layouts/ContestLayout.jsx';
+import FocusLayout, { FOCUS_LAYOUT_IDS } from './layouts/FocusLayout.jsx';
 
 import { resetActiveLayout } from './store/layoutStore.js';
 import { RigProvider } from './contexts/RigContext.jsx';
@@ -900,6 +901,8 @@ const App = () => {
             <EmcommLayout {...layoutProps} />
           ) : config.layout === 'contest' ? (
             <ContestLayout {...layoutProps} />
+          ) : FOCUS_LAYOUT_IDS.includes(config.layout) ? (
+            <FocusLayout {...layoutProps} focus={config.layout} />
           ) : config.layout === 'dockable' ? (
             <DockableLayout
               key={layoutResetKey}
