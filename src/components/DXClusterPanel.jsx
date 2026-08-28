@@ -626,6 +626,7 @@ export const DXClusterPanel = ({
                     fontWeight="700"
                     onPopup={showPopup}
                     location={{ grid: spot.dxGrid, lat: spot.dxLat, lon: spot.dxLon }}
+                    spot={freqMHz > 0 ? { freq: freqMHz * 1000, mode: modeInfo?.mode ?? null } : undefined}
                   />
                   {workedStatus === 'dupe' && (
                     <span

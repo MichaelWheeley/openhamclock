@@ -716,6 +716,7 @@ const PSKReporterPanel = ({
                           fontSize="11px"
                           onPopup={showPopup}
                           location={grid ? { grid } : undefined}
+                          spot={report.freq > 0 ? { freq: report.freq / 1000, mode: report.mode ?? null } : undefined}
                         />
                         {showMutualReception && isMutual(report) && (
                           <span
@@ -1062,6 +1063,7 @@ const PSKReporterPanel = ({
                           fontWeight="600"
                           onPopup={showPopup}
                           location={q.dxGrid ? { grid: q.dxGrid } : undefined}
+                          spot={q.frequency > 0 ? { freq: q.frequency / 1000, mode: q.mode ?? null } : undefined}
                         />
                       </span>
                       <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>{q.band}</span>

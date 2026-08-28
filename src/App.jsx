@@ -742,7 +742,7 @@ const App = () => {
         onResetLayout={handleResetLayout}
       />
 
-      <CallsignPopupProvider>
+      <CallsignPopupProvider deLocation={config.location}>
         <RigProvider rigConfig={config.rigControl || { enabled: false, host: 'http://localhost', port: 5555 }}>
           {config.layout === 'emcomm' ? (
             <EmcommLayout {...layoutProps} />

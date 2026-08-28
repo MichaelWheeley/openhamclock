@@ -277,6 +277,11 @@ export const ActivatePanel = ({
                       fontWeight="600"
                       onPopup={showPopup}
                       location={spot.grid ? { grid: spot.grid } : undefined}
+                      spot={
+                        parseFloat(spot.freq) > 0
+                          ? { freq: parseFloat(spot.freq) * 1000, mode: spot.mode || null }
+                          : undefined
+                      }
                     />
                     {getWorkedStatus(spot.call) && (
                       <span

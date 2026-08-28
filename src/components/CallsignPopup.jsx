@@ -13,13 +13,15 @@
  *     onClose={() => setShowPopup(false)}
  *   />
  */
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useCallsignLookup from '../hooks/app/useCallsignLookup.js';
 import usePopupPosition, { POPUP_HEIGHT_ESTIMATE } from '../hooks/app/usePopupPosition.js';
 import useTimezone from '../hooks/app/useTimezone.js';
 import { getCallbookUrl, getCallbook, CALLBOOKS } from '../utils/callbook.js';
 import { ctyLookup } from '../utils/ctyLookup.js';
 import { latLonToMaidenhead } from '../utils/index.js';
+import { getListenUrl, loadNearbyReceivers } from '../utils/webSdr.js';
 
 import { IconGlobe, IconRefresh } from './Icons.jsx';
 import { extractBaseCall } from './CallsignLink.jsx';
@@ -31,7 +33,13 @@ const bgColor = 'var(--bg-secondary)';
 const textColor = 'var(--text-primary)';
 const mutedColor = 'var(--text-muted)';
 
-function CallsignPopup({ anchorRef, call, onClose, popupHeightRef, location }) {
+// spot — optional { freq, mode } spot context from the surface that opened the
+//        popup (freq in kHz). When present, a 🎧 "listen on a web SDR" action
+//        is rendered, tuned to the spot's frequency/mode.
+// deLocation — optional { lat, lon } of the user's DE location, used to warm
+//        the nearby web-SDR receiver directory so 🎧 picks a close receiver.
+function CallsignPopup({ anchorRef, call, onClose, popupHeightRef, location, spot, deLocation }) {
+  const { t } = useTranslation();
   const popupRef = useRef(null);
   const recalculateRef = useRef(null);
   const pos = usePopupPosition(anchorRef, popupHeightRef, POPUP_HEIGHT_ESTIMATE, (fn) => {
@@ -63,6 +71,27 @@ function CallsignPopup({ anchorRef, call, onClose, popupHeightRef, location }) {
 
   // Fetch rich data from server
   const { data, loading: apiLoading, error } = useCallsignLookup(call);
+
+  // Warm the nearby web-SDR receiver cache so the 🎧 link can be computed
+  // synchronously at render time (same pattern as DXClusterPanel). Popups
+  // opened from non-cluster surfaces still get directory receivers this way.
+  // One re-render when the list lands; getListenUrl() reads the module-level
+  // cache directly.
+  const [, setSdrDirectoryTick] = useState(0);
+  useEffect(() => {
+    if (spot == null) return undefined; // no listen action — skip the fetch
+    let cancelled = false;
+    loadNearbyReceivers(deLocation?.lat, deLocation?.lon).then((list) => {
+      if (!cancelled && list) setSdrDirectoryTick((n) => n + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [spot, deLocation?.lat, deLocation?.lon]);
+
+  // Web SDR "listen" link — lets rig-less users hear the spotted station.
+  const spotFreqKhz = Number(spot?.freq);
+  const listen = Number.isFinite(spotFreqKhz) && spotFreqKhz > 0 ? getListenUrl(spotFreqKhz, spot?.mode) : null;
 
   // Synchronous ctyLookup for grid and country/entity
   const cty = ctyLookup(call);
@@ -277,6 +306,55 @@ function CallsignPopup({ anchorRef, call, onClose, popupHeightRef, location }) {
           </div>
         </div>
       </div>
+
+      {/* Listen action — web SDR tuned to the spot frequency/mode */}
+      {listen && (
+        <div style={{ padding: '0 10px 8px' }}>
+          <a
+            href={listen.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            title={t('dxClusterPanel.listenTooltip', {
+              defaultValue: 'Listen on a web SDR ({{receiver}})',
+              receiver: listen.name,
+            })}
+            aria-label={t('dxClusterPanel.listenTooltip', {
+              defaultValue: 'Listen on a web SDR ({{receiver}})',
+              receiver: listen.name,
+            })}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              color: accentColor,
+              textDecoration: 'none',
+              fontSize: '11px',
+              opacity: 0.85,
+              transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '1';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '0.85';
+            }}
+          >
+            <span aria-hidden="true" style={{ fontSize: '10px' }}>
+              🎧
+            </span>
+            <span
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {listen.name}
+            </span>
+          </a>
+        </div>
+      )}
     </div>
   );
 }
