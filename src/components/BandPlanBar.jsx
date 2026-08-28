@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getBandForFreq, getMarkerPosition, getSegmentClass } from '../utils/bandPlan';
+import { getLicenseClass, normalizeLicenseClass, nonPrivilegedSlices } from '../utils/privileges';
 
 /**
  * BandPlanBar — compact horizontal band plan strip for a given frequency.
@@ -24,8 +25,21 @@ const SEGMENT_COLORS = {
 // Format kHz as a compact MHz label: 1800 → "1.8", 14350 → "14.35", 7000 → "7"
 const fmtMHz = (khz) => (khz / 1000).toFixed(3).replace(/\.?0+$/, '');
 
+// Configured US license class ('other' = no restriction UI). Re-reads when
+// the settings panel saves (saveConfig dispatches 'openhamclock-config-change').
+const useLicenseClass = () => {
+  const [licenseClass, setLicenseClass] = useState(getLicenseClass);
+  useEffect(() => {
+    const onChange = () => setLicenseClass(getLicenseClass());
+    window.addEventListener('openhamclock-config-change', onChange);
+    return () => window.removeEventListener('openhamclock-config-change', onChange);
+  }, []);
+  return licenseClass;
+};
+
 const BandPlanBar = ({ freq }) => {
   const { t } = useTranslation();
+  const licenseClass = useLicenseClass();
   const band = getBandForFreq(freq);
   if (!band) return null;
 
@@ -40,6 +54,15 @@ const BandPlanBar = ({ freq }) => {
       phone: t('app.bandPlan.phone'),
       fm: t('app.bandPlan.fm'),
     })[cls] || cls;
+
+  // License-class privilege shading: kHz slices of each segment the configured
+  // class may not transmit in. Empty for 'Other' (no restriction UI at all).
+  const restricted = normalizeLicenseClass(licenseClass)
+    ? band.segments.flatMap((seg) => nonPrivilegedSlices(licenseClass, seg.min, seg.max, seg.mode))
+    : [];
+  const restrictedTitle = restricted.length
+    ? t('app.bandPlan.restricted', { licenseClass: t(`station.settings.licenseClass.${licenseClass}`) })
+    : '';
 
   return (
     <div className="band-plan-bar" aria-label={t('app.bandPlan.aria', { band: band.name })}>
@@ -59,6 +82,18 @@ const BandPlanBar = ({ freq }) => {
             />
           );
         })}
+        {/* Out-of-privilege shading for the configured license class */}
+        {restricted.map((slice) => (
+          <div
+            key={`priv-${slice.min}`}
+            className="bpb-restricted"
+            style={{
+              left: `${pct(slice.min)}%`,
+              width: `${pct(slice.max) - pct(slice.min)}%`,
+            }}
+            title={`${restrictedTitle}: ${fmtMHz(slice.min)}–${fmtMHz(slice.max)} ${t('app.units.mhz')}`}
+          />
+        ))}
         {/* Ticks at internal segment boundaries */}
         {band.segments.slice(1).map((seg) => (
           <div key={`tick-${seg.min}`} className="bpb-tick" style={{ left: `${pct(seg.min)}%` }} />
@@ -91,6 +126,21 @@ const BandPlanBar = ({ freq }) => {
         }
         .band-plan-bar .bpb-seg:hover {
             opacity: 0.9;
+        }
+        .band-plan-bar .bpb-restricted {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            /* Desaturating wash + subtle hatch over out-of-privilege stretches.
+               Built from theme background vars so it dims (rather than hides)
+               the segment colors in every theme. Fallback first for browsers
+               without color-mix support. */
+            background: repeating-linear-gradient(135deg, var(--bg-secondary) 0 3px, transparent 3px 7px);
+            background: repeating-linear-gradient(
+                135deg,
+                var(--bg-secondary) 0 3px,
+                color-mix(in srgb, var(--bg-secondary) 55%, transparent) 3px 7px
+            );
         }
         .band-plan-bar .bpb-tick {
             position: absolute;
