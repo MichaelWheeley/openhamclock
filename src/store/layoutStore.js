@@ -104,6 +104,9 @@ export const PANEL_DEFINITIONS = {
   'id-timer': { name: 'ID Timer', icon: '📢', description: '10-minute station identification reminder' },
   'world-map': { name: 'World Map', icon: '🗺️', description: 'Interactive world map' },
   'rig-control': { name: 'Rig Control', icon: '📻', description: 'Transceiver control and feedback' },
+  'freq-memories': { name: 'Frequencies', icon: '📻', description: 'Saved named frequencies with click-to-tune' },
+  'net-schedule': { name: 'Nets', icon: '🕐', description: 'Recurring net schedule with countdowns' },
+  'callsign-search': { name: 'Callsign Lookup', icon: '🔎', description: 'Callbook search with set-as-DX' },
   'on-air': { name: 'On Air', icon: '🔴', description: 'Large TX status indicator' },
   meshtastic: { name: 'Meshtastic', icon: '📡', description: 'Mesh network nodes and messages' },
 };

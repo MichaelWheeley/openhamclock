@@ -42,6 +42,9 @@ import {
   IBPPanel,
   SWPCAlertsPanel,
   MeteorShowerPanel,
+  FrequencyMemoriesPanel,
+  NetSchedulePanel,
+  CallsignSearchPanel,
 } from './components';
 import MeshtasticPanel from './components/MeshtasticPanel.jsx';
 import LogbookPanel from './components/LogbookPanel.jsx';
@@ -482,6 +485,9 @@ export const DockableApp = ({
       'meteor-showers': { name: 'Meteor Showers', icon: '☄️' },
       ...(hasAmbient ? { ambient: { name: 'Ambient Weather', icon: '🌦️' } } : {}),
       'rig-control': { name: 'Rig Control', icon: '📻' },
+      'freq-memories': { name: 'Frequencies', icon: '📻' },
+      'net-schedule': { name: 'Nets', icon: '🕐' },
+      'callsign-search': { name: 'Callsign Lookup', icon: '🔎' },
       'on-air': { name: 'On Air', icon: '🔴' },
       'id-timer': { name: 'ID Timer', icon: '📢' },
       image: { name: 'Custom Image', icon: '🖼️' },
@@ -1174,6 +1180,25 @@ export const DockableApp = ({
 
         case 'rig-control':
           content = <RigControlPanel />;
+          break;
+
+        case 'freq-memories':
+          content = <FrequencyMemoriesPanel />;
+          break;
+
+        case 'net-schedule':
+          content = <NetSchedulePanel />;
+          break;
+
+        case 'callsign-search':
+          content = (
+            <CallsignSearchPanel
+              deLocation={config.location}
+              units={config.allUnits?.dist}
+              onSetDX={handleDXChange}
+              dxLocked={dxLocked}
+            />
+          );
           break;
 
         case 'on-air':

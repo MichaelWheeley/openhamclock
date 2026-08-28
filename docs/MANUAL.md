@@ -225,6 +225,8 @@ In the **Dockable** layout, every panel below can be added from the **+** panel 
 - **Analog Clock** — a classic clock face with date, sunrise, and sunset. Also available in the Classic layout via `CLASSIC_ANALOG_CLOCK=true`.
 - **Ambient Weather** — your own AmbientWeather.net station's live data (appears only when `VITE_AMBIENT_*` keys are configured).
 - **Rig Control** — current frequency and mode from your radio via Rig Bridge, with a band plan overlay on the frequency display and PTT status. **(next release)** Set your US license class in Settings → Station and the band plan bar hatches out the ranges outside your privileges (Technician/General/Amateur Extra, per the FCC Part 97 / ARRL band chart); leave it on Other for no restriction display.
+- **Frequencies (next release)** — your own named channel list: calling frequencies, repeaters, club nets, whatever you keep going back to. Each entry has a name, frequency, optional mode and notes, and a band chip; with rig control enabled, clicking a row tunes the radio (same click-to-tune path as spots). A "From rig" button grabs the current frequency and mode from a connected rig, and up/down buttons reorder the list. Synced, profiled, and backed up with the rest of your settings.
+- **Nets (next release)** — a recurring net schedule you define: name, day (or daily), start time in UTC, optional frequency/mode/duration/notes. The list sorts by next occurrence with a live countdown ("in 2h 14m"), highlights nets that are **ON NOW**, shows each start in your local time, and click-to-tunes when a frequency is set. All the occurrence math is done in UTC, so daylight-saving shifts never move your net.
 - **On Air** — a big red ON AIR light driven by your rig's PTT. Point a webcam at it, or don't — it looks great either way.
 - **ID Timer** — 10-minute countdown that beeps and pops a reminder to identify; dismissing restarts it.
 - **Rotator** — compass rose, live bearing, and controls for a PSTRotator-compatible rotator (self-hosted only).
@@ -251,6 +253,7 @@ The full EmComm _layout_ is described in [The EmComm layout](#the-emcomm-layout)
 ### Utility
 
 - **World Map / Map Data (text view)** — the map itself, and its accessible text twin.
+- **Callsign Lookup (next release)** — a standalone callbook search box. Type a callsign and get the full card: name, grid, country, coordinates, and distance/bearing from your QTH, via the same lookup path (and QRZ/HamQTH credentials) the callsign popups use. A **Set as DX** button points the DX target at the station, and your last 10 searches stay one click away.
 - **Keyboard Shortcuts** — the `?` help, dockable as a permanent panel if you like.
 
 ---

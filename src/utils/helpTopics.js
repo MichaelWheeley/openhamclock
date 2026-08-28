@@ -43,6 +43,7 @@ export const HELP_TOPICS = {
   languages: 'languages',
   settings: 'settings-reference',
   hosting: 'hosted-site-vs-self-hosted',
+  utility: 'utility',
 };
 
 /** Dockable panel component id → topic key (see DockableApp panelDefs) */
@@ -83,6 +84,9 @@ export const PANEL_HELP = {
   'meteor-showers': 'propagation-panels',
   ambient: 'station-rig-panels',
   'rig-control': 'rig-bridge',
+  'freq-memories': 'station-rig-panels',
+  'net-schedule': 'station-rig-panels',
+  'callsign-search': 'utility',
   'on-air': 'station-rig-panels',
   'id-timer': 'station-rig-panels',
   image: 'station-rig-panels',
