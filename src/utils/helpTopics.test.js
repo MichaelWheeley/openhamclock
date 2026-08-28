@@ -26,6 +26,14 @@ describe('helpTopics anchors vs docs/MANUAL.md', () => {
     expect(headingIds.size).toBeGreaterThan(20);
   });
 
+  it('parses a CRLF manual identically (Windows checkouts)', () => {
+    // core.autocrlf=true converts the manual to \r\n on disk; heading
+    // extraction must not miss every heading there (it once did — `.`
+    // never matches \r, so `^#+ (.*)$` failed on each line).
+    const crlfIds = new Set(extractHeadings(manual.replace(/\n/g, '\r\n')).map((h) => h.id));
+    expect(crlfIds).toEqual(headingIds);
+  });
+
   it('every HELP_TOPICS anchor exists as a manual heading', () => {
     for (const [topic, anchor] of Object.entries(HELP_TOPICS)) {
       expect(

@@ -37,7 +37,11 @@ export function extractHeadings(markdown) {
   const slugger = createSlugger();
   const headings = [];
   let inFence = false;
-  for (const line of String(markdown || '').split('\n')) {
+  // CRLF sources (Windows checkouts / self-hosted files) must parse the same
+  // as LF: `.` never matches \r, so `^#+ (.*)$` fails on every heading line.
+  for (const line of String(markdown || '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')) {
     if (/^```/.test(line.trim())) {
       inFence = !inFence;
       continue;
@@ -115,7 +119,9 @@ function parseInline(text, keyPrefix, linkRenderer) {
 // ── Block parsing ───────────────────────────────────────────────────
 
 function parseBlocks(markdown) {
-  const lines = String(markdown || '').split('\n');
+  const lines = String(markdown || '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n');
   const blocks = [];
   let i = 0;
 
