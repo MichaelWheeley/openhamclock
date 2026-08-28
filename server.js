@@ -186,7 +186,14 @@ const staticOptions = {
   etag: true,
   lastModified: true,
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('index.html') || filePath.endsWith('.html')) {
+    // Service worker files must never be served stale — a cached sw.js can
+    // pin users to an old deploy for up to a day.
+    if (
+      filePath.endsWith('index.html') ||
+      filePath.endsWith('.html') ||
+      filePath.endsWith(`${path.sep}sw.js`) ||
+      filePath.endsWith(`${path.sep}sw-policy.js`)
+    ) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('CDN-Cache-Control', 'no-store'); // Cloudflare-specific: never cache at edge
       res.setHeader('Pragma', 'no-cache');
