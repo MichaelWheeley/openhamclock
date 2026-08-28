@@ -179,7 +179,7 @@ export default function SidebarMenu({
           left: 0,
           top: 0,
           bottom: 0,
-          width: isVisible ? (isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH) : 0,
+          width: currentWidth,
           background: 'var(--bg-panel)',
           borderRight: isVisible ? '1px solid var(--border-color)' : 'none',
           display: 'flex',
