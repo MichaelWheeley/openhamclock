@@ -125,3 +125,142 @@
   --map-ocean: #000080;
   /* --scanline-opacity: 0; */
 }
+
+/* ============================================
+   THEME: MATRIX (code-rain phosphor)
+   Colder and deeper than Legacy: near-black
+   greens, lime warnings, phosphor glow via
+   main.css. Semantic hues stay identifiable.
+   ============================================ */
+[data-theme='matrix'] {
+  --bg-primary: #010401;
+  --bg-secondary: #041006;
+  --bg-tertiary: #0a1f0e;
+  --bg-panel: rgba(2, 12, 4, 0.95);
+  --border-color: rgba(0, 255, 65, 0.25);
+  --text-primary: #00ff41;
+  --text-secondary: #00cc33;
+  --text-muted: #2e7d44;
+  --accent-amber: #b6ff00;
+  --accent-amber-dim: rgba(182, 255, 0, 0.5);
+  --accent-green: #00ff41;
+  --accent-green-dim: rgba(0, 255, 65, 0.5);
+  --accent-red: #ff3b30;
+  --accent-blue: #4dd2ff;
+  --accent-cyan: #00ffd0;
+  --accent-purple: #a97fff;
+  --accent-white: #d8ffe0;
+  --color-aprs-rf: #00ff41;
+  --bg-row-alt: rgba(0, 255, 65, 0.05);
+  --map-ocean: #010401;
+}
+
+/* ============================================
+   THEME: 8-BIT (console palette)
+   Deep NES navy with PICO-8-saturated accents;
+   main.css squares every corner off.
+   ============================================ */
+[data-theme='eightbit'] {
+  --bg-primary: #0f0f23;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #26264d;
+  --bg-panel: #16163a;
+  --border-color: rgba(122, 122, 255, 0.55);
+  --text-primary: #f8f8f8;
+  --text-secondary: #c0c0e0;
+  --text-muted: #8888aa;
+  --accent-amber: #ffcc00;
+  --accent-amber-dim: rgba(255, 204, 0, 0.5);
+  --accent-green: #00e436;
+  --accent-green-dim: rgba(0, 228, 54, 0.5);
+  --accent-red: #ff004d;
+  --accent-blue: #29adff;
+  --accent-cyan: #29e6ff;
+  --accent-purple: #b967ff;
+  --accent-white: #ffffff;
+  --color-aprs-rf: #00e436;
+  --bg-row-alt: rgba(255, 255, 255, 0.06);
+  --map-ocean: #0f0f23;
+}
+
+/* ============================================
+   THEME: STEAMPUNK (brass and parchment)
+   Oiled walnut backgrounds, brass amber, patina
+   cyan, verdigris green.
+   ============================================ */
+[data-theme='steampunk'] {
+  --bg-primary: #16100a;
+  --bg-secondary: #211710;
+  --bg-tertiary: #2e2016;
+  --bg-panel: rgba(30, 21, 14, 0.94);
+  --border-color: rgba(196, 148, 58, 0.35);
+  --text-primary: #e8d5b0;
+  --text-secondary: #c4a97a;
+  --text-muted: #937d5a;
+  --accent-amber: #e3a72f;
+  --accent-amber-dim: rgba(227, 167, 47, 0.5);
+  --accent-green: #8fbf5f;
+  --accent-green-dim: rgba(143, 191, 95, 0.5);
+  --accent-red: #d1495b;
+  --accent-blue: #5e83ba;
+  --accent-cyan: #62b6a2;
+  --accent-purple: #9a6fb0;
+  --accent-white: #f4e9d2;
+  --color-aprs-rf: #8fbf5f;
+  --bg-row-alt: rgba(227, 167, 47, 0.05);
+  --map-ocean: #14100c;
+}
+
+/* ============================================
+   THEME: MIDNIGHT (deep blue / ice)
+   ============================================ */
+[data-theme='midnight'] {
+  --bg-primary: #05070f;
+  --bg-secondary: #0a1020;
+  --bg-tertiary: #12203a;
+  --bg-panel: rgba(8, 14, 28, 0.93);
+  --border-color: rgba(90, 140, 255, 0.25);
+  --text-primary: #e6eeff;
+  --text-secondary: #9fb4d8;
+  --text-muted: #6d84a8;
+  --accent-amber: #ffc966;
+  --accent-amber-dim: rgba(255, 201, 102, 0.5);
+  --accent-green: #37e6a0;
+  --accent-green-dim: rgba(55, 230, 160, 0.5);
+  --accent-red: #ff5577;
+  --accent-blue: #6699ff;
+  --accent-cyan: #55ccff;
+  --accent-purple: #9f8fff;
+  --accent-white: #ffffff;
+  --color-aprs-rf: #37e6a0;
+  --bg-row-alt: rgba(120, 160, 255, 0.05);
+  --map-ocean: #04060c;
+}
+
+/* ============================================
+   THEME: EMBER (warm shack glow)
+   Tube-amp warmth: dark browns, fire amber,
+   candle-lit text.
+   ============================================ */
+[data-theme='ember'] {
+  --bg-primary: #120a08;
+  --bg-secondary: #1c110d;
+  --bg-tertiary: #2a1a13;
+  --bg-panel: rgba(24, 13, 10, 0.93);
+  --border-color: rgba(255, 120, 60, 0.28);
+  --text-primary: #ffeee4;
+  --text-secondary: #d8ac9a;
+  --text-muted: #a67f70;
+  --accent-amber: #ffb340;
+  --accent-amber-dim: rgba(255, 179, 64, 0.5);
+  --accent-green: #59d477;
+  --accent-green-dim: rgba(89, 212, 119, 0.5);
+  --accent-red: #ff4433;
+  --accent-blue: #6f8fd9;
+  --accent-cyan: #4fc8c2;
+  --accent-purple: #c07fd9;
+  --accent-white: #fff4ea;
+  --color-aprs-rf: #59d477;
+  --bg-row-alt: rgba(255, 140, 70, 0.05);
+  --map-ocean: #0d0806;
+}

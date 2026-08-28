@@ -541,6 +541,8 @@ The session marker syncs and profiles like any other setting, so a mid-contest b
 
 **Dark** (default), **Light**, **Legacy** (green CRT terminal), **Retro** (90s Windows), and **Custom** — a full editor for backgrounds, text, borders, map ocean, and every accent color. You can also pick the monospace font used for callsigns and frequencies (JetBrains Mono, Fira Code, IBM Plex Mono — the latter two with slashed zeros).
 
+**(Next release)** Five more themes join the lineup: **Matrix** (code-rain phosphor green with a faint glow, all-monospace), **8-Bit** (console-palette colors, square corners, chunky borders), **Steampunk** (brass, walnut, and patina), **Midnight** (deep blue and ice), and **Ember** (tube-amp warmth — dark browns and fire amber). All work everywhere the built-in themes do, including the map ocean color and both 2D and 3D projections.
+
 Display extras: header size slider, local-time-first clock swap, mutual-reception star toggle, a **Display Schedule** (sleep/wake times for shack TVs, with an option to keep the HDMI signal alive), **Keep Awake** wake-lock, and **Low Memory Mode** for machines under 8 GB.
 
 ### Profiles (Settings → Profiles)

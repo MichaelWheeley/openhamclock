@@ -25,5 +25,10 @@ export const AVAILABLE_THEMES = {
   light: { label: 'Light', icon: '☀️' },
   legacy: { label: 'Legacy', icon: '💻' },
   retro: { label: 'Retro', icon: '🪟' },
+  matrix: { label: 'Matrix', icon: '🟢' },
+  eightbit: { label: '8-Bit', icon: '🕹️' },
+  steampunk: { label: 'Steampunk', icon: '⚙️' },
+  midnight: { label: 'Midnight', icon: '🌌' },
+  ember: { label: 'Ember', icon: '🔥' },
   custom: { label: 'Custom', icon: '🎨' },
 };

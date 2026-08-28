@@ -1366,3 +1366,34 @@ pre,
     animation: none !important;
   }
 }
+
+/* ============================================
+   MATRIX THEME - phosphor terminal treatment
+   ============================================ */
+
+/* Everything monospace, like Legacy */
+[data-theme='matrix'] body,
+[data-theme='matrix'] * {
+  font-family: var(--font-mono) !important;
+}
+
+/* Subtle phosphor glow on text (kept faint — it's a data display) */
+[data-theme='matrix'] body {
+  text-shadow: 0 0 6px rgba(0, 255, 65, 0.25);
+}
+
+/* ============================================
+   8-BIT THEME - console chrome
+   ============================================ */
+
+/* No rounded corners anywhere — everything is a sprite */
+[data-theme='eightbit'] *,
+[data-theme='eightbit'] .panel {
+  border-radius: 0 !important;
+}
+
+/* Chunky 2px panel borders */
+[data-theme='eightbit'] .panel {
+  border-width: 2px !important;
+  backdrop-filter: none !important;
+}
