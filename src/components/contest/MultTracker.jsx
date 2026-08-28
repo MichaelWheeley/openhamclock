@@ -1,18 +1,22 @@
 /**
  * MultTracker — session multipliers + score estimate for the Contest layout.
  *
- * Scoped to QSOs logged since the session's "Start contest" marker. Counts
- * unique DXCC entities, CQ zones, and (when the log carries ADIF STATE
- * fields) US states, overall and per band — all via utils/contestSession.js,
- * which reuses the awards.js resolution rules (cty.dat).
+ * Scoped to QSOs logged since the session's "Start contest" marker. The
+ * active contest definition (utils/contestDefs.js) decides which multiplier
+ * dimensions are counted — CQ zones + DXCC for CQ WW, WPX prefixes for WPX,
+ * sections for Sweepstakes, and so on — overall and per band. The generic
+ * def keeps the original DXCC + zones + states trio. Field Day has no mults:
+ * its dims render as non-scoring "worked" counts and the score is plain QSOs.
  *
- * The score is QSOs × mults, clearly labeled as a generic estimate — real
- * contests each have their own point and multiplier rules.
+ * The score is QSOs × mults, clearly labeled as an estimate — real contests
+ * apply per-QSO point values this tracker doesn't model.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { computeSessionMults } from '../../utils/contestSession.js';
+import { computeContestMults } from '../../utils/contestDefs.js';
+import { ctyLookup } from '../../utils/ctyLookup.js';
 
 const BAND_ORDER = ['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m', '4m', '2m', '70cm'];
+const DIM_COLORS = ['var(--accent-green)', 'var(--accent-amber)', 'var(--accent-purple)', 'var(--accent-cyan)'];
 
 const Big = ({ label, value, accent }) => (
   <div style={{ textAlign: 'center', minWidth: '60px' }}>
@@ -33,7 +37,7 @@ const Big = ({ label, value, accent }) => (
   </div>
 );
 
-export const MultTracker = ({ qsos, session }) => {
+export const MultTracker = ({ qsos, session, def, userCallsign }) => {
   // cty.dat may land after the first compute — recompute when it does.
   const [ctyTick, setCtyTick] = useState(0);
   useEffect(() => {
@@ -43,9 +47,14 @@ export const MultTracker = ({ qsos, session }) => {
   }, []);
 
   const mults = useMemo(
-    () => computeSessionMults(qsos, { startedAt: session?.startedAt }),
+    () =>
+      computeContestMults(qsos, {
+        startedAt: session?.startedAt,
+        def,
+        myResolved: ctyLookup(userCallsign),
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [qsos, session?.startedAt, ctyTick],
+    [qsos, session?.startedAt, def, userCallsign, ctyTick],
   );
 
   const bands = useMemo(() => {
@@ -84,14 +93,23 @@ export const MultTracker = ({ qsos, session }) => {
         }}
       >
         <span>MULTIPLIERS</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: '9px', fontWeight: 400 }}>this session</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '9px', fontWeight: 400 }}>
+          {def?.name || 'this session'}
+        </span>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-around', gap: '6px', marginBottom: '10px' }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'space-around', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}
+      >
         <Big label="QSOs" value={mults.qsoCount} />
-        <Big label="DXCC" value={mults.entities.size} accent="var(--accent-green)" />
-        <Big label="Zones" value={mults.zones.size} accent="var(--accent-amber)" />
-        <Big label="States" value={mults.states.size} accent="var(--accent-purple)" />
+        {mults.dims.map((dim, i) => (
+          <Big
+            key={dim.key}
+            label={dim.scoring ? dim.label : `${dim.label} (info)`}
+            value={dim.values.size}
+            accent={DIM_COLORS[i % DIM_COLORS.length]}
+          />
+        ))}
       </div>
 
       {/* Score estimate */}
@@ -109,7 +127,11 @@ export const MultTracker = ({ qsos, session }) => {
         <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Score est.</span>
         <span
           style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}
-          title={`${mults.qsoCount} QSOs × ${mults.multTotal} mults`}
+          title={
+            mults.scoring
+              ? `${mults.qsoCount} QSOs × ${mults.multTotal} mults`
+              : `${mults.qsoCount} QSOs (no multipliers)`
+          }
         >
           {mults.score.toLocaleString()}
         </span>
@@ -129,9 +151,11 @@ export const MultTracker = ({ qsos, session }) => {
               <tr style={{ color: 'var(--text-muted)', fontSize: '9px', textTransform: 'uppercase' }}>
                 <th style={{ textAlign: 'left', padding: '2px 4px' }}>Band</th>
                 <th style={{ textAlign: 'right', padding: '2px 4px' }}>Q</th>
-                <th style={{ textAlign: 'right', padding: '2px 4px' }}>DXCC</th>
-                <th style={{ textAlign: 'right', padding: '2px 4px' }}>Zn</th>
-                <th style={{ textAlign: 'right', padding: '2px 4px' }}>St</th>
+                {mults.dims.map((dim) => (
+                  <th key={dim.key} style={{ textAlign: 'right', padding: '2px 4px' }}>
+                    {dim.short}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -141,15 +165,14 @@ export const MultTracker = ({ qsos, session }) => {
                   <tr key={b} style={{ borderTop: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '3px 4px', color: 'var(--accent-amber)', fontWeight: 600 }}>{b}</td>
                     <td style={{ padding: '3px 4px', textAlign: 'right', color: 'var(--text-primary)' }}>{rec.qsos}</td>
-                    <td style={{ padding: '3px 4px', textAlign: 'right', color: 'var(--accent-green)' }}>
-                      {rec.entities.size}
-                    </td>
-                    <td style={{ padding: '3px 4px', textAlign: 'right', color: 'var(--accent-amber)' }}>
-                      {rec.zones.size}
-                    </td>
-                    <td style={{ padding: '3px 4px', textAlign: 'right', color: 'var(--accent-purple)' }}>
-                      {rec.states.size}
-                    </td>
+                    {mults.dims.map((dim, i) => (
+                      <td
+                        key={dim.key}
+                        style={{ padding: '3px 4px', textAlign: 'right', color: DIM_COLORS[i % DIM_COLORS.length] }}
+                      >
+                        {rec.values.get(dim.key)?.size ?? 0}
+                      </td>
+                    ))}
                   </tr>
                 );
               })}
@@ -159,8 +182,12 @@ export const MultTracker = ({ qsos, session }) => {
       </div>
 
       <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: 1.4 }}>
-        Score = QSOs × (DXCC + zones + states) — a generic estimate, not any specific contest's rules. States count only
-        when QSOs carry an ADIF STATE field.
+        {mults.scoring
+          ? `Score = QSOs × (${mults.dims
+              .filter((d) => d.scoring)
+              .map((d) => d.label)
+              .join(' + ')}) — an estimate; real ${def?.name || 'contest'} scoring applies per-QSO points.`
+          : 'This contest has no multipliers — the score estimate is plain QSO count (Field Day scoring uses QSO points and bonuses).'}
       </div>
     </div>
   );

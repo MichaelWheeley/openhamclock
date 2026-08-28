@@ -3,10 +3,13 @@
  * multiplier math.
  *
  * Session marker: localStorage `openhamclock_contestSession` =
- * { startedAt: ms, name?: string }. Starting a session only stores the
- * timestamp; stopping clears the marker. The logbook itself is never
- * touched — it is the shared native log, the session is just a lens over
- * "QSOs made since startedAt".
+ * { startedAt: ms, name?: string, contestId?: string, sentExchange?: object }.
+ * `contestId` selects a contestDefs.js definition (exchange fields + mults);
+ * `sentExchange` holds the operator's own sent-side values (my zone / class /
+ * section / …) collected once per session. Starting a session only stores the
+ * marker; stopping clears it. The logbook itself is never touched — it is the
+ * shared native log, the session is just a lens over "QSOs made since
+ * startedAt".
  *
  * Multipliers reuse the awards.js resolution rules:
  *   - DXCC entity + CQ zone via cty.dat (defaultResolve); an explicit ADIF
@@ -30,19 +33,48 @@ export const loadContestSession = () => {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed.startedAt !== 'number' || !Number.isFinite(parsed.startedAt)) return null;
-    return { startedAt: parsed.startedAt, name: typeof parsed.name === 'string' ? parsed.name : '' };
+    return {
+      startedAt: parsed.startedAt,
+      name: typeof parsed.name === 'string' ? parsed.name : '',
+      contestId: typeof parsed.contestId === 'string' && parsed.contestId ? parsed.contestId : 'generic-dx',
+      sentExchange:
+        parsed.sentExchange && typeof parsed.sentExchange === 'object' && !Array.isArray(parsed.sentExchange)
+          ? parsed.sentExchange
+          : {},
+    };
   } catch {
     return null;
   }
 };
 
-/** Start a session now (or at an explicit timestamp). Returns the session. */
-export const startContestSession = (name = '', startedAt = Date.now()) => {
-  const session = { startedAt, name: String(name || '').trim() };
+const persistSession = (session) => {
   try {
     localStorage.setItem(CONTEST_SESSION_KEY, JSON.stringify(session));
   } catch {}
   return session;
+};
+
+/** Start a session now (or at an explicit timestamp). Returns the session. */
+export const startContestSession = (
+  name = '',
+  startedAt = Date.now(),
+  { contestId = 'generic-dx', sentExchange = {} } = {},
+) =>
+  persistSession({
+    startedAt,
+    name: String(name || '').trim(),
+    contestId: String(contestId || 'generic-dx'),
+    sentExchange: sentExchange && typeof sentExchange === 'object' ? { ...sentExchange } : {},
+  });
+
+/**
+ * Patch the running session (contest switch, sent-exchange edits).
+ * Returns the updated session, or null when no session is stored.
+ */
+export const updateContestSession = (patch) => {
+  const current = loadContestSession();
+  if (!current) return null;
+  return persistSession({ ...current, ...patch });
 };
 
 /** Stop the session — clears the marker only; the logbook keeps every QSO. */
@@ -149,6 +181,7 @@ export default {
   CONTEST_SESSION_KEY,
   loadContestSession,
   startContestSession,
+  updateContestSession,
   clearContestSession,
   sessionQsos,
   computeSessionMults,

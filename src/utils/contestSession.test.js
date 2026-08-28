@@ -3,6 +3,7 @@ import {
   CONTEST_SESSION_KEY,
   loadContestSession,
   startContestSession,
+  updateContestSession,
   clearContestSession,
   sessionQsos,
   computeSessionMults,
@@ -38,10 +39,33 @@ describe('session marker (localStorage)', () => {
   it('start → load → clear round-trip', () => {
     expect(loadContestSession()).toBeNull();
     const s = startContestSession('CQ WW', T0);
-    expect(s).toEqual({ startedAt: T0, name: 'CQ WW' });
-    expect(loadContestSession()).toEqual({ startedAt: T0, name: 'CQ WW' });
+    expect(s).toEqual({ startedAt: T0, name: 'CQ WW', contestId: 'generic-dx', sentExchange: {} });
+    expect(loadContestSession()).toEqual({ startedAt: T0, name: 'CQ WW', contestId: 'generic-dx', sentExchange: {} });
     clearContestSession();
     expect(loadContestSession()).toBeNull();
+  });
+
+  it('stores contestId + sentExchange and patches them via updateContestSession', () => {
+    startContestSession('CQ WW', T0, { contestId: 'cq-ww', sentExchange: { zone: '5' } });
+    expect(loadContestSession()).toEqual({
+      startedAt: T0,
+      name: 'CQ WW',
+      contestId: 'cq-ww',
+      sentExchange: { zone: '5' },
+    });
+    const updated = updateContestSession({ contestId: 'cq-wpx' });
+    expect(updated.contestId).toBe('cq-wpx');
+    expect(loadContestSession().contestId).toBe('cq-wpx');
+    expect(loadContestSession().sentExchange).toEqual({ zone: '5' });
+  });
+
+  it('updateContestSession returns null with no stored session', () => {
+    expect(updateContestSession({ contestId: 'cq-ww' })).toBeNull();
+  });
+
+  it('defaults contestId/sentExchange on legacy stored sessions', () => {
+    localStorage.setItem(CONTEST_SESSION_KEY, JSON.stringify({ startedAt: T0, name: 'old' }));
+    expect(loadContestSession()).toEqual({ startedAt: T0, name: 'old', contestId: 'generic-dx', sentExchange: {} });
   });
 
   it('trims the name and defaults it to empty', () => {

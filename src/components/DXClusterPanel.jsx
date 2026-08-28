@@ -32,6 +32,10 @@ export const DXClusterPanel = ({
   onOpenFilters,
   onHoverSpot,
   onSpotClick,
+  // Optional second click hook (Contest layout): receives the spot so the
+  // quick-log strip can populate its callsign box. Undefined elsewhere —
+  // zero behavior change for other layouts.
+  onSpotSelect,
   hoveredSpot,
   showOnMap,
   onToggleMap,
@@ -593,11 +597,13 @@ export const DXClusterPanel = ({
                 onMouseLeave={() => onHoverSpot?.(null)}
                 onClick={() => {
                   onSpotClick?.(spot);
+                  onSpotSelect?.(spot);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     onSpotClick?.(spot);
+                    onSpotSelect?.(spot);
                   }
                 }}
                 style={{

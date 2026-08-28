@@ -5,20 +5,36 @@
  * session multiplier tracker, and a full-height DX cluster pane whose
  * worked/dupe/NEW badges drive search-and-pounce.
  *
- * Session model: `openhamclock_contestSession` = { startedAt, name? }.
+ * Session model: `openhamclock_contestSession` = { startedAt, name?,
+ * contestId?, sentExchange? }. The contest picker in the header selects a
+ * contestDefs.js definition — it decides the quick-log strip's exchange
+ * columns, the ADIF contest mapping, and which multipliers are tracked.
  * Start/Stop lives in the header; all contest panes scope to QSOs logged
  * after startedAt. Stopping only clears the marker — the QSOs stay in the
  * shared native logbook.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DXClusterPanel, PSKReporterPanel } from '../components';
 import RateMeter from '../components/contest/RateMeter.jsx';
 import ContestLogStrip from '../components/contest/ContestLogStrip.jsx';
 import MultTracker from '../components/contest/MultTracker.jsx';
 import { useLogbook } from '../hooks/useLogbook.js';
 import { useRig } from '../contexts/RigContext.jsx';
-import { loadContestSession, startContestSession, clearContestSession, sessionQsos } from '../utils/contestSession.js';
+import {
+  loadContestSession,
+  startContestSession,
+  updateContestSession,
+  clearContestSession,
+  sessionQsos,
+} from '../utils/contestSession.js';
 import { qsoTimestampMs } from '../utils/contestRate.js';
+import {
+  CONTEST_DEFS,
+  DEFAULT_CONTEST_ID,
+  getContestDef,
+  nextSentSerial,
+  formatRcvdExchange,
+} from '../utils/contestDefs.js';
 
 const headerBtnStyle = {
   background: 'var(--bg-tertiary)',
@@ -76,6 +92,33 @@ export default function ContestLayout(props) {
   // ── Contest session ──────────────────────────────────────────────────────
   const [session, setSession] = useState(() => loadContestSession());
   const [nameDraft, setNameDraft] = useState('');
+  // Contest choice before a session starts (a running session stores its own).
+  const [contestDraftId, setContestDraftId] = useState(() => loadContestSession()?.contestId || DEFAULT_CONTEST_ID);
+  // Sent-side exchange collected before Start (persists into the session).
+  const [sentDraft, setSentDraft] = useState({});
+  const stripApi = useRef(null); // { populate(call) } — click-to-populate hook
+
+  const contestId = session?.contestId || contestDraftId;
+  const contestDef = getContestDef(contestId);
+  const sentExchange = session ? session.sentExchange || {} : sentDraft;
+
+  const handleContestChange = (newId) => {
+    if (session) {
+      if (
+        !confirm(
+          'Switch contest mid-session? The exchange columns change and multipliers are recomputed under the new rules. Logged QSOs are not modified.',
+        )
+      )
+        return;
+      setSession(updateContestSession({ contestId: newId }));
+    }
+    setContestDraftId(newId);
+  };
+
+  const handleSentExchangeSave = (map) => {
+    if (session) setSession(updateContestSession({ sentExchange: map }));
+    else setSentDraft(map);
+  };
 
   // Re-render every 30 s while a session runs so the header elapsed time
   // (computed from Date.now() at render) stays fresh.
@@ -87,7 +130,7 @@ export default function ContestLayout(props) {
   }, [session]);
 
   const handleStart = () => {
-    setSession(startContestSession(nameDraft));
+    setSession(startContestSession(nameDraft, Date.now(), { contestId: contestDraftId, sentExchange: sentDraft }));
     setNameDraft('');
   };
 
@@ -103,6 +146,9 @@ export default function ContestLayout(props) {
     const scoped = session ? sessionQsos(qsos, session.startedAt) : [];
     return scoped.sort((a, b) => (qsoTimestampMs(b) ?? 0) - (qsoTimestampMs(a) ?? 0)).slice(0, 20);
   }, [qsos, session]);
+
+  // Sent serial for the next QSO — recomputed from the log, survives reloads.
+  const serialNext = useMemo(() => nextSentSerial(qsos, session?.startedAt), [qsos, session?.startedAt]);
 
   return (
     <div
@@ -148,6 +194,28 @@ export default function ContestLayout(props) {
           <span style={{ color: 'var(--accent-amber)', fontWeight: 700, fontSize: '15px', letterSpacing: '2px' }}>
             CONTEST
           </span>
+          <select
+            value={contestId}
+            onChange={(e) => handleContestChange(e.target.value)}
+            aria-label="Contest"
+            title="Contest — decides the exchange fields and multiplier rules"
+            style={{
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              color: 'var(--text-primary)',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              padding: '4px 6px',
+              maxWidth: '180px',
+            }}
+          >
+            {CONTEST_DEFS.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
           {session ? (
             <>
               <span style={{ color: 'var(--accent-green)', fontSize: '11px', fontWeight: 600 }}>
@@ -195,7 +263,15 @@ export default function ContestLayout(props) {
       </div>
 
       {/* QUICK LOG STRIP — the centerpiece, always one keystroke away */}
-      <ContestLogStrip userCallsign={config.callsign} myGrid={deGrid} />
+      <ContestLogStrip
+        userCallsign={config.callsign}
+        myGrid={deGrid}
+        def={contestDef}
+        sentExchange={sentExchange}
+        onSentExchangeSave={handleSentExchangeSave}
+        nextSerial={serialNext}
+        apiRef={stripApi}
+      />
 
       {/* MAIN GRID */}
       <div
@@ -212,7 +288,7 @@ export default function ContestLayout(props) {
           style={{ display: 'grid', gridTemplateRows: 'auto minmax(0, 1fr) minmax(0, 40%)', gap: '6px', minHeight: 0 }}
         >
           <RateMeter qsos={qsos} />
-          <MultTracker qsos={qsos} session={session} />
+          <MultTracker qsos={qsos} session={session} def={contestDef} userCallsign={config.callsign} />
 
           {/* Recent session QSOs */}
           <div className="panel" style={{ padding: '10px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -242,6 +318,17 @@ export default function ContestLayout(props) {
                     }}
                   >
                     <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{q.call}</span>
+                    <span
+                      style={{
+                        color: 'var(--accent-cyan)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title="Received exchange"
+                    >
+                      {formatRcvdExchange(q)}
+                    </span>
                     <span style={{ color: 'var(--accent-amber)' }}>
                       {q.band || ''} {q.mode || ''}
                     </span>
@@ -267,6 +354,7 @@ export default function ContestLayout(props) {
             onOpenFilters={() => setShowDXFilters(true)}
             onHoverSpot={setHoveredSpot}
             onSpotClick={tuneTo}
+            onSpotSelect={(spot) => stripApi.current?.populate?.(spot?.call)}
             hoveredSpot={hoveredSpot}
             showOnMap={mapLayers.showDXPaths}
             onToggleMap={toggleDXPaths}
