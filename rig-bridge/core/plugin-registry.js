@@ -65,6 +65,7 @@ class PluginRegistry {
       'aprs-tnc',
       'meshcom-udp',
       'winlink-gateway',
+      'winlink-express-csv',
       'rotator',
       'cloud-relay',
     ]) {

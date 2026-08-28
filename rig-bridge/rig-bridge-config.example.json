@@ -52,6 +52,13 @@
     "multicastInterface": "",
     "udpBindAddress": ""
   },
+  "winlinkExpressCsv": {
+    "enabled": false,
+    "csvPath": "",
+    "pollInterval": 30,
+    "ohcUrl": "http://localhost:8080",
+    "verbose": false
+  },
   "tls": {
     "enabled": false,
     "certGenerated": false

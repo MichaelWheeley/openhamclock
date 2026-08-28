@@ -195,6 +195,15 @@ const DEFAULT_CONFIG = {
       port: 8080,
     },
   },
+  // Winlink Express CSV ingest — watch a form-export CSV and forward new rows
+  // to the OHC server's EmComm Field Reports panel
+  winlinkExpressCsv: {
+    enabled: false,
+    csvPath: '', // Absolute path to the Winlink Express CSV export file
+    pollInterval: 30, // Seconds between polls (fs.watch also fires immediately on change)
+    ohcUrl: 'http://localhost:8080', // URL of the OpenHamClock server
+    verbose: false,
+  },
   // TLS/HTTPS — enables HTTPS to avoid mixed-content errors when OHC is served over HTTPS
   tls: {
     enabled: false, // false = plain HTTP (backward-compatible default)

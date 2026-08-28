@@ -18,11 +18,12 @@ It also connects FT8/FT4 decoding software (WSJT-X, JTDX, MSHV, JS8Call) to Open
 6. [Digital Mode Software (FT8, JS8, etc.)](#digital-mode-software)
 7. [APRS via Local TNC _(Beta)_](#aprs-via-local-tnc-beta)
 8. [MeshCom UDP _(Beta)_](#meshcom-udp-plugin-beta)
-9. [Antenna Rotator](#antenna-rotator-alpha)
-10. [HTTPS Setup (needed for openhamclock.com)](#https-setup)
-11. [Troubleshooting](#troubleshooting)
-12. [Glossary](#glossary)
-13. [Advanced Topics](#advanced-topics)
+9. [Winlink Express CSV Ingest _(Beta)_](#winlink-express-csv-ingest-beta)
+10. [Antenna Rotator](#antenna-rotator-alpha)
+11. [HTTPS Setup (needed for openhamclock.com)](#https-setup)
+12. [Troubleshooting](#troubleshooting)
+13. [Glossary](#glossary)
+14. [Advanced Topics](#advanced-topics)
 
 ---
 
@@ -656,6 +657,78 @@ On the OHC server, received data is held in memory:
 
 ---
 
+## Winlink Express CSV Ingest _(Beta)_
+
+Feeds Winlink Express form traffic into OpenHamClock's **EmComm layout**. At an EOC, Winlink Express accumulates a continuously-updated CSV of received forms (Field Situation Reports, Damage Assessments, ICS-213, ...) with embedded geolocation. There is no Winlink Express API — the CSV file on disk **is** the interface, so this plugin watches that file and forwards new rows to your OpenHamClock server, where they appear in the EmComm sidebar's **Field Reports** panel and as 📋 markers on the map.
+
+```
+Winlink Express ──writes──→ forms CSV on disk
+                                  │ fs.watch + 30 s polling fallback
+Rig Bridge — winlink-express-csv plugin
+                                  │ tolerant parse → dedupe by row hash
+                                  │ POST /api/emcomm/field-reports
+OpenHamClock server ──→ EmComm layout (Field Reports panel + map markers)
+```
+
+#### Setup
+
+1. In Winlink Express, note the path of the CSV export the EOC workflow maintains (or set one up via the form export/auto-export feature).
+2. In `rig-bridge-config.json`, enable the plugin and point it at that file:
+
+```json
+{
+  "winlinkExpressCsv": {
+    "enabled": true,
+    "csvPath": "C:\\Winlink Express\\Exports\\field-reports.csv",
+    "pollInterval": 30,
+    "ohcUrl": "http://localhost:8080",
+    "verbose": false
+  }
+}
+```
+
+3. Restart rig-bridge. New rows are forwarded within a second of a file change (or at worst one poll interval later). Switch OpenHamClock to the EmComm layout to see them.
+
+#### Config reference
+
+| Field          | Description                                                       | Default                 |
+| -------------- | ----------------------------------------------------------------- | ----------------------- |
+| `enabled`      | Activate the plugin on startup                                    | `false`                 |
+| `csvPath`      | Absolute path to the Winlink Express CSV export file              | `""` (required)         |
+| `pollInterval` | Seconds between polls (fs.watch also fires immediately on change) | `30`                    |
+| `ohcUrl`       | URL of the OpenHamClock server to POST reports to                 | `http://localhost:8080` |
+| `verbose`      | Log every parse/post to the console                               | `false`                 |
+
+#### Parsing tolerance
+
+Column sets vary between Winlink Express versions and form templates, so parsing is **header-driven**: the first row's column names are matched case-insensitively (punctuation and spacing ignored) against known aliases:
+
+| Canonical field | Recognized column names (examples)                             |
+| --------------- | -------------------------------------------------------------- |
+| Callsign        | `Callsign`, `Call`, `From`, `Sender`, `Station`                |
+| Form type       | `Form Type`, `Form`, `Template`, `Message Type`, `Type`        |
+| Latitude        | `Latitude`, `Lat`, `GPS Latitude`                              |
+| Longitude       | `Longitude`, `Lon`, `Long`, `Lng`, `GPS Longitude`             |
+| Timestamp       | `Date/Time`, `Date`, `Time Received`, `Timestamp`, `Posted`    |
+| Free text       | `Comments`, `Remarks`, `Message`, `Notes`, `Brief Description` |
+
+Coordinates accept decimal degrees (`39.0997`, `-94.5786`), hemisphere suffixes (`38.95N`, `94.60W`), and degrees-decimal-minutes (`35-07.40N`). Quoted fields with embedded commas/newlines, repeated header lines, and blank lines are handled. **Unknown columns are preserved** and forwarded alongside the report, so template-specific fields aren't lost.
+
+Rows are deduplicated by a content hash, so re-reading the whole file after every change never re-posts old reports. The OHC server keeps the most recent 500 reports (persisted across restarts).
+
+#### Troubleshooting
+
+| Problem                         | Solution                                                                                                  |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| "CSV not found" in the log      | Check `csvPath` — it must be an absolute path readable by the rig-bridge process                          |
+| No reports in the EmComm panel  | Check `ohcUrl` points at your OHC server; watch rig-bridge logs for `POST failed` lines                   |
+| Reports have no map marker      | The row's latitude/longitude column was missing or unparseable — the report still shows in the panel list |
+| Changes only appear after ~30 s | fs.watch is unreliable on network shares — polling picks changes up; lower `pollInterval` if needed       |
+
+Plugin status endpoint: `GET http://localhost:5555/api/winlink-express-csv/status`
+
+---
+
 ### Rotator Plugin
 
 Controls antenna rotators via Hamlib's `rotctld`.
@@ -1002,6 +1075,7 @@ rig-bridge/
     ├── meshcom-udp.js     # MeshCom LoRa mesh UDP receiver (port 1799)
     ├── rotator.js         # Antenna rotator via rotctld (Hamlib)
     ├── winlink-gateway.js # Winlink RMS gateway discovery + Pat client
+    ├── winlink-express-csv.js # Winlink Express form-export CSV → EmComm field reports
     └── cloud-relay.js     # Cloud relay — bridges local rig-bridge to cloud OHC
 ```
 
