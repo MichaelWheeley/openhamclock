@@ -323,6 +323,38 @@ If you already have flrig or rigctld (Hamlib) controlling your radio, Rig Bridge
 2. Host → `127.0.0.1`
 3. Port → **4532**
 
+### Mode overrides (per-rig mode names)
+
+When you click a spot, OpenHamClock sends the rig a standard mode name: `CW`, `CW-R`, `USB`, `LSB`, `DATA-USB`, `DATA-LSB`, `FM`, or `AM` (digital modes like FT8 arrive as `DATA-USB`/`DATA-LSB`). Some radios want a different name — an FT-817/818 via flrig calls its digital mode `DIG`, some Hamlib backends use `PKTUSB` instead of `DATA-USB`, and some ops simply prefer `CW-R` over `CW`.
+
+Mode overrides let you remap any incoming mode before it reaches your radio. They work with **every** radio type (USB CAT, flrig, rigctld, TCI, SmartSDR).
+
+**Setup page:** Radio tab → **Mode Overrides** — one `FROM = TO` pair per line:
+
+```
+DATA-USB = DIG
+CW = CW-R
+```
+
+**Config file:** add a `modeOverrides` object to the `radio` section:
+
+```json
+"radio": {
+  "type": "flrig",
+  "modeOverrides": {
+    "DATA-USB": "DIG",
+    "CW": "CW-R"
+  }
+}
+```
+
+Notes:
+
+- The `FROM` side is matched case-insensitively; the `TO` side is sent to the rig exactly as written.
+- The `TO` value must be a mode your backend understands — flrig wants the mode names it shows in its own mode list, rigctld wants Hamlib names (`PKTUSB`, `PKTLSB`, etc.), and direct USB CAT rigs support the standard names built into the protocol (unknown names are ignored).
+- Overrides only affect commands _to_ the radio. The mode reported back from the radio is shown unchanged.
+- An empty list means no remapping — everything behaves exactly as before.
+
 ---
 
 ## Connecting to OpenHamClock

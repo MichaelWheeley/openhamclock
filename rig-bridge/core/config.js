@@ -55,7 +55,7 @@ function resolveConfigPath() {
 const { dir: CONFIG_DIR, path: CONFIG_PATH } = resolveConfigPath();
 
 // Increment when DEFAULT_CONFIG structure changes (new keys, renamed keys, etc.)
-const CONFIG_VERSION = 8;
+const CONFIG_VERSION = 9;
 
 const DEFAULT_CONFIG = {
   configVersion: CONFIG_VERSION,
@@ -94,6 +94,16 @@ const DEFAULT_CONFIG = {
     // ── Common ────────────────────────────────────────────────────────────
     pollInterval: 500, // State poll interval in ms (rigctld / flrig / Kenwood / Icom)
     pttEnabled: false, // Allow rig-bridge to send PTT commands
+    // ── Mode overrides (issue #882) ───────────────────────────────────────
+    // Per-rig remapping applied to every incoming mode command before it is
+    // handed to the active radio plugin. Keys are the modes OpenHamClock
+    // sends (matched case-insensitively: CW, CW-R, USB, LSB, DATA-USB,
+    // DATA-LSB, FM, AM, ...); values are what your rig actually needs.
+    //   e.g. { "DATA-USB": "DIG" }      FT-817/818 via flrig
+    //        { "DATA-USB": "PKTUSB" }   rigs whose Hamlib backend uses PKT names
+    //        { "CW": "CW-R" }           prefer reverse CW
+    // Empty object = no overrides (behavior unchanged).
+    modeOverrides: {},
   },
   tci: {
     host: 'localhost',

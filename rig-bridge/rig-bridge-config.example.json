@@ -19,7 +19,8 @@
     "rigctldPort": 4532,
     "flrigHost": "127.0.0.1",
     "flrigPort": 12345,
-    "fixSplit": false
+    "fixSplit": false,
+    "modeOverrides": {}
   },
   "tci": {
     "host": "localhost",
