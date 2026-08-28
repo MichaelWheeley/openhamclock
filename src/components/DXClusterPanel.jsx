@@ -13,6 +13,7 @@ import { useCallsignPopup } from './CallsignPopupManager.jsx';
 import { classifySpotMode } from '../hooks/useBandHealth.js';
 import { useWorkedBefore } from '../hooks/useWorkedBefore.js';
 import { apiFetch } from '../utils/apiFetch';
+import { getListenUrl } from '../utils/webSdr.js';
 
 // Mirrors the server-side validator — good enough to gate the Spot button.
 const isValidCallsign = (call) =>
@@ -525,6 +526,7 @@ export const DXClusterPanel = ({
             <span role="columnheader">Mode</span>
             {showSpotter && <span role="columnheader">Spotter</span>}
             <span role="columnheader">Age</span>
+            <span role="columnheader">Listen</span>
           </div>
           {spots.map((spot, i) => {
             // Frequency can be in MHz (string like "14.070") or kHz (number like 14070)
@@ -552,6 +554,8 @@ export const DXClusterPanel = ({
             // 'dupe' = worked on this band+mode, 'worked' = in the log on
             // another band/mode, null = not in the log (a "new one").
             const workedStatus = getWorkedStatus(spot.call, freqMHz, modeInfo?.mode);
+            // Web SDR "listen" link — lets rig-less users hear the station.
+            const listen = freqMHz > 0 ? getListenUrl(freqMHz * 1000, modeInfo?.mode) : null;
 
             return (
               <div
@@ -570,7 +574,7 @@ export const DXClusterPanel = ({
                 }}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: showSpotter ? '55px 1fr auto auto auto' : '55px 1fr auto auto',
+                  gridTemplateColumns: showSpotter ? '55px 1fr auto auto auto auto' : '55px 1fr auto auto auto',
                   gap: '6px',
                   padding: '5px 6px',
                   borderRadius: '3px',
@@ -702,6 +706,38 @@ export const DXClusterPanel = ({
                   }}
                 >
                   {formatSpotTimeLabel(spot)}
+                </div>
+                <div role="cell" style={{ alignSelf: 'center' }}>
+                  {listen && (
+                    <a
+                      href={listen.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title={t('dxClusterPanel.listenTooltip', {
+                        defaultValue: 'Listen on a web SDR ({{receiver}})',
+                        receiver: listen.name,
+                      })}
+                      aria-label={t('dxClusterPanel.listenTooltip', {
+                        defaultValue: 'Listen on a web SDR ({{receiver}})',
+                        receiver: listen.name,
+                      })}
+                      style={{
+                        fontSize: '10px',
+                        textDecoration: 'none',
+                        opacity: 0.55,
+                        transition: 'opacity 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '0.55';
+                      }}
+                    >
+                      🎧
+                    </a>
+                  )}
                 </div>
               </div>
             );
