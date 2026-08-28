@@ -23,8 +23,51 @@ import { ctyLookup } from '../utils/ctyLookup.js';
 import { latLonToMaidenhead } from '../utils/index.js';
 import { getListenUrl, loadNearbyReceivers } from '../utils/webSdr.js';
 
+import { apiFetch } from '../utils/apiFetch.js';
+
 import { IconGlobe, IconRefresh } from './Icons.jsx';
 import { extractBaseCall } from './CallsignLink.jsx';
+
+// ── Spot history ("Heard 14x today: 20m(8) ...") ────────────────────────────
+// Lazily fetched when a popup opens; cached module-level for 5 minutes per
+// call so hovering the same station repeatedly costs one request. Silent on
+// error/empty — the popup simply shows no history line.
+const SPOT_HISTORY_TTL_MS = 5 * 60 * 1000;
+const spotHistoryCache = new Map(); // baseCall → { data, ts }
+
+function useSpotHistory(baseCall) {
+  const [history, setHistory] = useState(() => {
+    const hit = spotHistoryCache.get(baseCall);
+    return hit && Date.now() - hit.ts < SPOT_HISTORY_TTL_MS ? hit.data : null;
+  });
+
+  useEffect(() => {
+    if (!baseCall) {
+      setHistory(null);
+      return undefined;
+    }
+    const hit = spotHistoryCache.get(baseCall);
+    if (hit && Date.now() - hit.ts < SPOT_HISTORY_TTL_MS) {
+      setHistory(hit.data);
+      return undefined;
+    }
+    setHistory(null);
+    const controller = new AbortController();
+    apiFetch(`/api/dxcluster/spot-history/${encodeURIComponent(baseCall)}`, { signal: controller.signal })
+      .then((res) => (res && res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        spotHistoryCache.set(baseCall, { data, ts: Date.now() });
+        if (!controller.signal.aborted) setHistory(data);
+      })
+      .catch(() => {
+        /* aborted or unreachable — show nothing */
+      });
+    return () => controller.abort();
+  }, [baseCall]);
+
+  return history;
+}
 
 // Styling helpers
 const accentColor = 'var(--accent-cyan)';
@@ -101,6 +144,9 @@ function CallsignPopup({ anchorRef, call, onClose, popupHeightRef, location, spo
 
   // Extract base call for callbook URL
   const baseCall = extractBaseCall(call);
+
+  // Cluster spot history for this station (last 24 h, server in-memory cache)
+  const spotHistory = useSpotHistory(baseCall);
 
   // Get configured callbook ID
   const callbookId = getCallbook();
@@ -306,6 +352,37 @@ function CallsignPopup({ anchorRef, call, onClose, popupHeightRef, location, spo
           </div>
         </div>
       </div>
+
+      {/* Spot history — one compact line, only when the station was heard */}
+      {spotHistory?.count > 0 && (
+        <div
+          style={{
+            padding: '0 10px 8px',
+            fontSize: '10px',
+            fontFamily: 'var(--font-mono, monospace)',
+            color: mutedColor,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+          title={t('callsignPopup.heardTooltip', {
+            defaultValue: 'DX cluster spots in the last 24 hours (as far back as the server cache holds)',
+          })}
+        >
+          {t('callsignPopup.heardToday', {
+            defaultValue: 'Heard {{count}}x today',
+            count: spotHistory.count,
+          })}
+          {spotHistory.bands?.length > 0 && (
+            <>
+              {': '}
+              <span style={{ color: accentColor }}>
+                {spotHistory.bands.map((b) => `${b.band}(${b.count})`).join(' ')}
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Listen action — web SDR tuned to the spot frequency/mode */}
       {listen && (

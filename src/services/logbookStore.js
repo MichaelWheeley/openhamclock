@@ -14,7 +14,9 @@
  *
  * The store also carries the "log this spot" hand-off: panels call
  * requestLogQso(prefill) and the Logbook panel (mounted or mounted later)
- * picks the prefill up via subscribePrefill/consumePendingPrefill.
+ * picks the prefill up via subscribePrefill/consumePendingPrefill. When no
+ * Logbook panel is mounted (tracked via registerPanelMount/hasMountedPanel),
+ * the app-level LogQsoPopup handles the prefill instead.
  *
  * QSO record shape (ADIF-aligned, lowercase keys):
  *   { id, call, qso_date 'YYYYMMDD', time_on 'HHMMSS', band, mode, submode?,
@@ -143,6 +145,7 @@ const state = {
   subscribers: new Set(),
   pendingPrefill: null, // "log this spot" hand-off payload
   prefillSubscribers: new Set(),
+  panelMounts: 0, // number of currently mounted LogbookPanel instances
 };
 
 const pickAdapter = () => {
@@ -362,6 +365,24 @@ export const subscribePrefill = (cb) => {
   };
 };
 
+// ── Logbook panel mount tracking ────────────────────────────────────────────
+// The app-level LogQsoPopup only opens for a "log this spot" request when no
+// LogbookPanel is mounted to consume it. Panels report their presence here
+// (refcounted — the dockable layout can host several Logbook tabs).
+
+/** Called from LogbookPanel's mount effect. */
+export const registerPanelMount = () => {
+  state.panelMounts += 1;
+};
+
+/** Called from LogbookPanel's unmount cleanup. */
+export const unregisterPanelMount = () => {
+  state.panelMounts = Math.max(0, state.panelMounts - 1);
+};
+
+/** True while at least one LogbookPanel is mounted. */
+export const hasMountedPanel = () => state.panelMounts > 0;
+
 /** Test hook: wipe all module state so each test starts from a blank store. */
 export const __resetLogbookForTests = () => {
   state.adapter = null;
@@ -370,6 +391,7 @@ export const __resetLogbookForTests = () => {
   state.subscribers.clear();
   state.pendingPrefill = null;
   state.prefillSubscribers.clear();
+  state.panelMounts = 0;
 };
 
 export default {
@@ -386,4 +408,7 @@ export default {
   requestLogQso,
   consumePendingPrefill,
   subscribePrefill,
+  registerPanelMount,
+  unregisterPanelMount,
+  hasMountedPanel,
 };

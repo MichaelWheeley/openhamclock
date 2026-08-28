@@ -57,7 +57,8 @@ import LogbookPanel from './components/LogbookPanel.jsx';
 import AwardsPanel from './components/AwardsPanel.jsx';
 
 import { resetLayout, loadLayout, saveLayout } from './store/layoutStore.js';
-import { getPanelPlugins, getPanelPluginById } from './plugins/panelRegistry.js';
+import { getPanelPluginById } from './plugins/panelRegistry.js';
+import { buildPanelDefs } from './panelDefs.js';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { DockableLayoutProvider } from './contexts';
 import { useRig } from './contexts/RigContext.jsx';
@@ -445,81 +446,8 @@ export const DockableApp = ({
     };
   }, []);
 
-  // Panel definitions
-  const panelDefs = useMemo(() => {
-    // Only show Ambient Weather when credentials are configured
-    const hasAmbient = (() => {
-      try {
-        return !!(import.meta.env?.VITE_AMBIENT_API_KEY && import.meta.env?.VITE_AMBIENT_APPLICATION_KEY);
-      } catch {
-        return false;
-      }
-    })();
-
-    const defs = {
-      'world-map': { name: 'World Map', icon: '🗺️' },
-      'map-list-view': { name: 'Map Data (text view)', icon: '👁️‍🗨️' },
-      'de-location': { name: 'DE Location', icon: '📍' },
-      'dx-location': { name: 'DX Target', icon: '🎯' },
-      'analog-clock': { name: 'Analog Clock', icon: '🕐' },
-      solar: { name: 'Solar (all views)', icon: '☀️' },
-      'solar-image': { name: 'Solar Image', icon: '☀️', group: 'Solar' },
-      'solar-indices': { name: 'Solar Indices', icon: '📊', group: 'Solar' },
-      'solar-xray': { name: 'X-Ray Flux', icon: '⚡', group: 'Solar' },
-      lunar: { name: 'Lunar Phase', icon: '🌙', group: 'Solar' },
-      propagation: { name: 'Propagation (all views)', icon: '📡' },
-      'propagation-chart': { name: 'VOACAP Chart', icon: '📈', group: 'Propagation' },
-      'propagation-bars': { name: 'VOACAP Bars', icon: '📊', group: 'Propagation' },
-      'band-conditions': { name: 'Band Conditions', icon: '📶', group: 'Propagation' },
-      'band-health': { name: 'Band Health', icon: '📶' },
-      'band-activity': { name: 'Band Activity (Continent)', icon: '🔥' },
-      'psk-bands': { name: 'Band Activity (PSKR)', icon: '📡' },
-      ibp: { name: 'IBP Beacons', icon: '📡', group: 'Propagation' },
-      'sked-planner': { name: 'Sked Planner', icon: '🤝', group: 'Propagation' },
-      ionosonde: { name: 'Ionosondes', icon: '📡', group: 'Propagation' },
-      'prop-verify': { name: 'Prediction Check', icon: '🎯', group: 'Propagation' },
-      'dx-cluster': { name: 'DX Cluster', icon: '📻' },
-      logbook: { name: 'Logbook', icon: '📓' },
-      awards: { name: 'Awards', icon: '🏆' },
-      'psk-reporter': { name: 'PSK Reporter', icon: '📡' },
-      dxpeditions: { name: 'DXpeditions', icon: '🏝️' },
-      pota: { name: 'POTA', icon: '▲', iconColor: '#44cc44' },
-      wwff: { name: 'WWFF', icon: '▼', iconColor: '#a3f3a3' },
-      sota: { name: 'SOTA', icon: '◆', iconColor: '#ff9632' },
-      wwbota: { name: 'WWBOTA', icon: '■', iconColor: '#8b7fff' },
-      canparks: { name: 'CANParks', icon: '🍁' },
-      aprs: { name: 'APRS', icon: '📍' },
-      'aprs-telemetry': { name: 'APRS Telemetry', icon: '📊' },
-      ...(isLocalInstall ? { rotator: { name: 'Rotator', icon: '🧭' } } : {}),
-      contests: { name: 'Contests', icon: '🏆' },
-      'swpc-alerts': { name: 'Space Wx Alerts', icon: '🚨' },
-      'meteor-showers': { name: 'Meteor Showers', icon: '☄️' },
-      ...(hasAmbient ? { ambient: { name: 'Ambient Weather', icon: '🌦️' } } : {}),
-      'rig-control': { name: 'Rig Control', icon: '📻' },
-      'freq-memories': { name: 'Frequencies', icon: '📻' },
-      'net-schedule': { name: 'Nets', icon: '🕐' },
-      'callsign-search': { name: 'Callsign Lookup', icon: '🔎' },
-      'dx-news': { name: 'DX News', icon: '📰' },
-      'solar-cycle': { name: 'Solar Cycle', icon: '📈' },
-      'log-stats': { name: 'Log Stats', icon: '📊' },
-      'on-air': { name: 'On Air', icon: '🔴' },
-      'id-timer': { name: 'ID Timer', icon: '📢' },
-      image: { name: 'Custom Image', icon: '🖼️' },
-      keybindings: { name: 'Keyboard Shortcuts', icon: '⌨️' },
-      meshtastic: { name: 'Meshtastic', icon: '📡' },
-      meshcom: { name: 'MeshCom', icon: '🔗' },
-      'digital-modes': { name: 'Digital Modes', icon: '📻', group: 'Rig Bridge' },
-      winlink: { name: 'Winlink', icon: '📬', group: 'Rig Bridge' },
-    };
-
-    // Append auto-discovered panel plugins (src/plugins/local/panels/*.jsx).
-    // Built-in ids are passed so a plugin can never shadow a built-in panel.
-    for (const plugin of getPanelPlugins(new Set(Object.keys(defs)))) {
-      defs[plugin.id] = { name: plugin.name, icon: plugin.icon, group: 'Plugins' };
-    }
-
-    return defs;
-  }, [isLocalInstall]);
+  // Panel definitions (shared with the command palette — see src/panelDefs.js)
+  const panelDefs = useMemo(() => buildPanelDefs({ isLocalInstall }), [isLocalInstall]);
 
   // Add panel
   const handleAddPanel = useCallback(
@@ -538,6 +466,59 @@ export const DockableApp = ({
     },
     [model, targetTabSetId, panelDefs],
   );
+
+  // Command palette → open a panel. The palette lives at app level with no
+  // access to the flexlayout model, so it dispatches this event. If the panel
+  // is already docked we focus its tab; otherwise it is added to the active
+  // tabset (or the first one found). Adding respects the layout lock; focusing
+  // an existing tab is always allowed (it doesn't alter the layout).
+  useEffect(() => {
+    const onAddPanel = (e) => {
+      const panelId = e.detail?.panelId;
+      if (!panelId || !panelDefs[panelId]) return;
+
+      let existingTabId = null;
+      const findTab = (n) => {
+        if (existingTabId) return;
+        if (n.getType?.() === 'tab' && n.getComponent?.() === panelId) {
+          existingTabId = n.getId();
+          return;
+        }
+        (n.getChildren?.() || []).forEach(findTab);
+      };
+      findTab(model.getRoot());
+      if (existingTabId) {
+        model.doAction(Actions.selectTab(existingTabId));
+        return;
+      }
+
+      if (layoutLocked) return;
+      let tabset = model.getActiveTabset?.() || null;
+      if (!tabset) {
+        const findTabset = (n) => {
+          if (tabset) return;
+          if (n.getType?.() === 'tabset') {
+            tabset = n;
+            return;
+          }
+          (n.getChildren?.() || []).forEach(findTabset);
+        };
+        findTabset(model.getRoot());
+      }
+      if (!tabset) return;
+      model.doAction(
+        Actions.addNode(
+          { type: 'tab', name: panelDefs[panelId].name, component: panelId, id: `${panelId}-${Date.now()}` },
+          tabset.getId(),
+          DockLocation.CENTER,
+          -1,
+          true,
+        ),
+      );
+    };
+    window.addEventListener('openhamclock:add-panel', onAddPanel);
+    return () => window.removeEventListener('openhamclock:add-panel', onAddPanel);
+  }, [model, panelDefs, layoutLocked]);
 
   // Render DE Location panel content
   const renderDELocation = (nodeId) => (

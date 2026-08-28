@@ -87,6 +87,9 @@ export const SettingsPanel = ({
   const [displaySchedule, setDisplaySchedule] = useState(
     config?.displaySchedule || { enabled: false, sleepTime: '23:00', wakeTime: '07:00', keepSignalActive: true },
   );
+  const [sceneRotation, setSceneRotation] = useState(
+    config?.sceneRotation || { enabled: false, intervalSec: 60, layouts: [] },
+  );
   const [distUnits, setDistUnits] = useState(config?.allUnits?.dist || config?.units || 'imperial');
   const [tempUnits, setTempUnits] = useState(config?.allUnits?.temp || config?.units || 'imperial');
   const [pressUnits, setPressUnits] = useState(config?.allUnits?.press || config?.units || 'imperial');
@@ -406,6 +409,7 @@ export const SettingsPanel = ({
       setMinElev(config.satellite?.minElev ?? 5.0);
       setSatTrackDuration(config.satellite?.trackDurationMins ?? 45);
       setLayout(config.layout || 'modern');
+      setSceneRotation(config.sceneRotation || { enabled: false, intervalSec: 60, layouts: [] });
       setMouseZoom(config.mouseZoom || 50);
       setTimezone(config.timezone || '');
       setDxClusterSource(config.dxClusterSource || 'dxspider-proxy');
@@ -682,6 +686,7 @@ export const SettingsPanel = ({
       preventSleep,
       sharePresence,
       displaySchedule,
+      sceneRotation,
       // units,
       allUnits: { dist: distUnits, temp: tempUnits, press: pressUnits },
       propagation: { mode: propMode, power: parseFloat(propPower) || 100 },
@@ -4288,6 +4293,109 @@ export const SettingsPanel = ({
                     {t('station.settings.layout.reset.button')}
                   </button>
                 )}
+              </div>
+
+              {/* Scene rotation (kiosk mode) */}
+              <div style={{ marginBottom: '24px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    color: 'var(--text-muted)',
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                  }}
+                >
+                  {t('station.settings.sceneRotation.title', { defaultValue: 'Scene Rotation' })}
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                  <select
+                    value={sceneRotation.enabled ? String(sceneRotation.intervalSec || 60) : 'off'}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === 'off') {
+                        setSceneRotation({ ...sceneRotation, enabled: false });
+                      } else {
+                        setSceneRotation({ ...sceneRotation, enabled: true, intervalSec: parseInt(v, 10) });
+                      }
+                    }}
+                    aria-label={t('station.settings.sceneRotation.interval', { defaultValue: 'Rotation interval' })}
+                    style={{
+                      padding: '8px 10px',
+                      background: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                    }}
+                  >
+                    <option value="off">{t('station.settings.sceneRotation.off', { defaultValue: 'Off' })}</option>
+                    <option value="30">
+                      {t('station.settings.sceneRotation.every30s', { defaultValue: 'Every 30 seconds' })}
+                    </option>
+                    <option value="60">
+                      {t('station.settings.sceneRotation.every1m', { defaultValue: 'Every minute' })}
+                    </option>
+                    <option value="120">
+                      {t('station.settings.sceneRotation.every2m', { defaultValue: 'Every 2 minutes' })}
+                    </option>
+                    <option value="300">
+                      {t('station.settings.sceneRotation.every5m', { defaultValue: 'Every 5 minutes' })}
+                    </option>
+                    <option value="600">
+                      {t('station.settings.sceneRotation.every10m', { defaultValue: 'Every 10 minutes' })}
+                    </option>
+                  </select>
+                </div>
+                {sceneRotation.enabled && (
+                  <div
+                    style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}
+                  >
+                    {['modern', 'classic', 'tablet', 'compact', 'dockable', 'emcomm', 'contest'].map((l) => {
+                      const selected = (sceneRotation.layouts || []).includes(l);
+                      return (
+                        <label
+                          key={l}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            color: 'var(--text-primary)',
+                            padding: '6px 8px',
+                            background: selected ? 'var(--bg-tertiary)' : 'transparent',
+                            border: `1px solid ${selected ? 'var(--accent-amber)' : 'var(--border-color)'}`,
+                            borderRadius: '6px',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={(e) => {
+                              const current = sceneRotation.layouts || [];
+                              const layouts = e.target.checked ? [...current, l] : current.filter((id) => id !== l);
+                              setSceneRotation({ ...sceneRotation, layouts });
+                            }}
+                            style={{ accentColor: 'var(--accent-amber)' }}
+                          />
+                          {t('station.settings.layout.' + l)}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  {sceneRotation.enabled && (sceneRotation.layouts || []).length < 2
+                    ? t('station.settings.sceneRotation.needTwo', {
+                        defaultValue: 'Pick at least two layouts to rotate through.',
+                      })
+                    : t('station.settings.sceneRotation.describe', {
+                        defaultValue:
+                          'Kiosk mode: automatically cycle through the selected layouts. Rotation pauses while you interact with the screen (60 s grace) and whenever a dialog is open.',
+                      })}
+                </div>
               </div>
 
               {/* Theme */}

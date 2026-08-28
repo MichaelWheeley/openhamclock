@@ -76,9 +76,9 @@ Pick the base tiles from the style dropdown on the map: **Dark** (default), **Sa
 Two notes:
 
 - **CARTO key (optional).** Dark and Streets default to Esri tiles that need no key. If you liked the original CARTO look (with localized labels), grab a free key at carto.com/basemaps/apikey (5M tiles/month) and paste it in **Settings → Integrations → CARTO Basemap Key**. The key is stored only in your browser and never synced or shared.
-- **Map style rotation.** For wall displays, the basemap can cycle automatically through styles you pick, on an interval you set (default 60 s).
+- **Map style rotation.** For wall displays, the basemap can cycle automatically through styles you pick, on an interval you set (default 60 s). This works in every projection, including the 3D globe, where each switch rebuilds the globe texture; Modis Truecolor is 2D-only and is skipped while the globe is up.
 
-Other map controls: zoom, a **map lock** (prevents accidental pan/zoom on touch screens), and a **night darkness** slider that sets how dark the night side is shaded.
+Other map controls: zoom, a **map lock** (prevents accidental pan/zoom on touch screens), a **night darkness** slider that sets how dark the night side is shaded, and a **hide UI** eye toggle that clears all on-map controls for a clean wall display — on the flat map and the 3D globe alike, leaving just the eye button to bring them back.
 
 ### Map layers
 
@@ -155,6 +155,8 @@ The **Map Data (text view)** panel renders the map's content as structured, scre
 ## Keyboard shortcuts
 
 Press **`?`** anywhere to open the shortcuts panel. Shortcuts are ignored while typing in a text field, while a modal is open, or when Ctrl/Alt/Cmd is held. Layer keys are pinned — adding new layers never reshuffles them.
+
+**Command palette (next release).** Press **Ctrl+K** (⌘K on Mac) for a fuzzy-searchable list of most things you can do: toggle map layers, switch layouts, open Settings on a specific tab, jump to a manual topic, toggle fullscreen, open What's New — and, in the Dockable layout, open or focus any panel. Arrow keys select, Enter runs, Esc closes.
 
 | Key | Action                                   |
 | --- | ---------------------------------------- |
@@ -303,8 +305,8 @@ All filter state persists in your browser.
 - **Click** it — sets the station as your DX target and highlights the path on the map.
 - **Tune** — with click-to-tune enabled and Rig Bridge running, your radio jumps to the frequency and the right mode (Yaesu rigs even get a proper band-select so antenna/ATU memories follow).
 - **🎧 Listen** — no radio handy? The listen button opens a web SDR _already tuned_ to the spot. OpenHamClock picks the nearest live KiwiSDR with a free slot whose coverage includes the frequency, falling back to a curated list of long-running receivers, and finally to the KiwiSDR directory. Also available from callsign popups.
-- **📓+ Log it** — opens the Logbook's new-QSO form prefilled from the spot.
-- **Callsign popup** — click a callsign anywhere for a station card: name, QTH with the DX end's local time, country, and a jump to your preferred callbook (QRZ.com, HamQTH, or QRZCQ — pick in Settings → Station).
+- **📓+ Log it** — opens the Logbook's new-QSO form prefilled from the spot. **(next release)** In layouts without a Logbook panel, the same button opens a small Log QSO pop-up instead, so log-from-spot works everywhere (the Contest layout keeps its own quick-log strip).
+- **Callsign popup** — click a callsign anywhere for a station card: name, QTH with the DX end's local time, country, and a jump to your preferred callbook (QRZ.com, HamQTH, or QRZCQ — pick in Settings → Station). **(next release)** When the station has been spotted recently, the card also shows a one-line spot history — "Heard 14x today: 20m(8) 15m(4) 40m(2)" — straight from the server's in-memory cluster cache.
 - **Send a spot** — spot a station yourself directly from the panel header; it goes out through the OHC cluster.
 
 ### Worked-before badges
@@ -328,7 +330,7 @@ The Logbook panel is a native, no-account-needed log.
 What it does:
 
 - **Log a QSO** with the **+QSO** form — UTC date/time default to now, and frequency/mode prefill from your rig when Rig Bridge is connected.
-- **Log from a spot** — the 📓+ button on any DX cluster or activation spot opens the form prefilled with call, frequency, mode, and grid.
+- **Log from a spot** — the 📓+ button on any DX cluster or activation spot opens the form prefilled with call, frequency, mode, and grid. **(next release)** If the current layout has no Logbook panel, the button opens the same form in a small app-level pop-up instead — save, see the confirmation flash, and carry on (the Contest layout is the one exception: its quick-log strip stays the logging path there).
 - **ADIF import** — bring in your existing log (`.adi`/`.adif`); duplicates are detected and skipped.
 - **ADIF export** — your whole log as a standard `.adi` file, any time. This is your backup and your bridge to LoTW/QRZ/other loggers.
 - **Worked-before everywhere** — the log feeds the DUPE/WORKED badges on spots, and (next release) the Awards panel (DXCC/WAZ/WAS/VUCC) and the Worked Grids map layer.
@@ -493,6 +495,8 @@ Separately from the PWA, the app polls the server version and — on the hosted 
 | **Dockable** | Power users — every panel draggable, tabbable, resizable; layout lock; reset button             |
 | **EmComm**   | Emergency communications operations (beta)                                                      |
 | **Contest**  | Contest operating — quick-log strip, dupe check, rate meter, session multipliers (next release) |
+
+**Scene rotation (next release).** For shack TVs and club-station kiosks: Settings → Display → **Scene Rotation** cycles automatically through layouts you select, at an interval from 30 seconds to 10 minutes. Rotation pauses whenever a dialog is open and whenever someone touches the screen, mouse, or keyboard (it waits for 60 seconds of quiet before rotating again). While rotating, a small dot sits in the bottom-right corner and the new layout's name flashes briefly on each switch.
 
 ### Contest mode
 

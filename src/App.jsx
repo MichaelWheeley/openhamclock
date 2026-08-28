@@ -60,7 +60,10 @@ import useVersionCheck from './hooks/app/useVersionCheck';
 import usePresence from './hooks/app/usePresence';
 import useAudioAlerts from './hooks/app/useAudioAlerts';
 import { useSatelliteAnnouncements } from './hooks/app/useSatelliteAnnouncements';
+import useSceneRotation from './hooks/app/useSceneRotation';
 import WhatsNew from './components/WhatsNew.jsx';
+import CommandPalette from './components/CommandPalette.jsx';
+import { LogQsoPopupController } from './components/LogQsoPopup.jsx';
 import { initCtyLookup } from './utils/ctyLookup.js';
 import { getAllLayers } from './plugins/layerRegistry.js';
 import ActivateFilterManager from './components/ActivateFilterManager.jsx';
@@ -86,6 +89,7 @@ const App = () => {
   const [showDXFilters, setShowDXFilters] = useState(false);
   const [showPSKFilters, setShowPSKFilters] = useState(false);
   const [showKeybindings, setShowKeybindings] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showPotaFilters, setShowPotaFilters] = useState(false);
   const [showSotaFilters, setShowSotaFilters] = useState(false);
   const [showWwffFilters, setShowWwffFilters] = useState(false);
@@ -184,19 +188,22 @@ const App = () => {
 
   useEffect(() => {
     const handleKey = (e) => {
-      if (
-        e.ctrlKey ||
-        e.metaKey ||
-        e.altKey ||
-        showSettings ||
-        showDXFilters ||
-        showPSKFilters ||
-        showKeybindings ||
-        document.activeElement?.tagName === 'INPUT' ||
-        document.activeElement?.tagName === 'TEXTAREA' ||
-        document.activeElement?.tagName === 'SELECT'
-      )
+      const tag = document.activeElement?.tagName;
+      const inFormField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+      const modalOpen = showSettings || showDXFilters || showPSKFilters || showKeybindings || showCommandPalette;
+
+      // Ctrl/Cmd+K — command palette. Checked before the modifier early-return
+      // below, with the same input-focus/modal suppression as the letter
+      // shortcuts. While open, the palette handles its own keys (incl. Esc
+      // and Cmd/Ctrl+K to close).
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') {
+        if (inFormField || modalOpen) return;
+        setShowCommandPalette(true);
+        e.preventDefault();
         return;
+      }
+
+      if (e.ctrlKey || e.metaKey || e.altKey || modalOpen || inFormField) return;
 
       if (e.key === '?') {
         setShowKeybindings((v) => !v);
@@ -220,7 +227,7 @@ const App = () => {
 
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [showSettings, showDXFilters, showPSKFilters, showKeybindings, layerShortcuts]);
+  }, [showSettings, showDXFilters, showPSKFilters, showKeybindings, showCommandPalette, layerShortcuts]);
 
   const handleResetLayout = useCallback(() => {
     resetLayout();
@@ -312,6 +319,23 @@ const App = () => {
   const { wakeLockStatus } = useScreenWakeLock(config, displaySleeping);
   const scale = useResponsiveScale();
   const isLocalInstall = useLocalInstall(serverLocal);
+
+  // Kiosk scene rotation (Settings → Display → Scene rotation). Paused while
+  // any app-level modal is open — these existing flags are the cheap signal
+  // for "a modal owns the screen" (user interaction is handled inside the
+  // hook with a 60 s idle grace).
+  const anyModalOpen =
+    showSettings ||
+    showDXFilters ||
+    showPSKFilters ||
+    showKeybindings ||
+    showCommandPalette ||
+    showPotaFilters ||
+    showSotaFilters ||
+    showWwffFilters ||
+    showWwbotaFilters ||
+    showCanparksFilters;
+  const sceneRotation = useSceneRotation(config, handleSaveConfig, { paused: anyModalOpen });
 
   // Responsive breakpoint for sidebar/header behavior
   const [breakpoint, setBreakpoint] = useState(() => {
@@ -888,6 +912,10 @@ const App = () => {
           ) : (
             <ModernLayout {...layoutProps} />
           )}
+          {/* App-level "log from spot" modal — opens only when no LogbookPanel
+              is mounted (and never in the contest layout). Inside RigProvider
+              so the form's rig prefill works. */}
+          <LogQsoPopupController layout={config.layout} userCallsign={config.callsign} myGrid={deGrid} />
         </RigProvider>
       </CallsignPopupProvider>
 
@@ -967,7 +995,62 @@ const App = () => {
         isOpen={showCanparksFilters}
         onClose={() => setShowCanparksFilters(false)}
       />
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        config={config}
+        onSaveConfig={handleSaveConfig}
+        onOpenSettings={(tabId) => {
+          setSettingsDefaultTab(tabId || null);
+          setShowSettings(true);
+        }}
+        onToggleFullscreen={handleFullscreenToggle}
+        isLocalInstall={isLocalInstall}
+      />
       <WhatsNew showWhatsNew={config.showWhatsNew} />
+      {/* Scene rotation indicator — unobtrusive dot while rotating, with the
+          new layout's name flashed briefly on each switch. */}
+      {sceneRotation.active && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            bottom: '10px',
+            right: '10px',
+            zIndex: 9500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            pointerEvents: 'none',
+          }}
+        >
+          {sceneRotation.flash && (
+            <span
+              style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--accent-cyan)',
+                borderRadius: '4px',
+                color: 'var(--accent-cyan)',
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                padding: '2px 8px',
+              }}
+            >
+              {t('station.settings.layout.' + sceneRotation.flash.layout, sceneRotation.flash.layout)}
+            </span>
+          )}
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: 'var(--accent-cyan)',
+              opacity: 0.55,
+              boxShadow: '0 0 6px var(--accent-cyan)',
+            }}
+          />
+        </div>
+      )}
       {/* Assertive: satellite rising above horizon is time-critical for a ham operator */}
       <div className="visually-hidden" aria-live="assertive" aria-atomic="true" data-testid="satellite-rise-announcer">
         {riseAnnouncement}
