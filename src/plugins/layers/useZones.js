@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { esc } from '../../utils/escapeHtml.js';
+import { ZONE_SOURCES } from '../../utils/globeOverlays.js';
 
 /**
  * CQ / ITU Zones Overlay Plugin
@@ -27,9 +28,11 @@ export const metadata = {
   version: '1.0.0',
 };
 
+// File paths + colours are shared with the 3D globe's zones painter via
+// utils/globeOverlays.js; only the control labels are local to this layer.
 const ZONE_TYPES = {
-  cq: { file: '/geo/cq-zones.geojson', color: '#e6a23c', label: 'CQ Zones (40)' },
-  itu: { file: '/geo/itu-zones.geojson', color: '#4fc3f7', label: 'ITU Zones (90)' },
+  cq: { ...ZONE_SOURCES.cq, label: 'CQ Zones (40)' },
+  itu: { ...ZONE_SOURCES.itu, label: 'ITU Zones (90)' },
 };
 
 // ITU zone names in the source data carry legacy marker prefixes like

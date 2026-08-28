@@ -25,6 +25,7 @@ import {
 import { createTerminator } from '../utils/terminator.js';
 import { getAprsSymbolIcon } from '../utils/aprs-symbols.js';
 import { getAllLayers } from '../plugins/layerRegistry.js';
+import { GLOBE_OVERLAY_LAYER_IDS } from '../utils/globeOverlays.js';
 import PluginLayer from './PluginLayer.jsx';
 import AzimuthalMap from './AzimuthalMap.jsx';
 // three.js is ~600 kB — load it only when the operator actually opens 3D mode.
@@ -631,14 +632,35 @@ export const WorldMap = ({
       filterDXPaths(dxPaths, dxFilters).filter((p) => String(p?.dxCall || '').trim()),
     [dxPaths, dxFilters],
   );
-  // Enabled plugin layers the globe cannot draw (everything Leaflet-bound
-  // except satellites, which 3D renders natively). Used for a visible note so
-  // toggling e.g. Lightning in Settings does not look like a silent no-op.
+  // Enabled plugin layers the globe cannot draw: everything Leaflet-bound
+  // except satellites (3D renders them natively) and the globe-capable
+  // overlay subset (Maidenhead/zones/D-RAP/aurora — painted onto the globe's
+  // overlay shell, unless low-memory mode disabled that shell). Used for a
+  // visible note so toggling e.g. Lightning in Settings does not look like a
+  // silent no-op.
   const suppressed2DLayers = useMemo(() => {
     if (mapProjection !== 'globe3d') return [];
     return getAllLayers().filter(
-      (l) => l.id !== 'satellites' && (pluginLayerStates[l.id]?.enabled ?? l.defaultEnabled),
+      (l) =>
+        l.id !== 'satellites' &&
+        !(!lowMemoryMode && GLOBE_OVERLAY_LAYER_IDS.includes(l.id)) &&
+        (pluginLayerStates[l.id]?.enabled ?? l.defaultEnabled),
     );
+  }, [mapProjection, pluginLayerStates, lowMemoryMode]);
+  // Enabled/opacity for the layers the globe draws itself — same states the
+  // Leaflet path uses, narrowed so unrelated layer churn doesn't repaint the
+  // globe's overlay canvas.
+  const globeOverlayStates = useMemo(() => {
+    if (mapProjection !== 'globe3d') return null;
+    const out = {};
+    getAllLayers().forEach((l) => {
+      if (!GLOBE_OVERLAY_LAYER_IDS.includes(l.id)) return;
+      out[l.id] = {
+        enabled: pluginLayerStates[l.id]?.enabled ?? l.defaultEnabled,
+        opacity: pluginLayerStates[l.id]?.opacity ?? l.defaultOpacity,
+      };
+    });
+    return out;
   }, [mapProjection, pluginLayerStates]);
   // Set when a crash or chunk-load failure forces the session back to
   // Mercator: the switch must not overwrite the user's saved projection.
@@ -2530,6 +2552,7 @@ export const WorldMap = ({
               satellites={satellites}
               satellitesEnabled={pluginLayerStates.satellites?.enabled ?? true}
               suppressedLayers={suppressed2DLayers.map((l) => t(l.name))}
+              overlayLayerStates={globeOverlayStates}
               allUnits={allUnits}
               config={config}
               hideUi={mapUiHidden}
@@ -2559,7 +2582,9 @@ export const WorldMap = ({
           specific Leaflet map — without this, layers stay on the hidden old map. */}
       {/* Plugin layers attach to a Leaflet map instance, so they cannot render on
           the 3D globe — skip them entirely rather than binding to a hidden map.
-          The note below keeps that visible instead of silent. */}
+          The globe draws its own subset (satellites natively; Maidenhead, zones,
+          D-RAP and aurora via its overlay shell — see utils/globeOverlays.js);
+          everything else shows up in the suppressed-layers note instead. */}
       {!isGlobe3D &&
         getAllLayers().map((layerDef) => {
           // Merge location config into satellite layer to keep config access consistent

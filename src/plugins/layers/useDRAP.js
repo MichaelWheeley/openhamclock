@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { drapCmap } from '../../utils/globeOverlays.js';
 
 /**
  * D-RAP (D-Region Absorption Prediction) Overlay Plugin
@@ -28,46 +29,8 @@ export const metadata = {
   version: '1.0.0',
 };
 
-// Color ramp: ~0 MHz transparent → yellow → orange → red → dark red at 30+ MHz.
-// Below 1 MHz is treated as "no meaningful absorption" and left transparent.
-function drapCmap(freq) {
-  if (!(freq >= 1)) return null;
-
-  const t = Math.min(freq / 30, 1); // normalize 0-30+ MHz to 0-1
-
-  let r, g, b, a;
-  if (t < 0.25) {
-    // Faint yellow, ramping in
-    const s = t / 0.25;
-    r = 255;
-    g = 230;
-    b = Math.round(80 * (1 - s));
-    a = 0.15 + s * 0.3;
-  } else if (t < 0.5) {
-    // Yellow → orange
-    const s = (t - 0.25) / 0.25;
-    r = 255;
-    g = Math.round(230 - s * 90);
-    b = 0;
-    a = 0.45 + s * 0.2;
-  } else if (t < 0.75) {
-    // Orange → red
-    const s = (t - 0.5) / 0.25;
-    r = 255;
-    g = Math.round(140 - s * 140);
-    b = 0;
-    a = 0.65 + s * 0.15;
-  } else {
-    // Red → dark red
-    const s = (t - 0.75) / 0.25;
-    r = Math.round(255 - s * 75);
-    g = 0;
-    b = Math.round(s * 40);
-    a = 0.8 + s * 0.2;
-  }
-
-  return { r, g, b, a };
-}
+// Color ramp (drapCmap) lives in utils/globeOverlays.js, shared with the 3D
+// globe's D-RAP painter so both projections use the identical scale.
 
 // Paint the grid to a canvas spanning [-180,180] lon × [-90,90] lat and
 // return a smoothed data URL (same approach as the aurora layer).

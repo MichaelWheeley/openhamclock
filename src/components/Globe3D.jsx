@@ -6,8 +6,12 @@
  * great circles are drawn as true 3D arcs (slerp between unit vectors) and the
  * day/night terminator is a shader on the sphere rather than a canvas overlay.
  *
- * Consequence: Leaflet-bound plugin layers (satellites, aurora, lightning) are
- * not available here — WorldMap suppresses them while this projection is active.
+ * Consequence: Leaflet-bound plugin layers cannot attach here. Satellites
+ * render natively in 3D, and the globe-capable overlay subset (Maidenhead
+ * grid, CQ/ITU zones, D-RAP, aurora — see utils/globeOverlays.js) paints onto
+ * one shared equirectangular canvas draped as a transparent shell over the
+ * sphere. Everything else stays 2D-only and WorldMap suppresses it (with a
+ * visible note) while this projection is active.
  */
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +22,7 @@ import { getSunPosition } from '../utils/geo.js';
 import { MAP_STYLES } from '../utils/config.js';
 import { buildGlobeTexture, buildGlobeDetailPatch, chooseGlobeTileZoom } from '../utils/globeTexture.js';
 import { classifySatellite, getArchetypeTemplate, loadIssTemplate } from '../utils/satelliteModels.js';
+import { GLOBE_OVERLAY_PAINTERS, ZONE_SOURCES } from '../utils/globeOverlays.js';
 import { ACTIVITY_COLORS } from '../utils/activityColors.js';
 // Project icon set — exists because bare glyphs/emoji render inconsistently
 // (or as tofu) depending on the platform's font coverage.
@@ -30,6 +35,14 @@ const DEFAULT_CAM_DISTANCE = 3.2;
 // Altitude of every overlay above the sphere, as a multiple of EARTH_R.
 // Markers and arc endpoints share it so arcs start exactly at the dot.
 const MARKER_ALT = 1.012;
+// Plugin overlay shell: above the surface (so it never z-fights the earth
+// mesh) but below the markers, so heatmaps never cover spot dots.
+const OVERLAY_ALT = 1.005;
+// Shared plugin-overlay canvas resolution (equirectangular, 2:1). At 2048
+// wide a 1° aurora cell is ~5.7 px — smooth enough once the GPU's bilinear
+// filtering has its say. The whole feature is skipped in low-memory mode.
+const OVERLAY_TEX_W = 2048;
+const OVERLAY_TEX_H = 1024;
 // Below this panel width WorldMap's projection toggle wraps across the top of
 // the map, so the globe's own controls have to move out from under it.
 const NARROW_PANEL_PX = 480;
@@ -349,6 +362,9 @@ export default function Globe3D({
   satellites,
   satellitesEnabled = true,
   suppressedLayers = [],
+  // { layerId: { enabled, opacity } } for the globe-capable plugin layers —
+  // same states the flat map persists to openhamclock_mapSettings.layers.
+  overlayLayerStates = null,
   allUnits = { dist: 'imperial' },
   config,
   hideUi = false,
@@ -746,6 +762,30 @@ export default function Globe3D({
     const satGroup = new THREE.Group();
     scene.add(satGroup);
 
+    // Plugin overlay shell — one shared equirectangular canvas (Maidenhead,
+    // zones, D-RAP, aurora) draped on a transparent sphere just above the
+    // earth mesh. SphereGeometry's UV layout matches the canvas's lat/lon
+    // projection exactly, so painters stay pure 2D. Repainted only when a
+    // layer toggle/opacity/dataset changes — never per frame. Skipped
+    // entirely in low-memory mode, like the starfield and satellite models.
+    let overlayShell = null;
+    let overlayTexture = null;
+    let overlayCanvas = null;
+    if (!lowMem) {
+      overlayCanvas = document.createElement('canvas');
+      overlayCanvas.width = OVERLAY_TEX_W;
+      overlayCanvas.height = OVERLAY_TEX_H;
+      overlayTexture = new THREE.CanvasTexture(overlayCanvas);
+      overlayTexture.colorSpace = THREE.SRGBColorSpace;
+      overlayTexture.anisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
+      overlayShell = new THREE.Mesh(
+        new THREE.SphereGeometry(EARTH_R * OVERLAY_ALT, 64, 48),
+        new THREE.MeshBasicMaterial({ map: overlayTexture, transparent: true, depthWrite: false }),
+      );
+      overlayShell.visible = false; // until a painter actually draws something
+      scene.add(overlayShell);
+    }
+
     const raycaster = new THREE.Raycaster();
     raycaster.params.Points.threshold = 0.02;
     const pointer = new THREE.Vector2();
@@ -762,6 +802,10 @@ export default function Globe3D({
       stars,
       overlayGroup,
       satGroup,
+      overlayShell,
+      overlayTexture,
+      overlayCanvas,
+      overlayCtx: overlayCanvas ? overlayCanvas.getContext('2d') : null,
       raycaster,
       pointer,
       dotTexture: makeDotTexture(),
@@ -900,6 +944,11 @@ export default function Globe3D({
       earthMat.dispose();
       atmosphere.geometry.dispose();
       atmosphere.material.dispose();
+      if (overlayShell) {
+        overlayShell.geometry.dispose();
+        overlayShell.material.dispose();
+        overlayTexture.dispose();
+      }
       if (stars) {
         stars.geometry.dispose();
         stars.material.dispose();
@@ -1139,6 +1188,117 @@ export default function Globe3D({
     const id = setInterval(update, 60_000);
     return () => clearInterval(id);
   }, [lowMem]);
+
+  // ── Plugin overlay layers (Maidenhead / zones / D-RAP / aurora) ──────
+  // The globe-capable subset of the plugin layers, driven by the same
+  // enabled/opacity states the flat map persists (openhamclock_mapSettings
+  // .layers). Data is fetched with the same endpoints and cadence as the
+  // Leaflet hooks; painting happens on the shared overlay canvas only when a
+  // toggle, opacity, or dataset changes — the render loop never repaints it.
+  // In low-memory mode the whole feature is off and the layers stay in
+  // WorldMap's suppressed-layers note instead.
+  const drapOverlayOn = !lowMem && !!overlayLayerStates?.drap?.enabled;
+  const auroraOverlayOn = !lowMem && !!overlayLayerStates?.aurora?.enabled;
+  const zonesOverlayOn = !lowMem && !!overlayLayerStates?.zones?.enabled;
+  const [overlayDrap, setOverlayDrap] = useState(null);
+  const [overlayAurora, setOverlayAurora] = useState(null);
+  const [overlayZones, setOverlayZones] = useState(null);
+
+  useEffect(() => {
+    if (!drapOverlayOn) return undefined;
+    let alive = true;
+    const fetchDrap = async () => {
+      try {
+        const res = await fetch('/api/drap');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive && Array.isArray(data.lats) && Array.isArray(data.lons) && Array.isArray(data.freqs)) {
+          setOverlayDrap(data);
+        }
+      } catch (err) {
+        console.error('[Globe3D] D-RAP fetch error:', err);
+      }
+    };
+    fetchDrap();
+    const id = setInterval(fetchDrap, 300_000); // server caches 5 min, like the flat layer
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [drapOverlayOn]);
+
+  useEffect(() => {
+    if (!auroraOverlayOn) return undefined;
+    let alive = true;
+    const fetchAurora = async () => {
+      try {
+        const res = await fetch('/api/noaa/aurora');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive && Array.isArray(data.coordinates) && data.coordinates.length) {
+          setOverlayAurora(data.coordinates);
+        }
+      } catch (err) {
+        console.error('[Globe3D] aurora fetch error:', err);
+      }
+    };
+    fetchAurora();
+    const id = setInterval(fetchAurora, 600_000); // OVATION cadence, like the flat layer
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [auroraOverlayOn]);
+
+  useEffect(() => {
+    if (!zonesOverlayOn) return undefined;
+    // CQ vs ITU is whatever the flat layer's on-map control last persisted.
+    let zoneType = 'cq';
+    try {
+      zoneType = localStorage.getItem('openhamclock_zones_type') === 'itu' ? 'itu' : 'cq';
+    } catch {}
+    const src = ZONE_SOURCES[zoneType];
+    let alive = true;
+    fetch(src.file)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (alive && data && Array.isArray(data.features)) {
+          setOverlayZones({ geojson: data, color: src.color });
+        }
+      })
+      .catch((err) => console.error('[Globe3D] zones fetch error:', err));
+    return () => {
+      alive = false;
+    };
+  }, [zonesOverlayOn]);
+
+  // Repaint the shared overlay canvas. Content-keyed on the states object so
+  // a parent re-render with identical enabled/opacity values repaints nothing.
+  const overlayStatesKey = JSON.stringify(overlayLayerStates ?? null);
+  useEffect(() => {
+    const s = gl.current;
+    if (!s.overlayCtx || !s.overlayShell) return;
+    const states = overlayLayerStates || {};
+    const { width, height } = s.overlayCanvas;
+    const ctx = s.overlayCtx;
+    ctx.clearRect(0, 0, width, height);
+    const dataById = { zones: overlayZones, drap: overlayDrap, aurora: overlayAurora };
+    let painted = false;
+    for (const [id, painter] of Object.entries(GLOBE_OVERLAY_PAINTERS)) {
+      const st = states[id];
+      if (!st?.enabled) continue;
+      // Painters with no data yet draw nothing — the canvas fills in when
+      // the fetch effects above deliver.
+      painter(ctx, { width, height, opacity: st.opacity, data: dataById[id] });
+      painted = true;
+    }
+    s.overlayShell.visible = painted;
+    s.overlayTexture.needsUpdate = true;
+    s.requestRender?.();
+    // overlayStatesKey stands in for overlayLayerStates (content compare);
+    // lowMem: scene rebuild — repaint onto the fresh canvas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlayStatesKey, overlayZones, overlayDrap, overlayAurora, lowMem]);
 
   // ── Markers + arcs ───────────────────────────────────────
   useEffect(() => {

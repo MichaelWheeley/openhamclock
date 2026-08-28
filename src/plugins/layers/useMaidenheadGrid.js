@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { normLon, fieldLabel, squareLabel } from '../../utils/globeOverlays.js';
 
 /**
  * Maidenhead Grid Squares Overlay Plugin
@@ -31,29 +32,8 @@ const SQUARE_MIN_ZOOM = 5;
 // Safety cap on drawn cells per pass (viewport culling should keep us far below)
 const MAX_CELLS = 4000;
 
-const FIELD_LETTERS = 'ABCDEFGHIJKLMNOPQR';
-
-// Normalize a (possibly world-wrapped) longitude into [-180, 180)
-function normLon(lon) {
-  return ((((lon + 180) % 360) + 360) % 360) - 180;
-}
-
-// Field label ("EN") for a cell's SW corner in normalized coordinates
-function fieldLabel(lat, lon) {
-  const lonIdx = Math.floor((normLon(lon) + 180) / 20);
-  const latIdx = Math.floor((lat + 90) / 10);
-  if (lonIdx < 0 || lonIdx > 17 || latIdx < 0 || latIdx > 17) return null;
-  return FIELD_LETTERS[lonIdx] + FIELD_LETTERS[latIdx];
-}
-
-// Square label ("EN34") for a cell's SW corner in normalized coordinates
-function squareLabel(lat, lon) {
-  const field = fieldLabel(lat, lon);
-  if (!field) return null;
-  const lonDigit = Math.floor(((normLon(lon) + 180) % 20) / 2);
-  const latDigit = Math.floor(((lat + 90) % 10) / 1);
-  return field + String(lonDigit) + String(latDigit);
-}
+// Grid math (normLon / fieldLabel / squareLabel) lives in utils/globeOverlays.js,
+// shared with the 3D globe's grid painter so the two projections cannot drift.
 
 export function useLayer({ enabled = false, opacity = 0.5, map = null }) {
   const groupRef = useRef(null);
