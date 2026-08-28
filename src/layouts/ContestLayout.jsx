@@ -18,6 +18,7 @@ import { DXClusterPanel, PSKReporterPanel } from '../components';
 import RateMeter from '../components/contest/RateMeter.jsx';
 import ContestLogStrip from '../components/contest/ContestLogStrip.jsx';
 import MultTracker from '../components/contest/MultTracker.jsx';
+import GroupLogSection from '../components/GroupLogSection.jsx';
 import { useLogbook } from '../hooks/useLogbook.js';
 import { useRig } from '../contexts/RigContext.jsx';
 import {
@@ -92,6 +93,15 @@ export default function ContestLayout(props) {
   // ── Contest session ──────────────────────────────────────────────────────
   const [session, setSession] = useState(() => loadContestSession());
   const [nameDraft, setNameDraft] = useState('');
+  // Group logging (Field Day multi-station) — open automatically when a
+  // group session is being resumed, same heuristic as the Logbook panel.
+  const [showGroup, setShowGroup] = useState(() => {
+    try {
+      return !!localStorage.getItem('openhamclock_groupLog');
+    } catch {
+      return false;
+    }
+  });
   // Contest choice before a session starts (a running session stores its own).
   const [contestDraftId, setContestDraftId] = useState(() => loadContestSession()?.contestId || DEFAULT_CONTEST_ID);
   // Sent-side exchange collected before Start (persists into the session).
@@ -254,11 +264,21 @@ export default function ContestLayout(props) {
           )}
         </div>
 
-        <div style={{ fontSize: '14px' }}>
-          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-            {utcTime}:{seconds}
-          </span>
-          <span style={{ color: 'var(--text-muted)', marginLeft: '6px', fontSize: '11px' }}>UTC</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={() => setShowGroup((v) => !v)}
+            title="Group logging — share one live log across several stations (Field Day)"
+            aria-pressed={showGroup}
+            style={{ ...headerBtnStyle, color: showGroup ? 'var(--accent-cyan)' : 'var(--text-muted)' }}
+          >
+            👥 Group
+          </button>
+          <div style={{ fontSize: '14px' }}>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+              {utcTime}:{seconds}
+            </span>
+            <span style={{ color: 'var(--text-muted)', marginLeft: '6px', fontSize: '11px' }}>UTC</span>
+          </div>
         </div>
       </div>
 
@@ -272,6 +292,9 @@ export default function ContestLayout(props) {
         nextSerial={serialNext}
         apiRef={stripApi}
       />
+
+      {/* GROUP LOG — create/join a shared multi-station session (Field Day) */}
+      {showGroup && <GroupLogSection userCallsign={config.callsign} />}
 
       {/* MAIN GRID */}
       <div

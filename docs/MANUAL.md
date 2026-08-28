@@ -355,7 +355,7 @@ QSO records are ADIF-aligned internally (band, mode, RST, grids, power, plus arb
 
 ### Group logging (Field Day) _(next release)_
 
-For contests worked as a group — Field Day, club multi-station efforts — several stations can share one live merged log. In the Logbook panel, press **Group**:
+For contests worked as a group — Field Day, club multi-station efforts — several stations can share one live merged log. Press **Group** in the Logbook panel's toolbar, or **👥 Group** in the Contest layout's header:
 
 - **Start session** creates a shared session and shows an 8-character **invite code**. Read it to the other stations (or copy it into the club chat).
 - **Join session** on the other computers with the code and each operator's callsign. Up to 25 operators per session.
