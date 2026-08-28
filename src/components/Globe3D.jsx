@@ -1629,7 +1629,10 @@ export default function Globe3D({
         if (!res.ok) return;
         const data = await res.json();
         if (alive && Array.isArray(data.aircraft)) {
-          setOverlayAircraft(data.aircraft.filter((p) => p.lat != null && p.lon != null && !p.onGround).slice(0, 4000));
+          // Never prefix-slice this: adsb.lol orders the array west→east by
+          // longitude, so a cap here would drop everything east of some
+          // meridian. paintAircraft decimates spatially instead.
+          setOverlayAircraft(data.aircraft.filter((p) => p.lat != null && p.lon != null && !p.onGround));
         }
       } catch (err) {
         console.error('[Globe3D] aircraft fetch error:', err);

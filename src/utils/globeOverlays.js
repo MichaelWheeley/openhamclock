@@ -605,20 +605,39 @@ export function paintATCSectors(ctx, { width, height, opacity = 0.7, data }) {
 }
 
 /**
- * Live aircraft — small heading-oriented darts.
- * data: [{ lat, lon, heading }] from /api/aircraft (world-wide; capped by
- * Globe3D's fetch effect).
+ * Live aircraft — heading-oriented darts with spatial decimation.
+ * data: [{ lat, lon, heading, alt_ft }] from /api/aircraft — the FULL
+ * world snapshot (~12k airborne). Never slice that array upstream:
+ * adsb.lol returns it ordered west-to-east by longitude, so any prefix
+ * cap silently drops everything east of some meridian. Instead we thin
+ * here, one aircraft per canvas grid cell (highest altitude wins — the
+ * long-haul traffic worth seeing at planetary zoom), which keeps dense
+ * corridors readable and coverage worldwide.
  */
 export function paintAircraft(ctx, { width, height, opacity = 0.9, data }) {
   if (!Array.isArray(data) || !data.length) return;
   const k = width / 2048;
-  const size = 4.5 * k;
-  ctx.save();
-  ctx.fillStyle = `rgba(127,212,255,${opacity})`;
+  const size = 5 * k;
+
+  // One plane per ~12 px cell; higher altitude replaces lower.
+  const cellPx = 12 * k;
+  const best = new Map();
   for (const plane of data) {
     if (plane.lat == null || plane.lon == null) continue;
     const x = lonToX(plane.lon, width);
     const y = latToY(plane.lat, height);
+    const key = `${Math.floor(x / cellPx)},${Math.floor(y / cellPx)}`;
+    const prev = best.get(key);
+    if (!prev || (plane.alt_ft ?? 0) > (prev.plane.alt_ft ?? 0)) {
+      best.set(key, { plane, x, y });
+    }
+  }
+
+  ctx.save();
+  ctx.fillStyle = `rgba(140,220,255,${opacity})`;
+  ctx.strokeStyle = `rgba(0,20,40,${Math.min(1, opacity + 0.1)})`;
+  ctx.lineWidth = Math.max(0.8, k);
+  for (const { plane, x, y } of best.values()) {
     const theta = (((plane.heading ?? 0) - 90) * Math.PI) / 180; // 0° = north/up
     ctx.save();
     ctx.translate(x, y);
@@ -630,6 +649,7 @@ export function paintAircraft(ctx, { width, height, opacity = 0.9, data }) {
     ctx.lineTo(-size * 0.6, size);
     ctx.closePath();
     ctx.fill();
+    ctx.stroke();
     ctx.restore();
   }
   ctx.restore();

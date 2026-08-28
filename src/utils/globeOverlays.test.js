@@ -553,19 +553,35 @@ describe('new painters (globe parity batch)', () => {
     expect(of(ctx, 'closePath')).toHaveLength(1);
   });
 
-  it('aircraft draws one rotated dart per plane and skips null positions', () => {
+  it('aircraft draws one outlined dart per plane and skips null positions', () => {
     const ctx = mockCtx();
     paintAircraft(ctx, {
       width: W,
       height: H,
       opacity: 1,
       data: [
-        { lat: 40, lon: -100, heading: 90 },
+        { lat: 40, lon: -100, heading: 90, alt_ft: 35000 },
         { lat: null, lon: 5, heading: 0 },
       ],
     });
     expect(of(ctx, 'rotate')).toHaveLength(1);
     expect(of(ctx, 'closePath')).toHaveLength(1);
+    expect(of(ctx, 'stroke')).toHaveLength(1); // dark outline for readability
+  });
+
+  it('aircraft decimates to one plane per canvas cell, highest altitude wins', () => {
+    const ctx = mockCtx();
+    paintAircraft(ctx, {
+      width: W,
+      height: H,
+      opacity: 1,
+      data: [
+        { lat: 40, lon: -100, heading: 0, alt_ft: 10000 }, // same cell, lower
+        { lat: 40.01, lon: -100.01, heading: 0, alt_ft: 38000 }, // same cell, higher — kept
+        { lat: -30, lon: 140, heading: 0, alt_ft: 30000 }, // far away — kept
+      ],
+    });
+    expect(of(ctx, 'closePath')).toHaveLength(2);
   });
 
   it('ATC sectors dash oceanic boundaries and stroke the rest solid', () => {
