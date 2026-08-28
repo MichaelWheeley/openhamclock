@@ -1504,3 +1504,150 @@ pre,
 [data-theme='steampunk'] ::-webkit-scrollbar-thumb {
   background: linear-gradient(#d4a017, #8a6a2f) !important;
 }
+
+/* ══════════════════════════════════════════════════════════
+   THEME V2 — deep design language (8-Bit / Matrix / Trek)
+   These extend (and where noted, override) the earlier
+   chrome blocks above; later rules win at equal specificity.
+   ══════════════════════════════════════════════════════════ */
+
+/* ── 8-Bit v2: NES dialog graphics ───────────────────────── */
+
+/* Stepped "pixel-rounded" corners: chamfer each corner in two 3px steps,
+   the way console dialog boxes rounded corners out of square tiles. The
+   clip replaces the outer box-shadow frames (clip-path would cut them). */
+[data-theme='eightbit'] .panel {
+  border: 3px solid #f8f8f8 !important;
+  box-shadow: none !important;
+  clip-path: polygon(
+    0 9px,
+    3px 9px,
+    3px 3px,
+    9px 3px,
+    9px 0,
+    calc(100% - 9px) 0,
+    calc(100% - 9px) 3px,
+    calc(100% - 3px) 3px,
+    calc(100% - 3px) 9px,
+    100% 9px,
+    100% calc(100% - 9px),
+    calc(100% - 3px) calc(100% - 9px),
+    calc(100% - 3px) calc(100% - 3px),
+    calc(100% - 9px) calc(100% - 3px),
+    calc(100% - 9px) 100%,
+    9px 100%,
+    9px calc(100% - 3px),
+    3px calc(100% - 3px),
+    3px calc(100% - 9px),
+    0 calc(100% - 9px)
+  );
+}
+
+/* Menu-bar panel headers: solid color block, pixel font, white text */
+[data-theme='eightbit'] .panel > div:first-child {
+  background: #5f5fd3 !important;
+  color: #ffffff !important;
+  font-family: 'Press Start 2P', var(--font-mono) !important;
+  font-size: 8px !important;
+  letter-spacing: 0;
+  padding: 4px 8px !important;
+  margin: -10px -10px 8px -10px !important;
+  text-transform: uppercase;
+}
+
+/* Pixel font on buttons too, scaled relative to their layout size */
+[data-theme='eightbit'] button {
+  font-family: 'Press Start 2P', var(--font-mono) !important;
+  font-size: 0.8em;
+  text-transform: uppercase;
+}
+
+/* ── Matrix v2: the movie treatment ──────────────────────── */
+/* The digital-rain canvas itself is the MatrixRain component; these
+   rules make the chrome sit on top of it like HUD glass. */
+
+/* Panels become translucent glass so the rain reads through them */
+[data-theme='matrix'] .panel {
+  background: rgba(1, 8, 2, 0.82) !important;
+}
+
+/* Header flicker — a barely-there CRT shimmer on panel titles */
+@keyframes matrix-flicker {
+  0%,
+  93%,
+  100% {
+    opacity: 1;
+  }
+  94% {
+    opacity: 0.75;
+  }
+  96% {
+    opacity: 0.92;
+  }
+  98% {
+    opacity: 0.68;
+  }
+}
+[data-theme='matrix'] .panel > div:first-child {
+  animation: matrix-flicker 7s infinite;
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+}
+
+/* ── Trek: LCARS chrome ──────────────────────────────────── */
+
+/* Everything in the condensed LCARS face, all-caps display type */
+[data-theme='trek'] body,
+[data-theme='trek'] * {
+  font-family: 'Antonio', 'Arial Narrow', 'Helvetica Neue', sans-serif !important;
+  letter-spacing: 0.4px;
+}
+
+/* Panels: black wells framed by an LCARS side bar and rounded elbows */
+[data-theme='trek'] .panel {
+  background: #000 !important;
+  border: none !important;
+  border-left: 14px solid var(--lcars-bar, #ff9c00) !important;
+  border-radius: 22px 6px 6px 22px !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 156, 0, 0.18) !important;
+  backdrop-filter: none !important;
+}
+
+/* Alternate elbow colors so a wall of panels reads like an LCARS frame */
+[data-theme='trek'] .panel:nth-of-type(2n) {
+  border-left-color: var(--lcars-alt, #9999cc) !important;
+}
+[data-theme='trek'] .panel:nth-of-type(3n) {
+  border-left-color: #cc99cc !important;
+}
+
+/* Headers: the classic pill bar — black text on the section color */
+[data-theme='trek'] .panel > div:first-child {
+  background: var(--lcars-bar, #ff9c00) !important;
+  color: #000 !important;
+  border-radius: 999px !important;
+  padding: 2px 12px !important;
+  margin: -10px -10px 8px -10px !important;
+  text-transform: uppercase;
+  font-weight: 700 !important;
+}
+[data-theme='trek'] .panel:nth-of-type(2n) > div:first-child {
+  background: var(--lcars-alt, #9999cc) !important;
+}
+[data-theme='trek'] .panel:nth-of-type(3n) > div:first-child {
+  background: #cc99cc !important;
+}
+
+/* Pill buttons, LCARS-style */
+[data-theme='trek'] button {
+  border-radius: 999px !important;
+  text-transform: uppercase;
+}
+
+/* Orange pill scrollbars on black tracks */
+[data-theme='trek'] ::-webkit-scrollbar-thumb {
+  background: #ff9c00 !important;
+  border-radius: 999px !important;
+}
+[data-theme='trek'] ::-webkit-scrollbar-track {
+  background: #000 !important;
+}

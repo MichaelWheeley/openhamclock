@@ -64,3 +64,4 @@ export { default as WSPRMySpotsPanel } from './WSPRMySpotsPanel.jsx';
 export { default as AMSATStatusPanel } from './AMSATStatusPanel.jsx';
 export { default as RepeatersPanel } from './RepeatersPanel.jsx';
 export { default as POTAActivatorPanel } from './POTAActivatorPanel.jsx';
+export { default as MatrixRain } from './MatrixRain.jsx';

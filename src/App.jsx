@@ -9,6 +9,7 @@ import { SettingsPanel, DXFilterManager, PSKFilterManager, KeybindingsPanel } fr
 import SidebarMenu from './components/SidebarMenu.jsx';
 
 import DockableLayout from './layouts/DockableLayout.jsx';
+import MatrixRain from './components/MatrixRain.jsx';
 import ClassicLayout from './layouts/ClassicLayout.jsx';
 import ModernLayout from './layouts/ModernLayout.jsx';
 import EmcommLayout from './layouts/EmcommLayout.jsx';
@@ -861,6 +862,9 @@ const App = () => {
         transition: 'padding-left 0.2s ease',
       }}
     >
+      {/* Matrix theme: digital rain behind the whole UI (skipped on lowMem) */}
+      {config.theme === 'matrix' && !config.lowMemoryMode && <MatrixRain />}
+
       {/* Display Schedule — black overlay when in sleep window */}
       {displaySleeping && (
         <div

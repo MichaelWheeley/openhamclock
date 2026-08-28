@@ -265,3 +265,35 @@
   --bg-row-alt: rgba(255, 140, 70, 0.05);
   --map-ocean: #0d0806;
 }
+
+/* ============================================
+   THEME: TREK (LCARS-inspired)
+   Pure black canvas with the classic golden-
+   orange / lavender / periwinkle bar palette;
+   panel chrome (elbows, pill headers, condensed
+   all-caps type) lives in main.css.
+   ============================================ */
+[data-theme='trek'] {
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0f;
+  --bg-tertiary: #16161f;
+  --bg-panel: #000000;
+  --border-color: rgba(255, 156, 0, 0.45);
+  --text-primary: #ffcc99;
+  --text-secondary: #cc99cc;
+  --text-muted: #7a708a;
+  --accent-amber: #ff9c00;
+  --accent-amber-dim: rgba(255, 156, 0, 0.5);
+  --accent-green: #66cc66;
+  --accent-green-dim: rgba(102, 204, 102, 0.5);
+  --accent-red: #cc4444;
+  --accent-blue: #9999ff;
+  --accent-cyan: #99ccff;
+  --accent-purple: #cc99cc;
+  --accent-white: #ffffff;
+  --color-aprs-rf: #66cc66;
+  --bg-row-alt: rgba(255, 156, 0, 0.06);
+  --map-ocean: #000000;
+  --lcars-bar: #ff9c00;
+  --lcars-alt: #9999cc;
+}

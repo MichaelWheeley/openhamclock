@@ -28,6 +28,7 @@ export const AVAILABLE_THEMES = {
   matrix: { label: 'Matrix', icon: '🟢' },
   eightbit: { label: '8-Bit', icon: '🕹️' },
   steampunk: { label: 'Steampunk', icon: '⚙️' },
+  trek: { label: 'Trek', icon: '🖖' },
   midnight: { label: 'Midnight', icon: '🌌' },
   ember: { label: 'Ember', icon: '🔥' },
   custom: { label: 'Custom', icon: '🎨' },
