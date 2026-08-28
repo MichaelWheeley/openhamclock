@@ -55,6 +55,8 @@ import { DXGridInput } from './components/DXGridInput.jsx';
 import { DXCallsignInput } from './components/DXCallsignInput.jsx';
 import { DXFavorites } from './components/DXFavorites.jsx';
 import DXCCSelect from './components/DXCCSelect.jsx';
+import HelpLink from './components/HelpLink.jsx';
+import { panelHelpTopic } from './utils/helpTopics.js';
 import './styles/flexlayout-openhamclock.css';
 import useMapLayers from './hooks/app/useMapLayers';
 import { useMapTextData } from './hooks/useMapTextData.js';
@@ -1266,6 +1268,19 @@ export const DockableApp = ({
       // Get the active tab's component name for zoom controls
       const selectedNode = node.getSelectedNode?.();
       const selectedComponent = selectedNode?.getComponent?.();
+
+      // Per-tab help — deep-links to the manual section for the selected panel
+      if (selectedComponent) {
+        renderValues.stickyButtons.push(
+          <HelpLink
+            key="help"
+            topic={panelHelpTopic(selectedComponent)}
+            label={selectedNode?.getName?.() || selectedComponent}
+            className="flexlayout__tab_toolbar_button"
+            style={{ fontSize: '11px', padding: '0 3px' }}
+          />,
+        );
+      }
 
       // Skip zoom controls for world-map
       if (selectedComponent && selectedComponent !== 'world-map') {

@@ -28,6 +28,9 @@ import { setRelaySessionId, setRelayConfigured, clearRelaySession } from '../uti
 import { getCallbookCredentials, setCallbookCredentials } from '../utils/callbookAuth.js';
 import { getCartoApiKey, CARTO_KEY_STORAGE } from '../utils/config.js';
 import { CALLBOOKS, getCallbook } from '../utils/callbook.js';
+import { HELP_EVENT, settingsTabHelpTopic, layerHelpTopic } from '../utils/helpTopics.js';
+import HelpTab from './HelpTab.jsx';
+import HelpLink from './HelpLink.jsx';
 
 export const SettingsPanel = ({
   isOpen,
@@ -210,6 +213,7 @@ export const SettingsPanel = ({
     'community',
     'alerts',
     'rig-bridge',
+    'help',
   ];
   const settingsTabRefs = useRef({});
   const [ctrlPressed, setCtrlPressed] = useState(false);
@@ -220,6 +224,23 @@ export const SettingsPanel = ({
       setActiveTab(defaultTab);
     }
   }, [isOpen, defaultTab]);
+
+  // Help deep links (HelpLink buttons anywhere in the app): App.jsx opens
+  // the modal, we switch to the Help tab and remember the manual anchor
+  // so HelpTab can scroll to it once the manual has loaded.
+  const [helpAnchor, setHelpAnchor] = useState(null);
+  useEffect(() => {
+    const onOpenHelp = (e) => {
+      setActiveTab('help');
+      setHelpAnchor(e.detail?.anchor || null);
+    };
+    window.addEventListener(HELP_EVENT, onOpenHelp);
+    return () => window.removeEventListener(HELP_EVENT, onOpenHelp);
+  }, []);
+  // Don't re-scroll to a stale anchor next time the Help tab opens
+  useEffect(() => {
+    if (!isOpen) setHelpAnchor(null);
+  }, [isOpen]);
 
   // Profile management state
   const [profiles, setProfilesList] = useState({});
@@ -938,7 +959,41 @@ export const SettingsPanel = ({
           >
             📻 {t('station.settings.tab.title.rig-bridge')}
           </button>
+
+          <button
+            role="tab"
+            id="tab-settings-help"
+            aria-selected={activeTab === 'help'}
+            aria-controls="panel-settings-help"
+            tabIndex={activeTab === 'help' ? 0 : -1}
+            ref={(el) => (settingsTabRefs.current['help'] = el)}
+            onClick={() => setActiveTab('help')}
+            style={{
+              flex: 1,
+              padding: '10px',
+              background: activeTab === 'help' ? 'var(--accent-amber)' : 'transparent',
+              border: 'none',
+              borderRadius: '6px 6px 0 0',
+              color: activeTab === 'help' ? '#000' : 'var(--text-secondary)',
+              fontSize: '13px',
+              cursor: 'pointer',
+              fontWeight: activeTab === 'help' ? '700' : '400',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            ❓ {t('station.settings.tab.title.help')}
+          </button>
         </div>
+
+        {/* Per-tab help link — jumps to the manual section for the open tab */}
+        {activeTab !== 'help' && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+            <HelpLink
+              topic={settingsTabHelpTopic(activeTab)}
+              label={t(`station.settings.tab.title.${activeTab === 'layers' ? 'mapLayers' : activeTab}`)}
+            />
+          </div>
+        )}
 
         {/* Station Settings Tab */}
         <div
@@ -4194,6 +4249,7 @@ export const SettingsPanel = ({
                     icon: '📍',
                     title: 'DE/DX Markers',
                     description: 'Show or hide your DE and DX position markers on the map',
+                    helpTopic: 'de-dx',
                   },
                   {
                     id: 'dx-target-panel',
@@ -4202,6 +4258,7 @@ export const SettingsPanel = ({
                     icon: '🎯',
                     title: 'DX Target Panel',
                     description: 'Show or hide the DX target info panel (grid, bearing, sun times)',
+                    helpTopic: 'de-dx',
                   },
                   {
                     id: 'dx-news-ticker',
@@ -4210,6 +4267,7 @@ export const SettingsPanel = ({
                     icon: '📰',
                     title: 'DX News Ticker',
                     description: 'Scrolling DX news headlines on the map',
+                    helpTopic: 'spots-activity',
                   },
                 ];
                 return (() => {
@@ -4250,30 +4308,35 @@ export const SettingsPanel = ({
                         marginBottom: '12px',
                       }}
                     >
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={item.checked}
-                          onChange={item.onChange}
-                          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                        />
-                        <span style={{ fontSize: '18px' }}>{item.icon}</span>
-                        <div>
-                          <div
-                            style={{
-                              color: item.checked ? 'var(--accent-amber)' : 'var(--text-primary)',
-                              fontSize: '14px',
-                              fontWeight: '600',
-                              fontFamily: 'var(--font-mono)',
-                            }}
-                          >
-                            {item.title}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <label
+                          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flex: 1 }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={item.checked}
+                            onChange={item.onChange}
+                            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                          />
+                          <span style={{ fontSize: '18px' }}>{item.icon}</span>
+                          <div>
+                            <div
+                              style={{
+                                color: item.checked ? 'var(--accent-amber)' : 'var(--text-primary)',
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                fontFamily: 'var(--font-mono)',
+                              }}
+                            >
+                              {item.title}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              {item.description}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            {item.description}
-                          </div>
-                        </div>
-                      </label>
+                        </label>
+                        <HelpLink topic={item.helpTopic || 'map-layers'} label={item.title} />
+                      </div>
                     </div>
                   );
 
@@ -4324,6 +4387,10 @@ export const SettingsPanel = ({
                             )}
                           </div>
                         </label>
+                        <HelpLink
+                          topic={layerHelpTopic(layer.id)}
+                          label={layer.name.startsWith('plugins.') ? t(layer.name) : layer.name}
+                        />
                       </div>
 
                       {layer.enabled && (
@@ -6414,6 +6481,11 @@ export const SettingsPanel = ({
               )}
             </div>
           )}
+        </div>
+
+        {/* Help Tab */}
+        <div role="tabpanel" id="panel-settings-help" aria-labelledby="tab-settings-help" hidden={activeTab !== 'help'}>
+          {activeTab === 'help' && <HelpTab anchor={helpAnchor} />}
         </div>
 
         {/* Buttons */}

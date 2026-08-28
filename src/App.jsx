@@ -62,6 +62,7 @@ import { initCtyLookup } from './utils/ctyLookup.js';
 import { getAllLayers } from './plugins/layerRegistry.js';
 import ActivateFilterManager from './components/ActivateFilterManager.jsx';
 import { useLightningAnnouncements } from './hooks/app/useLightningAnnouncements';
+import { HELP_EVENT } from './utils/helpTopics.js';
 import { useDXSpotAnnouncements } from './hooks/app/useDXSpotAnnouncements';
 import { useWeatherAlertAnnouncements } from './hooks/app/useWeatherAlertAnnouncements';
 
@@ -93,6 +94,17 @@ const App = () => {
     };
     window.addEventListener('openhamclock-band-colors-change', onBandColorsChange);
     return () => window.removeEventListener('openhamclock-band-colors-change', onBandColorsChange);
+  }, []);
+
+  // HelpLink buttons anywhere in the app dispatch this event to open
+  // Settings → Help (SettingsPanel handles tab switch + anchor scroll).
+  useEffect(() => {
+    const onOpenHelp = () => {
+      setSettingsDefaultTab('help');
+      setShowSettings(true);
+    };
+    window.addEventListener(HELP_EVENT, onOpenHelp);
+    return () => window.removeEventListener(HELP_EVENT, onOpenHelp);
   }, []);
 
   useEffect(() => {

@@ -62,6 +62,7 @@ export default function SidebarMenu({
       { id: 'community', icon: '🌐', label: t('station.settings.tab.title.community') },
       { id: 'alerts', icon: '🔔', label: t('station.settings.tab.title.alerts') },
       { id: 'rig-bridge', icon: '📻', label: t('station.settings.tab.title.rig-bridge') },
+      { id: 'help', icon: '❓', label: t('station.settings.tab.title.help') },
     ],
     [t],
   );
