@@ -18,13 +18,17 @@
 const Parser = require('rss-parser');
 const { extractCallsign, SOURCE_URLS } = require('../../utils/dxNewsMerge.js');
 
-const parser = new Parser({
-  timeout: 10_000,
-  headers: { 'User-Agent': 'OpenHamClock/3.13.1 (amateur radio dashboard)' },
-});
+const parser = new Parser();
 
-// The live feed URL redirects to https://www.dx-world.net/feed/ — follow redirect
-const DX_WORLD_FEED_URL = 'https://dx-world.net/feed/';
+// Fetch www directly (the apex 301s here). Cloudflare tarpits bare product
+// User-Agents on this host — rss-parser's parseURL would hang until timeout —
+// so we fetch ourselves with a Mozilla-compatible UA and hand the XML to
+// parseString.
+const DX_WORLD_FEED_URL = 'https://www.dx-world.net/feed/';
+const DX_WORLD_FETCH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (compatible; OpenHamClock/26.6; +https://openhamclock.com)',
+  Accept: 'application/rss+xml, application/xml;q=0.9, */*;q=0.8',
+};
 
 /**
  * Parse an rss-parser feed object into normalized merged-feed items.
@@ -70,7 +74,13 @@ function parseDxWorldFeed(feed) {
  * @returns {Promise<{ items: Array<object> }>}
  */
 async function fetchDxWorld(ctx) {
-  const feed = await parser.parseURL(DX_WORLD_FEED_URL);
+  const res = await fetch(DX_WORLD_FEED_URL, {
+    headers: DX_WORLD_FETCH_HEADERS,
+    redirect: 'follow',
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`DX-World feed HTTP ${res.status}`);
+  const feed = await parser.parseString(await res.text());
   return { items: parseDxWorldFeed(feed) };
 }
 
