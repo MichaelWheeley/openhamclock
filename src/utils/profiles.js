@@ -5,10 +5,19 @@
  * or a single operator can switch between saved configurations.
  *
  * A profile is a snapshot of all openhamclock_* localStorage keys.
+ *
+ * Profiles are keyed by display name, but each record also carries a stable
+ * `id` (assigned lazily on read for pre-id profiles) so external references
+ * — scene rotation's `profile#<id>` entries — survive renames.
  */
 
 const PROFILES_KEY = 'openhamclock_profiles';
 const ACTIVE_KEY = 'openhamclock_activeProfile';
+
+/** Fired on any profile mutation so pickers can refresh live. */
+export const PROFILES_CHANGED_EVENT = 'openhamclock:profiles-changed';
+
+const newProfileId = () => `pr-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 // All localStorage keys that belong to a profile snapshot
 // (everything except the profiles store itself and the active profile pointer)
@@ -49,7 +58,17 @@ const SNAPSHOT_KEYS = [
 export function getProfiles() {
   try {
     const raw = localStorage.getItem(PROFILES_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const profiles = raw ? JSON.parse(raw) : {};
+    // Lazy migration: assign stable ids to profiles saved before ids existed
+    let migrated = false;
+    for (const record of Object.values(profiles)) {
+      if (record && !record.id) {
+        record.id = newProfileId();
+        migrated = true;
+      }
+    }
+    if (migrated) saveProfiles(profiles);
+    return profiles;
   } catch {
     return {};
   }
@@ -57,6 +76,27 @@ export function getProfiles() {
 
 function saveProfiles(profiles) {
   localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+  try {
+    window.dispatchEvent(new Event(PROFILES_CHANGED_EVENT));
+  } catch {}
+}
+
+/**
+ * List profiles as [{ id, name, createdAt, updatedAt }], creation order.
+ */
+export function getProfileEntries() {
+  return Object.entries(getProfiles()).map(([name, record]) => ({
+    id: record.id,
+    name,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  }));
+}
+
+/** Find a profile by its stable id → { id, name } or null. */
+export function getProfileById(id) {
+  if (!id) return null;
+  return getProfileEntries().find((p) => p.id === id) || null;
 }
 
 /**
@@ -68,6 +108,24 @@ export function getActiveProfile() {
   } catch {
     return null;
   }
+}
+
+/** Stable id of the active profile, or null. */
+export function getActiveProfileId() {
+  const name = getActiveProfile();
+  if (!name) return null;
+  return getProfiles()[name]?.id || null;
+}
+
+/**
+ * Clear the active-profile pointer without touching any snapshot data.
+ * Scene rotation calls this when it moves off a profile scene, so the
+ * rotation index doesn't snap back to the profile's position.
+ */
+export function clearActiveProfile() {
+  try {
+    localStorage.removeItem(ACTIVE_KEY);
+  } catch {}
 }
 
 /**
@@ -92,9 +150,21 @@ function takeSnapshot() {
 }
 
 /**
- * Restore a snapshot to localStorage (replaces all openhamclock_ keys)
+ * Restore a snapshot to localStorage (replaces all openhamclock_ keys).
+ *
+ * With `preserveSceneRotation`, the CURRENT config's sceneRotation block is
+ * carried over into the restored config — without this, rotating into a
+ * profile would overwrite the rotation list with the profile's stale copy
+ * and the rotation would self-destruct on its first profile switch.
  */
-function restoreSnapshot(snapshot) {
+function restoreSnapshot(snapshot, { preserveSceneRotation = false } = {}) {
+  let carriedRotation = null;
+  if (preserveSceneRotation) {
+    try {
+      carriedRotation = JSON.parse(localStorage.getItem('openhamclock_config'))?.sceneRotation || null;
+    } catch {}
+  }
+
   // Clear all current openhamclock_ keys (except profiles store and active pointer)
   const keysToRemove = [];
   for (let i = 0; i < localStorage.length; i++) {
@@ -111,6 +181,14 @@ function restoreSnapshot(snapshot) {
       localStorage.setItem(key, value);
     }
   }
+
+  if (carriedRotation) {
+    try {
+      const cfg = JSON.parse(localStorage.getItem('openhamclock_config') || '{}');
+      cfg.sceneRotation = carriedRotation;
+      localStorage.setItem('openhamclock_config', JSON.stringify(cfg));
+    } catch {}
+  }
 }
 
 /**
@@ -122,6 +200,7 @@ export function saveProfile(name) {
   const profiles = getProfiles();
   const now = new Date().toISOString();
   profiles[trimmed] = {
+    id: profiles[trimmed]?.id || newProfileId(),
     snapshot: takeSnapshot(),
     createdAt: profiles[trimmed]?.createdAt || now,
     updatedAt: now,
@@ -133,15 +212,38 @@ export function saveProfile(name) {
 
 /**
  * Load a named profile (restores its snapshot to localStorage)
- * Returns true if successful, false if profile not found
+ * Returns true if successful, false if profile not found.
+ * Options are forwarded to restoreSnapshot (preserveSceneRotation).
  */
-export function loadProfile(name) {
+export function loadProfile(name, options = {}) {
   const profiles = getProfiles();
   const profile = profiles[name];
   if (!profile?.snapshot) return false;
 
-  restoreSnapshot(profile.snapshot);
+  restoreSnapshot(profile.snapshot, options);
   localStorage.setItem(ACTIVE_KEY, name);
+  return true;
+}
+
+/**
+ * Load a profile by its stable id — the scene-rotation entry point
+ * (`profile#<id>` scenes reference ids so renames don't orphan them).
+ */
+export function loadProfileById(id, options = {}) {
+  const entry = getProfileById(id);
+  if (!entry) return false;
+  return loadProfile(entry.name, options);
+}
+
+/**
+ * Activate a profile as a rotation scene: restore its snapshot with the
+ * current sceneRotation block preserved, then hard-reload (profile
+ * activation is reload-based). Returns false — without reloading — when the
+ * profile doesn't exist in this browser.
+ */
+export function activateProfileScene(id) {
+  if (!loadProfileById(id, { preserveSceneRotation: true })) return false;
+  window.location.reload();
   return true;
 }
 
@@ -233,6 +335,7 @@ export function importProfile(jsonString) {
     }
 
     profiles[name] = {
+      id: newProfileId(), // never reuse an imported id — re-imports must not collide
       snapshot: data.snapshot,
       createdAt: data.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),

@@ -9,6 +9,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { LANGUAGES } from '../lang/i18n.js';
 import {
   getProfiles,
+  getProfileEntries,
   getActiveProfile,
   saveProfile,
   loadProfile,
@@ -4375,9 +4376,13 @@ export const SettingsPanel = ({
                       // Named dockable layout presets rotate as `dockable#<id>`
                       // scenes; a plain 'dockable' scene keeps whatever preset
                       // is active. Preset entries are only offered once the
-                      // user has created a custom preset.
+                      // user has created a custom preset. Saved config
+                      // profiles rotate as `profile#<id>` scenes (a profile
+                      // switch restores its snapshot and reloads the page).
                       const presets = listPresets();
                       const presetIds = presets.length > 1 ? presets.map((p) => `dockable#${p.id}`) : [];
+                      const profileEntries = getProfileEntries().filter((p) => p.id);
+                      const profileIds = profileEntries.map((p) => `profile#${p.id}`);
                       return [
                         'modern',
                         'classic',
@@ -4387,13 +4392,19 @@ export const SettingsPanel = ({
                         ...presetIds,
                         'emcomm',
                         'contest',
+                        ...profileIds,
                       ].map((l) => {
                         const presetName = l.startsWith('dockable#')
                           ? presets.find((p) => `dockable#${p.id}` === l)?.name
                           : null;
+                        const profileName = l.startsWith('profile#')
+                          ? profileEntries.find((p) => `profile#${p.id}` === l)?.name
+                          : null;
                         const label = presetName
                           ? `${t('station.settings.layout.dockable')} — ${presetName}`
-                          : t('station.settings.layout.' + l);
+                          : profileName
+                            ? `${t('station.settings.sceneRotation.profile', { defaultValue: 'Profile' })} — ${profileName}`
+                            : t('station.settings.layout.' + l);
                         const selected = (sceneRotation.layouts || []).includes(l);
                         return (
                           <label
@@ -4437,6 +4448,15 @@ export const SettingsPanel = ({
                         defaultValue:
                           'Kiosk mode: automatically cycle through the selected layouts. Rotation pauses while you interact with the screen (60 s grace) and whenever a dialog is open.',
                       })}
+                  {sceneRotation.enabled && getProfileEntries().length > 0 && (
+                    <>
+                      {' '}
+                      {t('station.settings.sceneRotation.profileNote', {
+                        defaultValue:
+                          'Profile scenes restore that saved profile (keeping these rotation settings) and reload the page; they only rotate in browsers where the profile exists.',
+                      })}
+                    </>
+                  )}
                 </div>
               </div>
 

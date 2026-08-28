@@ -960,6 +960,8 @@
   "station.settings.sceneRotation.interval": "Rotation interval",
   "station.settings.sceneRotation.needTwo": "Pick at least two layouts to rotate through.",
   "station.settings.sceneRotation.off": "Off",
+  "station.settings.sceneRotation.profile": "Profile",
+  "station.settings.sceneRotation.profileNote": "Profile scenes restore that saved profile (keeping these rotation settings) and reload the page; they only rotate in browsers where the profile exists.",
   "station.settings.sceneRotation.title": "Scene Rotation",
   "station.settings.sharePresence": "Active Users Layer",
   "station.settings.sharePresence.describe.off": "Your callsign is not shared — you won't appear on the Active Users map layer for other operators.",

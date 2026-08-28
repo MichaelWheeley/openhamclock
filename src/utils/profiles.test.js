@@ -2,11 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   SHARE_CODE_PREFIX,
+  clearActiveProfile,
   decodeShareCode,
   encodeShareCode,
   exportProfileShareCode,
+  getActiveProfileId,
+  getProfileById,
   getProfiles,
   importProfileFromShareCode,
+  loadProfileById,
+  renameProfile,
   saveProfile,
 } from './profiles.js';
 
@@ -103,5 +108,71 @@ describe('profile share-code integration', () => {
     vi.stubGlobal('CompressionStream', undefined);
     const code = await encodeShareCode({ hello: 'world' });
     expect(await importProfileFromShareCode(code)).toBe(null);
+  });
+});
+
+describe('stable profile ids (scene rotation references)', () => {
+  const seedProfile = (name) => {
+    localStorage.setItem('openhamclock_config', JSON.stringify({ layout: 'modern' }));
+    saveProfile(name);
+  };
+
+  it('assigns an id on save and keeps it across renames', () => {
+    seedProfile('Kiosk');
+    const id = getProfiles()['Kiosk'].id;
+    expect(id).toMatch(/^pr-/);
+    expect(renameProfile('Kiosk', 'Shack TV')).toBe(true);
+    expect(getProfiles()['Shack TV'].id).toBe(id);
+    expect(getProfileById(id)?.name).toBe('Shack TV');
+  });
+
+  it('lazily migrates pre-id profiles on read', () => {
+    localStorage.setItem(
+      'openhamclock_profiles',
+      JSON.stringify({ Legacy: { snapshot: { openhamclock_config: '{}' }, createdAt: 'x', updatedAt: 'x' } }),
+    );
+    const profiles = getProfiles();
+    expect(profiles['Legacy'].id).toMatch(/^pr-/);
+    // persisted, not just in-memory
+    expect(JSON.parse(localStorage.getItem('openhamclock_profiles'))['Legacy'].id).toBe(profiles['Legacy'].id);
+  });
+
+  it('getActiveProfileId resolves the pointer through the name', () => {
+    seedProfile('Kiosk');
+    expect(getActiveProfileId()).toBe(getProfiles()['Kiosk'].id);
+    clearActiveProfile();
+    expect(getActiveProfileId()).toBe(null);
+  });
+
+  it('loadProfileById restores the snapshot; preserveSceneRotation carries the CURRENT rotation over', () => {
+    localStorage.setItem('openhamclock_config', JSON.stringify({ layout: 'classic', theme: 'dark' }));
+    saveProfile('Contest Day'); // snapshot has NO sceneRotation
+    const id = getProfiles()['Contest Day'].id;
+
+    // Live state moves on: different layout, rotation configured
+    const liveRotation = { enabled: true, intervalSec: 60, layouts: ['modern', `profile#${id}`] };
+    localStorage.setItem(
+      'openhamclock_config',
+      JSON.stringify({ layout: 'modern', theme: 'light', sceneRotation: liveRotation }),
+    );
+
+    expect(loadProfileById(id, { preserveSceneRotation: true })).toBe(true);
+    const cfg = JSON.parse(localStorage.getItem('openhamclock_config'));
+    expect(cfg.layout).toBe('classic'); // profile's own view restored…
+    expect(cfg.theme).toBe('dark');
+    expect(cfg.sceneRotation).toEqual(liveRotation); // …but the rotation survives
+    expect(getActiveProfileId()).toBe(id);
+
+    expect(loadProfileById('pr-nope', {})).toBe(false);
+  });
+
+  it('re-importing the same profile never reuses its id', async () => {
+    seedProfile('Kiosk');
+    const code = await exportProfileShareCode('Kiosk');
+    const name1 = await importProfileFromShareCode(code);
+    const name2 = await importProfileFromShareCode(code);
+    const profiles = getProfiles();
+    const ids = [profiles['Kiosk'].id, profiles[name1].id, profiles[name2].id];
+    expect(new Set(ids).size).toBe(3);
   });
 });

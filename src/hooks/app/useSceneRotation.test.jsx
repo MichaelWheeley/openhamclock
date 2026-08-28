@@ -20,6 +20,21 @@ vi.mock('../../store/layoutStore.js', () => ({
   getPresetById: (id) => ({ id, name: `Preset ${id}` }),
 }));
 
+// Same for config profiles — activateProfileScene hard-reloads the page on
+// success, so it must never run for real here.
+const profileStore = vi.hoisted(() => ({
+  activeId: null,
+  known: new Set(),
+  activateProfileScene: null,
+  clearActiveProfile: null,
+}));
+vi.mock('../../utils/profiles.js', () => ({
+  getActiveProfileId: () => profileStore.activeId,
+  getProfileById: (id) => (profileStore.known.has(id) ? { id, name: `Profile ${id}` } : null),
+  activateProfileScene: (...args) => profileStore.activateProfileScene(...args),
+  clearActiveProfile: (...args) => profileStore.clearActiveProfile(...args),
+}));
+
 import useSceneRotation, { clampSceneInterval, parseSceneLayoutId, findCurrentSceneIndex } from './useSceneRotation.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -56,6 +71,16 @@ beforeEach(() => {
   presetStore.activatePreset = vi.fn((id) => {
     presetStore.activeId = id;
     return true;
+  });
+  profileStore.activeId = null;
+  profileStore.known = new Set();
+  profileStore.activateProfileScene = vi.fn((id) => {
+    if (!profileStore.known.has(id)) return false;
+    profileStore.activeId = id; // real impl reloads; tests just track it
+    return true;
+  });
+  profileStore.clearActiveProfile = vi.fn(() => {
+    profileStore.activeId = null;
   });
   vi.useFakeTimers();
 });
@@ -194,6 +219,65 @@ describe('findCurrentSceneIndex', () => {
     expect(findCurrentSceneIndex(list, 'dockable', 'nope')).toBe(1); // plain fallback
     expect(findCurrentSceneIndex(list, 'modern', 'a')).toBe(0);
     expect(findCurrentSceneIndex(['modern', 'classic'], 'dockable', 'a')).toBe(-1);
+  });
+
+  it('prefers the last-switched scene, then the active profile, over layout matching', () => {
+    const list = ['modern', 'profile#p1', 'classic'];
+    // In-memory position wins outright
+    expect(findCurrentSceneIndex(list, 'modern', null, { lastSceneId: 'classic' })).toBe(2);
+    // After a profile-switch reload the ref is gone — the pointer resumes it
+    expect(findCurrentSceneIndex(list, 'modern', null, { activeProfileId: 'p1' })).toBe(1);
+    // Unknown profile / absent ref falls through to the layout id
+    expect(findCurrentSceneIndex(list, 'modern', null, { activeProfileId: 'nope' })).toBe(0);
+    expect(findCurrentSceneIndex(list, 'modern', null, { lastSceneId: 'tablet' })).toBe(0);
+  });
+});
+
+describe('useSceneRotation — config profiles (profile#<id>)', () => {
+  it('rotates into a profile scene via activateProfileScene', () => {
+    profileStore.known = new Set(['p1']);
+    act(() => {
+      root.render(<Harness config={cfg('modern', ['modern', 'profile#p1'])} />);
+    });
+    act(() => {
+      vi.advanceTimersByTime(31_000);
+    });
+    expect(profileStore.activateProfileScene).toHaveBeenCalledWith('p1');
+    // The real implementation hard-reloads — no config save happens here.
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('resumes after the reload from the active-profile pointer and clears it when leaving', () => {
+    profileStore.known = new Set(['p1']);
+    profileStore.activeId = 'p1'; // simulates post-reload state
+    act(() => {
+      root.render(<Harness config={cfg('modern', ['modern', 'profile#p1'])} />);
+    });
+    act(() => {
+      vi.advanceTimersByTime(31_000);
+    });
+    // Current scene is the profile → next wraps to 'modern'
+    expect(profileStore.activateProfileScene).not.toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled(); // layout already 'modern'
+    expect(profileStore.clearActiveProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips a profile scene this browser does not have', () => {
+    profileStore.known = new Set(); // profile deleted / never synced
+    act(() => {
+      root.render(<Harness config={cfg('modern', ['modern', 'profile#gone', 'classic'])} />);
+    });
+    act(() => {
+      vi.advanceTimersByTime(31_000);
+    });
+    expect(profileStore.activateProfileScene).toHaveBeenCalledWith('gone');
+    expect(onSave).not.toHaveBeenCalled(); // no switch this tick
+    // Next tick moves past the missing scene to 'classic'
+    act(() => {
+      vi.advanceTimersByTime(31_000);
+    });
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][0].layout).toBe('classic');
   });
 });
 
