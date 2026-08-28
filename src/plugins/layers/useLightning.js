@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addMinimizeToggle } from './addMinimizeToggle.js';
 import { makeDraggable } from './makeDraggable.js';
-import { getAlertSettings, playTone } from '../../utils/audioAlerts';
+import { ALERT_FEEDS, getAlertSettings, playTone } from '../../utils/audioAlerts';
+import { showAlertNotification } from '../../utils/notifications';
 
 // Lightning Detection Plugin - Real-time lightning strike visualization
 // Data source: Blitzortung.org WebSocket API
@@ -673,6 +674,14 @@ export function useLayer({ enabled = false, opacity = 0.9, map = null, lowMemory
             },
           }),
         );
+
+        if (alertSettings.notifications && lightningConf?.notify) {
+          showAlertNotification({
+            feedId: 'lightning',
+            title: ALERT_FEEDS.lightning?.label || 'Lightning Proximity',
+            body: `Strike ${Math.round(dist.km)} km / ${Math.round(dist.miles)} mi ${bearingToCardinal(bearing)} of your station`,
+          });
+        }
       } else {
         // No nearby strikes - restore normal appearance
         panel.style.border = '1px solid var(--border-color)';
