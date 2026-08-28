@@ -21,7 +21,7 @@ export const DEFAULT_CONFIG = {
   headerSize: 1.0, // Float multiplies base px size (0.1 to 2.0)
   locator: '',
   location: { lat: 40.015, lon: -105.2705, stationAlt: 1630 }, // Boulder, CO (default), altitude [m]
-  satellite: { minElev: 5 }, // Minimum elevation for satellite visibility (degrees)
+  satellite: { minElev: 5, trackDurationMins: 45 }, // Min elevation for visibility (degrees); orbit track window (± minutes around now)
   defaultDX: { lat: 35.6762, lon: 139.6503 }, // Tokyo
   units: 'imperial', // 'imperial' or 'metric'
   allUnits: { dist: 'imperial', temp: 'imperial', press: 'imperial' },

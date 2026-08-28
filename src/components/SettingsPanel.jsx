@@ -56,6 +56,7 @@ export const SettingsPanel = ({
   const [lon, setLon] = useState(config?.location?.lon ?? 0);
   const [stationAlt, setStationAlt] = useState(config?.location?.stationAlt ?? 100);
   const [minElev, setMinElev] = useState(config?.satellite?.minElev ?? 5.0);
+  const [satTrackDuration, setSatTrackDuration] = useState(config?.satellite?.trackDurationMins ?? 45);
   const [layout, setLayout] = useState(config?.layout || 'modern');
   const [mouseZoom, setMouseZoom] = useState(config?.mouseZoom || 50);
   const [timezone, setTimezone] = useState(config?.timezone || '');
@@ -276,6 +277,7 @@ export const SettingsPanel = ({
       setLon(config.location?.lon ?? 0);
       setStationAlt(config.location?.stationAlt ?? 100);
       setMinElev(config.satellite?.minElev ?? 5.0);
+      setSatTrackDuration(config.satellite?.trackDurationMins ?? 45);
       setLayout(config.layout || 'modern');
       setMouseZoom(config.mouseZoom || 50);
       setTimezone(config.timezone || '');
@@ -536,7 +538,10 @@ export const SettingsPanel = ({
         lon: parseFloat(lon) || 0,
         stationAlt: isNaN(parseInt(stationAlt)) ? 100 : parseInt(stationAlt),
       },
-      satellite: { minElev: isNaN(parseFloat(minElev)) ? 5.0 : parseFloat(minElev) },
+      satellite: {
+        minElev: isNaN(parseFloat(minElev)) ? 5.0 : parseFloat(minElev),
+        trackDurationMins: isNaN(parseInt(satTrackDuration)) ? 45 : parseInt(satTrackDuration),
+      },
       theme,
       customTheme,
       layout,
@@ -4635,6 +4640,34 @@ export const SettingsPanel = ({
                                 }}
                               />
                             </div>
+                          </div>
+
+                          {/* Track Duration Slider */}
+                          <div>
+                            <label
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                fontSize: '10px',
+                                color: 'var(--text-muted)',
+                                marginBottom: '6px',
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              <span>{t('station.settings.satellites.trackDuration')}</span>
+                              <span style={{ color: 'var(--accent-amber)' }}>
+                                ±{satTrackDuration} {t('station.settings.satellites.minutesAbbreviation')}
+                              </span>
+                            </label>
+                            <input
+                              type="range"
+                              min="15"
+                              max="120"
+                              step="15"
+                              value={satTrackDuration}
+                              onChange={(e) => setSatTrackDuration(parseInt(e.target.value, 10))}
+                              style={{ width: '100%', cursor: 'pointer' }}
+                            />
                           </div>
 
                           {/* Opacity Slider */}
