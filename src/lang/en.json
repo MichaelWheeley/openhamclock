@@ -173,6 +173,8 @@
   "ibp.slotProgress.tooltip": "{{secs}} seconds remaining in this transmission slot",
   "ibp.title": "⌇ IBP BEACONS",
   "ibp.tune": "Tune to {{mhz}} MHz",
+  "ibp.view.live": "LIVE",
+  "ibp.view.log": "LOG",
   "keybindings.panel.description": "Press the following keys to toggle map layers:",
   "keybindings.panel.note": "Press ESC or click outside to close this panel",
   "keybindings.panel.title": "KEYBOARD SHORTCUTS",

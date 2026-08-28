@@ -11,6 +11,7 @@ import { IconSearch, IconMap, IconGlobe } from './Icons.jsx';
 import CallsignLink from './CallsignLink.jsx';
 import { useCallsignPopup } from './CallsignPopupManager.jsx';
 import { classifySpotMode } from '../hooks/useBandHealth.js';
+import { useWorkedBefore } from '../hooks/useWorkedBefore.js';
 import { apiFetch } from '../utils/apiFetch';
 
 // Mirrors the server-side validator — good enough to gate the Spot button.
@@ -34,6 +35,11 @@ export const DXClusterPanel = ({
 }) => {
   const { t } = useTranslation();
   const { showPopup } = useCallsignPopup();
+
+  // Worked-before / dupe flags from live logged QSOs (N3FJP + N1MM/DXLog).
+  // getStatus returns null for every call when neither source has data, so
+  // the badges simply never render unless the operator is actually logging.
+  const { getStatus: getWorkedStatus } = useWorkedBefore();
 
   // ── Spot submission (only when this instance has an OHC Cluster) ────
   const [canSpot, setCanSpot] = useState(false);
@@ -543,6 +549,9 @@ export const DXClusterPanel = ({
             // Mode is never on the wire — DX cluster format doesn't carry it. Derive from spot.comment if
             // it has an explicit mode keyword, otherwise fall back to frequency band-plan inference.
             const modeInfo = classifySpotMode(spot);
+            // 'dupe' = worked on this band+mode, 'worked' = in the log on
+            // another band/mode, null = not in the log (a "new one").
+            const workedStatus = getWorkedStatus(spot.call, freqMHz, modeInfo?.mode);
 
             return (
               <div
@@ -597,6 +606,49 @@ export const DXClusterPanel = ({
                     onPopup={showPopup}
                     location={{ grid: spot.dxGrid, lat: spot.dxLat, lon: spot.dxLon }}
                   />
+                  {workedStatus === 'dupe' && (
+                    <span
+                      title={t('dxClusterPanel.workedBadge.dupeTooltip', {
+                        defaultValue: 'Already in your log on this band and mode — dupe',
+                      })}
+                      aria-label={t('dxClusterPanel.workedBadge.dupeTooltip', {
+                        defaultValue: 'Already in your log on this band and mode — dupe',
+                      })}
+                      style={{
+                        marginLeft: '4px',
+                        padding: '0 3px',
+                        fontSize: '8px',
+                        fontWeight: '700',
+                        letterSpacing: '0.5px',
+                        color: '#ffaa00',
+                        background: 'rgba(255, 170, 0, 0.15)',
+                        border: '1px solid rgba(255, 170, 0, 0.6)',
+                        borderRadius: '2px',
+                        verticalAlign: 'middle',
+                      }}
+                    >
+                      {t('dxClusterPanel.workedBadge.dupe', { defaultValue: 'DUPE' })}
+                    </span>
+                  )}
+                  {workedStatus === 'worked' && (
+                    <span
+                      title={t('dxClusterPanel.workedBadge.workedTooltip', {
+                        defaultValue: 'In your log — worked before on a different band or mode',
+                      })}
+                      aria-label={t('dxClusterPanel.workedBadge.workedTooltip', {
+                        defaultValue: 'In your log — worked before on a different band or mode',
+                      })}
+                      style={{
+                        marginLeft: '4px',
+                        fontSize: '9px',
+                        color: 'var(--text-muted)',
+                        opacity: 0.75,
+                        verticalAlign: 'middle',
+                      }}
+                    >
+                      ✓
+                    </span>
+                  )}
                 </div>
                 <div
                   role="cell"

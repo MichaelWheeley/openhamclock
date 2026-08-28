@@ -6,6 +6,7 @@ import React, { useState, useMemo } from 'react';
 import CallsignLink from './CallsignLink.jsx';
 import { useCallsignPopup } from './CallsignPopupManager.jsx';
 import { IconSearch, IconRefresh, IconMap, IconTag } from './Icons.jsx';
+import { useWorkedBefore } from '../hooks/useWorkedBefore.js';
 
 export const ActivatePanel = ({
   mapDefs,
@@ -25,6 +26,11 @@ export const ActivatePanel = ({
   filteredData,
 }) => {
   const { showPopup } = useCallsignPopup();
+  // Worked-before flag from live logged QSOs (N3FJP + N1MM/DXLog). Call-level
+  // only here — activation hunters mostly care whether the activator is
+  // already in the log at all. Returns null for everyone when no QSO source
+  // has data, so the badge never renders outside a logging session.
+  const { getStatus: getWorkedStatus } = useWorkedBefore();
   const staleMinutes = lastUpdated ? Math.floor((Date.now() - lastUpdated) / 60000) : null;
   const isStale = staleMinutes !== null && staleMinutes >= 5;
   const checkedTime = lastChecked ? new Date(lastChecked).toISOString().substr(11, 5) + 'z' : '';
@@ -268,6 +274,20 @@ export const ActivatePanel = ({
                       onPopup={showPopup}
                       location={spot.grid ? { grid: spot.grid } : undefined}
                     />
+                    {getWorkedStatus(spot.call) && (
+                      <span
+                        title="In your log — worked this station before"
+                        aria-label="In your log — worked this station before"
+                        style={{
+                          marginLeft: '3px',
+                          fontSize: '9px',
+                          color: 'var(--text-muted)',
+                          opacity: 0.75,
+                        }}
+                      >
+                        ✓
+                      </span>
+                    )}
                   </span>
                   <span
                     role="cell"
