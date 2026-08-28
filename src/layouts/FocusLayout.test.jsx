@@ -31,6 +31,7 @@ vi.mock('../components', () => {
     SunMoonPanel: Stub,
     SpaceWxTrendsPanel: Stub,
     StopwatchPanel: Stub,
+    AircraftNearbyPanel: Stub,
   };
 });
 vi.mock('../contexts/RigContext.jsx', () => ({ useRig: () => ({ tuneTo: () => {} }) }));

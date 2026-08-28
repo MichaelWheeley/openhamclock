@@ -276,6 +276,7 @@ The full EmComm _layout_ is described in [The EmComm layout](#the-emcomm-layout)
 - **World Clocks (next release)** — a configurable list of timezone clocks for net schedules and DX skeds, with day-offset markers (+1d/−1d) when a zone is across the date line from you. Add any IANA timezone; the list syncs with your other settings.
 - **Stopwatch (next release)** — a shack stopwatch and countdown timer. Both survive layout switches and reloads (state is stored as absolute timestamps), and the countdown sounds a tone and flashes when it hits zero. Quick presets for 5/10/15/60 minutes.
 - **Repeaters (next release)** — the nearest repeaters to your DE location from the open [hearham.com](https://hearham.com) directory: frequency, offset, tone, mode, distance, and bearing, at a selectable radius. Set DE to wherever you're traveling and the list follows.
+- **Aircraft Nearby (next release)** — live aircraft within a selectable radius of your DE location (ADS-B via adsb.lol), nearest first: flight, aircraft type, operator, altitude (flight levels above 18,000 ft), speed, heading, distance, and bearing. The list half of the Air Traffic layout, where it appears by default alongside the aircraft map overlay.
 - **Keyboard Shortcuts** — the `?` help, dockable as a permanent panel if you like.
 
 ---
@@ -517,9 +518,9 @@ Separately from the PWA, the app polls the server version and — on the hosted 
 | **Activator** (next release)   | In the field: POTA self-spotting, activations, RBN "am I being heard", nearby repeaters — park/summit map overlays switched on |
 | **Hunter** (next release)      | Chasing activators: DX cluster, every activation program, sun & moon — spot overlays and DX paths switched on                  |
 | **Weather** (next release)     | Radar, lightning, natural-hazard, and aurora overlays on a big map, with terrestrial + space weather panels                    |
-| **Air Traffic** (next release) | Live aircraft and ATC sector overlays over a dominant map, with world clocks                                                   |
+| **Air Traffic** (next release) | Live aircraft and ATC sector overlays over a dominant map, with the Aircraft Nearby list and world clocks                      |
 
-The four focus layouts (Activator/Hunter/Weather/Air Traffic) apply their map-overlay preset each time you switch into them — that's the "reset to the standard view" gesture. Any layer you toggle afterwards stays as you set it until you re-enter the layout.
+The four focus layouts (Activator/Hunter/Weather/Air Traffic) fully reset the overlays each time you switch into one: the layout's own preset is applied exhaustively, and when you leave, your previous layer setup is restored exactly as it was.
 
 **Named dockable layouts (next release).** The Dockable layout can hold more than one arrangement. In the sidebar's layout controls (next to the lock and reset buttons), **⧉ Duplicate** saves the current arrangement as a named preset — up to 10 — and the dropdown switches between them live. Rename (✎) and delete (✕) manage your presets; the built-in **Default** is your original layout and can't be renamed or deleted. Presets are included in profiles, backups, and settings sync like everything else.
 

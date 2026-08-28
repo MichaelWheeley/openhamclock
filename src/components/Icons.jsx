@@ -853,6 +853,9 @@ export const LiGlobeClock = glyph(
     <path d="M17.6 15.9v1.7l1.3 1" />
   </>,
 );
+export const LiPlane = glyph(
+  <path d="M12 2.8 13 9l7.5 4v2L13 13v4.6l2.2 1.9V21L12 20l-3.2 1v-1.5L11 17.6V13l-7.5 2v-2L11 9z" />,
+);
 export const LiStopwatch = glyph(
   <>
     <circle cx="12" cy="13.5" r="7" />
@@ -934,6 +937,7 @@ export const PANEL_ICONS = {
   repeaters: LiTower,
   'world-clocks': LiGlobeClock,
   stopwatch: LiStopwatch,
+  'aircraft-nearby': LiPlane,
 };
 
 /**

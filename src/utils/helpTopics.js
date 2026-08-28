@@ -112,6 +112,7 @@ export const PANEL_HELP = {
   repeaters: 'utility',
   'world-clocks': 'utility',
   stopwatch: 'utility',
+  'aircraft-nearby': 'utility',
 };
 
 /**

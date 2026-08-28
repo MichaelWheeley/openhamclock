@@ -85,6 +85,7 @@ export function buildPanelDefs({ isLocalInstall = false } = {}) {
     repeaters: { name: 'Repeaters', icon: '🗼' },
     'world-clocks': { name: 'World Clocks', icon: '🌐' },
     stopwatch: { name: 'Stopwatch', icon: '⏱️' },
+    'aircraft-nearby': { name: 'Aircraft Nearby', icon: '✈️' },
   };
 
   // Append auto-discovered panel plugins (src/plugins/local/panels/*.jsx).

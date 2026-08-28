@@ -49,6 +49,7 @@ import {
   AMSATStatusPanel,
   RepeatersPanel,
   POTAActivatorPanel,
+  AircraftNearbyPanel,
   IBPPanel,
   SWPCAlertsPanel,
   MeteorShowerPanel,
@@ -1272,6 +1273,10 @@ export const DockableApp = ({
 
         case 'pota-activator':
           content = <POTAActivatorPanel config={config} />;
+          break;
+
+        case 'aircraft-nearby':
+          content = <AircraftNearbyPanel config={config} />;
           break;
 
         case 'rotator':

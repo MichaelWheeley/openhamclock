@@ -28,6 +28,7 @@ import {
   SunMoonPanel,
   SpaceWxTrendsPanel,
   StopwatchPanel,
+  AircraftNearbyPanel,
 } from '../components';
 import { useRig } from '../contexts/RigContext.jsx';
 import { findDXPathForSpot } from '../utils/dxClusterSpotMatcher';
@@ -78,7 +79,7 @@ const SPECS = {
   airtraffic: {
     title: 'AIR TRAFFIC',
     accent: 'var(--accent-blue)',
-    panels: ['world-clocks', 'de-weather', 'stopwatch'],
+    panels: ['aircraft-nearby', 'world-clocks', 'de-weather'],
     mapLayers: {
       showPOTA: false,
       showSOTA: false,
@@ -313,6 +314,8 @@ export default function FocusLayout(props) {
         return <SpaceWxTrendsPanel />;
       case 'stopwatch':
         return <StopwatchPanel />;
+      case 'aircraft-nearby':
+        return <AircraftNearbyPanel config={config} />;
       case 'swpc-alerts':
         return <SWPCAlertsPanel data={swpcAlerts?.data} loading={swpcAlerts?.loading} error={swpcAlerts?.error} />;
       case 'de-weather':

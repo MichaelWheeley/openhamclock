@@ -65,3 +65,4 @@ export { default as AMSATStatusPanel } from './AMSATStatusPanel.jsx';
 export { default as RepeatersPanel } from './RepeatersPanel.jsx';
 export { default as POTAActivatorPanel } from './POTAActivatorPanel.jsx';
 export { default as MatrixRain } from './MatrixRain.jsx';
+export { default as AircraftNearbyPanel } from './AircraftNearbyPanel.jsx';
