@@ -4342,6 +4342,39 @@ export const SettingsPanel = ({
                             onChange={(e) => handleOpacityChange(layer.id, parseFloat(e.target.value) / 100)}
                             style={{ width: '100%', cursor: 'pointer' }}
                           />
+                          {layer.id === 'aircraft' && (
+                            <div style={{ marginTop: '12px' }}>
+                              <label
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  fontSize: '11px',
+                                  color: 'var(--text-muted)',
+                                  marginBottom: '6px',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px',
+                                }}
+                              >
+                                <span>{t('station.settings.layers.leadTime')}</span>
+                                <span style={{ color: 'var(--accent-amber)' }}>
+                                  {(layer.config?.leadTimeMins ?? 30) > 0
+                                    ? `${layer.config?.leadTimeMins ?? 30} min`
+                                    : t('station.settings.layers.leadTimeOff')}
+                                </span>
+                              </label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="120"
+                                step="5"
+                                value={layer.config?.leadTimeMins ?? 30}
+                                onChange={(e) =>
+                                  handleUpdateLayerConfig(layer.id, { leadTimeMins: parseInt(e.target.value, 10) })
+                                }
+                                style={{ width: '100%', cursor: 'pointer' }}
+                              />
+                            </div>
+                          )}
                           {ctrlPressed &&
                             ['lightning', 'wspr', 'rbn', 'grayline', 'n3fjp_logged_qsos', 'voacap-heatmap'].includes(
                               layer.id,
@@ -4603,29 +4636,6 @@ export const SettingsPanel = ({
                               />
                             </div>
                           </div>
-
-                          {/* Lead Time Slider WIP
-						<div style={{ marginTop: '8px' }}>
-						  <label style={{
-							display: 'flex',
-							justifyContent: 'space-between',
-							fontSize: '10px',
-							color: 'var(--text-muted)',
-							textTransform: 'uppercase'
-						  }}>
-							<span>Track Prediction (Lead Time)</span>
-							<span style={{ color: 'var(--accent-amber)' }}>{layer.config?.leadTimeMins || 45} min</span>
-						  </label>
-						  <input
-							type="range"
-							min="15"
-							max="120"
-							step="5"
-							value={layer.config?.leadTimeMins || 45}
-							onChange={(e) => handleUpdateLayerConfig(layer.id, { leadTimeMins: parseInt(e.target.value) })}
-							style={{ width: '100%', cursor: 'pointer' }}
-						  />
-						</div> */}
 
                           {/* Opacity Slider */}
                           <div>

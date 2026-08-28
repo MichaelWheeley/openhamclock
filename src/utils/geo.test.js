@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { validateGridLocator, latLonToMaidenhead, maidenheadToLatLon, maidenheadToBoundingBox } from './geo.js';
 import { getSunPosition, getMoonPosition, getMoonPhase } from './geo.js';
 import { normalizeLon } from './geo.js';
+import { destinationPoint, deadReckonPosition, calculateDistance, calculateBearing } from './geo.js';
 
 // normalize to [−π, +π)
 const normalizeRadians = (r) => {
@@ -450,5 +451,70 @@ describe('getMoonTimes', () => {
     const { rise } = getMoonTimes(start, 40.015, -105.27);
     const midPass = getMoonAzEl(new Date(rise.getTime() + 3 * 3600 * 1000), 40.015, -105.27);
     expect(midPass.elevation).toBeGreaterThan(0);
+  });
+});
+
+describe('destinationPoint / deadReckonPosition (aircraft track prediction)', () => {
+  it('travels due north: distance maps directly to latitude', () => {
+    // 1° of latitude ≈ 111.195 km on the R=6371 sphere used by geo.js
+    const p = destinationPoint(10, 20, 0, (Math.PI / 180) * 6371 * 4); // exactly 4°
+    expect(p.lat).toBeCloseTo(14, 5);
+    expect(p.lon).toBeCloseTo(20, 5);
+  });
+
+  it('travels due east along the equator: distance maps directly to longitude', () => {
+    const p = destinationPoint(0, -30, 90, (Math.PI / 180) * 6371 * 10); // exactly 10°
+    expect(p.lat).toBeCloseTo(0, 5);
+    expect(p.lon).toBeCloseTo(-20, 5);
+  });
+
+  it('matches a published geodesy reference case', () => {
+    // Movable Type "destination point" worked example (spherical Earth):
+    // 53°19′14″N 001°43′47″W, bearing 096°01′18″, 124.8 km
+    // → 53°11′18″N 000°08′00″E
+    const p = destinationPoint(53.320556, -1.729722, 96.021667, 124.8);
+    expect(p.lat).toBeCloseTo(53.188333, 3);
+    expect(p.lon).toBeCloseTo(0.133333, 3);
+  });
+
+  it('round-trips with calculateDistance and calculateBearing', () => {
+    const start = { lat: 40.015, lon: -105.27 };
+    const p = destinationPoint(start.lat, start.lon, 57, 800);
+    expect(calculateDistance(start.lat, start.lon, p.lat, p.lon)).toBeCloseTo(800, 6);
+    expect(calculateBearing(start.lat, start.lon, p.lat, p.lon)).toBeCloseTo(57, 5);
+  });
+
+  it('dead-reckons position after N minutes at course/speed', () => {
+    // 450 kn due north for 30 min → 225 nmi = 416.7 km = 3.7477° of latitude
+    const p = deadReckonPosition(30, -100, 0, 450, 30);
+    const expectedDeg = ((450 * 1.852 * 0.5) / 6371 / Math.PI) * 180;
+    expect(p.lat).toBeCloseTo(30 + expectedDeg, 5);
+    expect(p.lon).toBeCloseTo(-100, 5);
+  });
+
+  it('zero speed or zero minutes stays put', () => {
+    const q = deadReckonPosition(45, 45, 270, 0, 60);
+    expect(q.lat).toBeCloseTo(45, 8);
+    expect(q.lon).toBeCloseTo(45, 8);
+    const p = deadReckonPosition(45, 45, 270, 480, 0);
+    expect(p.lat).toBeCloseTo(45, 8);
+    expect(p.lon).toBeCloseTo(45, 8);
+  });
+
+  it('crosses the antimeridian eastbound and wraps to negative longitude', () => {
+    // 480 kn due east on the equator from 179.5°E for 60 min → 480 nmi ≈ 8°
+    const p = deadReckonPosition(0, 179.5, 90, 480, 60);
+    const travelledDeg = ((480 * 1.852) / 6371 / Math.PI) * 180;
+    expect(p.lat).toBeCloseTo(0, 5);
+    expect(p.lon).toBeCloseTo(179.5 + travelledDeg - 360, 4); // ≈ −172.5
+    expect(p.lon).toBeGreaterThanOrEqual(-180);
+    expect(p.lon).toBeLessThan(180);
+  });
+
+  it('crosses the antimeridian westbound and wraps to positive longitude', () => {
+    const p = deadReckonPosition(-20, -178, 270, 400, 90);
+    expect(p.lon).toBeGreaterThan(0); // wrapped into eastern hemisphere
+    expect(p.lon).toBeLessThan(180);
+    expect(calculateDistance(-20, -178, p.lat, p.lon)).toBeCloseTo(400 * 1.852 * 1.5, 6);
   });
 });

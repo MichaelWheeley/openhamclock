@@ -134,6 +134,7 @@ export function getAllLayers() {
       defaultEnabled: plugin.metadata.defaultEnabled || false,
       defaultOpacity: plugin.metadata.defaultOpacity || 0.6,
       category: plugin.metadata.category || 'overlay',
+      config: plugin.metadata.config || undefined,
       localOnly: plugin.metadata.localOnly || false,
       shortcut: PINNED_SHORTCUTS[plugin.metadata.id] || null,
       hook: plugin.useLayer,

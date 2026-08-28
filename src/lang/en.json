@@ -493,6 +493,8 @@
   "station.settings.language.th": "ไทย",
   "station.settings.language.zh": "简体中文",
   "station.settings.latitude": "Latitude",
+  "station.settings.layers.leadTime": "Track Prediction (Lead Time)",
+  "station.settings.layers.leadTimeOff": "Off",
   "station.settings.layers.noLayers": "No map layers available",
   "station.settings.layers.opacity": "Opacity",
   "station.settings.layers.title": "Map Layers",

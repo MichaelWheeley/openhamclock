@@ -477,6 +477,35 @@ export const normalizeLon = (lon) => {
 };
 
 /**
+ * Great-circle destination point: starting at (lat, lon), travel distanceKm
+ * along initial bearing bearingDeg over a spherical Earth.
+ * Returns { lat, lon } with lon normalized to [-180, +180).
+ */
+export const destinationPoint = (lat, lon, bearingDeg, distanceKm) => {
+  const R = 6371;
+  const δ = distanceKm / R;
+  const θ = (bearingDeg * Math.PI) / 180;
+  const φ1 = (lat * Math.PI) / 180;
+  const λ1 = (lon * Math.PI) / 180;
+
+  const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ));
+  const λ2 = λ1 + Math.atan2(Math.sin(θ) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2));
+
+  return { lat: (φ2 * 180) / Math.PI, lon: normalizeLon((λ2 * 180) / Math.PI) };
+};
+
+/**
+ * Dead-reckoned position after `minutes` travelling at `speedKn` knots along
+ * great-circle course `courseDeg`. Used by the aircraft layer's
+ * track-prediction (lead time) vector.
+ * Returns { lat, lon } with lon normalized to [-180, +180).
+ */
+export const deadReckonPosition = (lat, lon, courseDeg, speedKn, minutes) => {
+  const distanceKm = speedKn * 1.852 * (minutes / 60); // knots → km travelled
+  return destinationPoint(lat, lon, courseDeg, distanceKm);
+};
+
+/**
  * World copy offsets — render overlays at -360, 0, +360 so they appear on
  * every visible copy of the map. Same approach as the GrayLine plugin.
  */
@@ -666,6 +695,8 @@ export default {
   maidenheadToBoundingBox,
   calculateBearing,
   calculateDistance,
+  destinationPoint,
+  deadReckonPosition,
   getSunPosition,
   getMoonPosition,
   getMoonAzEl,
