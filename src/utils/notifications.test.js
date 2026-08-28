@@ -78,6 +78,61 @@ describe('formatAlertBody', () => {
     expect(formatAlertBody('dxcluster', { dxCall: 'VK9X', freq: '21025.0' })).toBe('21025.0 VK9X');
   });
 
+  it('formats watchlist hits', () => {
+    expect(formatAlertBody('watchlist', { call: '3Y0J', freq: '14.024', mode: 'CW', band: '20m' })).toBe(
+      '3Y0J spotted: 14.024 CW',
+    );
+    expect(formatAlertBody('watchlist', { call: '3Y0J', freq: '14.024' })).toBe('3Y0J spotted: 14.024');
+    expect(formatAlertBody('watchlist', { call: '3Y0J' })).toBe('3Y0J spotted');
+    expect(formatAlertBody('watchlist', {})).toBe('');
+  });
+
+  it('formats contest starts with minutes until start', () => {
+    const start = new Date(Date.now() + 12 * 60 * 1000 + 500).toISOString();
+    expect(formatAlertBody('contest-start', { name: 'CQ WW DX CW', start })).toBe('CQ WW DX CW starts in 12 min');
+    const past = new Date(Date.now() - 60 * 1000).toISOString();
+    expect(formatAlertBody('contest-start', { name: 'ARRL Sweepstakes', start: past })).toBe(
+      'ARRL Sweepstakes starting now',
+    );
+    // Missing/invalid start degrades to the bare name
+    expect(formatAlertBody('contest-start', { name: 'CQ WPX' })).toBe('CQ WPX');
+    expect(formatAlertBody('contest-start', {})).toBe('');
+  });
+
+  it('formats satellite passes', () => {
+    const aos = Date.now() + 4 * 60 * 1000 + 500;
+    expect(formatAlertBody('sat-pass', { name: 'ISS', aos, maxElevation: 45.4 })).toBe(
+      'ISS pass in 4 min · max el 45°',
+    );
+    expect(formatAlertBody('sat-pass', { name: 'AO-91', aos: Date.now() - 1000 })).toBe('AO-91 pass starting');
+    // No AOS still yields something usable
+    expect(formatAlertBody('sat-pass', { name: 'SO-50' })).toBe('SO-50 pass');
+    expect(formatAlertBody('sat-pass', {})).toBe('');
+  });
+
+  it('formats band openings', () => {
+    expect(
+      formatAlertBody('band-openings', {
+        band: '20m',
+        from_continent: 'EU',
+        to_continent: 'NA',
+        shortCount: 12,
+        factor: 4,
+      }),
+    ).toBe('20m opening EU→NA (12 spots, 4x baseline)');
+    // Null factor (no baseline yet — brand-new path) omits the ratio
+    expect(
+      formatAlertBody('band-openings', {
+        band: '10m',
+        from_continent: 'EU',
+        to_continent: 'NA',
+        shortCount: 6,
+        factor: null,
+      }),
+    ).toBe('10m opening EU→NA (6 spots)');
+    expect(formatAlertBody('band-openings', {})).toBe('');
+  });
+
   it('formats dxpeditions, contests, swpc', () => {
     expect(formatAlertBody('dxpeditions', { callsign: '3Y0J', entity: 'Bouvet' })).toBe('3Y0J · Bouvet');
     expect(formatAlertBody('contests', { name: 'CQ WW SSB' })).toBe('CQ WW SSB');

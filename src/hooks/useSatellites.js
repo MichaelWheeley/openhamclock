@@ -97,6 +97,7 @@ export const useSatellites = (observerLocation, satelliteConfig, filteredNames =
         );
         const startTimes = nextPass?.startTimes || [];
         const endTimes = nextPass?.endTimes || [];
+        const maxElevations = nextPass?.maxElevations || [];
 
         if (isCalcNeeded(satData)) {
           try {
@@ -167,6 +168,7 @@ export const useSatellites = (observerLocation, satelliteConfig, filteredNames =
               isVisible, // visible if above minimum elevation
               nextPassStartTimes: startTimes,
               nextPassEndTimes: endTimes,
+              nextPassMaxElevations: maxElevations,
               isPopular: satData.priority <= 2,
               track,
               footprintRadius: Math.round(footprintRadius),
@@ -245,10 +247,12 @@ export const useSatellites = (observerLocation, satelliteConfig, filteredNames =
 
         const startTimes = [];
         const endTimes = [];
+        const maxElevations = [];
         passes.forEach((pass) => {
           if (pass.start && pass.end) {
             startTimes.push(pass.start);
             endTimes.push(pass.end);
+            maxElevations.push(pass.maxElevation ?? null);
           }
         });
 
@@ -256,6 +260,7 @@ export const useSatellites = (observerLocation, satelliteConfig, filteredNames =
           keyName,
           startTimes,
           endTimes,
+          maxElevations,
         });
       } catch (e) {
         // Skip satellite with invalid data, continue processing others

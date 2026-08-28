@@ -28,7 +28,10 @@ export const TONE_PRESETS = {
   chirp: { label: 'Chirp', freq: [600, 900], type: 'sine', duration: 0.08 },
 };
 
-// Feed definitions with default tone assignments
+// Feed definitions with default tone assignments.
+// `eventful: true` marks sparse, event-shaped feeds (usually empty; items ARE
+// the event) — useAudioAlerts establishes their new-item baseline even when
+// the array is empty, so the first item to ever appear still alerts.
 export const ALERT_FEEDS = {
   pota: { label: 'POTA Spots', defaultTone: 'ping' },
   sota: { label: 'SOTA Spots', defaultTone: 'high-ping' },
@@ -36,8 +39,12 @@ export const ALERT_FEEDS = {
   wwbota: { label: 'WWBOTA Spots', defaultTone: 'sharp' },
   canparks: { label: 'CANParks Spots', defaultTone: 'chirp' },
   dxcluster: { label: 'DX Cluster', defaultTone: 'beep' },
+  watchlist: { label: 'Watchlist Hits', defaultTone: 'two-tone', eventful: true },
   dxpeditions: { label: 'DXpeditions', defaultTone: 'two-tone' },
   contests: { label: 'Contests', defaultTone: 'simple' },
+  'contest-start': { label: 'Contest Starts', defaultTone: 'chime', eventful: true },
+  'sat-pass': { label: 'Satellite Passes', defaultTone: 'ping', eventful: true },
+  'band-openings': { label: 'Band Openings', defaultTone: 'low-tone', eventful: true },
   lightning: { label: 'Lightning Proximity', defaultTone: 'chirp' },
   swpc: { label: 'Space Weather', defaultTone: 'chime' },
 };

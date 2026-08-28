@@ -86,6 +86,59 @@ export function formatAlertBody(feedId, item) {
       if (comment) parts.push(comment);
       break;
     }
+    case 'watchlist': {
+      // Watchlist hits: { call, freq (MHz string), mode, band }
+      const call = item.call || '';
+      if (call) {
+        const detail = [item.freq, item.mode].filter(Boolean).join(' ');
+        parts.push(detail ? `${call} spotted: ${detail}` : `${call} spotted`);
+      }
+      break;
+    }
+    case 'contest-start': {
+      // Contest reminder: { name, start (ISO) } — minutes computed at display time
+      const name = item.name || '';
+      if (name) {
+        const startMs = Date.parse(item.start || '');
+        if (Number.isFinite(startMs)) {
+          const mins = Math.max(0, Math.round((startMs - Date.now()) / 60000));
+          parts.push(mins > 0 ? `${name} starts in ${mins} min` : `${name} starting now`);
+        } else {
+          parts.push(name);
+        }
+      }
+      break;
+    }
+    case 'sat-pass': {
+      // Upcoming pass: { name, aos (ms), maxElevation (deg) }
+      const name = item.name || '';
+      if (name) {
+        const aosMs = typeof item.aos === 'number' ? item.aos : Date.parse(item.aos || '');
+        if (Number.isFinite(aosMs)) {
+          const mins = Math.max(0, Math.round((aosMs - Date.now()) / 60000));
+          parts.push(mins > 0 ? `${name} pass in ${mins} min` : `${name} pass starting`);
+        } else {
+          parts.push(`${name} pass`);
+        }
+        if (item.maxElevation != null && Number.isFinite(Number(item.maxElevation))) {
+          parts.push(`max el ${Math.round(item.maxElevation)}°`);
+        }
+      }
+      break;
+    }
+    case 'band-openings': {
+      // Opening entry: { band, from_continent, to_continent, shortCount, factor }
+      const band = item.band || '';
+      const path = item.from_continent && item.to_continent ? `${item.from_continent}→${item.to_continent}` : '';
+      if (band || path) {
+        const main = [band, 'opening', path].filter(Boolean).join(' ');
+        const stats = [];
+        if (item.shortCount != null) stats.push(`${item.shortCount} spots`);
+        if (item.factor != null) stats.push(`${item.factor}x baseline`);
+        parts.push(stats.length ? `${main} (${stats.join(', ')})` : main);
+      }
+      break;
+    }
     case 'dxpeditions': {
       const call = item.callsign || item.call || '';
       const entity = item.entity || item.dxcc || '';

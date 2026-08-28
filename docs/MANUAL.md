@@ -432,7 +432,14 @@ Deep dive: [docs/emcomm-roadmap.md](emcomm-roadmap.md).
 
 ## Alerts and notifications
 
-**Settings → Alerts** plays a tone when new items appear in a feed. Feeds: POTA, SOTA, WWFF, WWBOTA, CANParks (next release), DX Cluster, DXpeditions, Contests, Lightning Proximity, and Space Weather — all off by default, each with its own tone (nine Web Audio presets — no sound files) and a master volume.
+**Settings → Alerts** plays a tone when new items appear in a feed. Feeds: POTA, SOTA, WWFF, WWBOTA, CANParks (next release), DX Cluster, Watchlist Hits (next release), DXpeditions, Contests, Contest Starts (next release), Satellite Passes (next release), Band Openings (next release), Lightning Proximity, and Space Weather — all off by default, each with its own tone (nine Web Audio presets — no sound files) and a master volume.
+
+Four event feeds (next release) go beyond "new item in a panel":
+
+- **Watchlist Hits** — a spot matching your DX Cluster watchlist (Filters → Watchlist) appeared in the raw cluster feed. Matching happens _before_ your panel filters, so a watched call alerts even when the panel is filtered to something else, and portable calls match their base call (5Z4/OZ6ABL hits a watchlist entry of OZ6ABL). Re-spots of the same call on the same band stay quiet; the same call on a _new_ band alerts again — one alert per band opening.
+- **Contest Starts** — strictly opt-in per contest: click the 🔔 next to a contest in the Contests panel to arm a reminder, and you'll get one alert when that contest is within 15 minutes of starting. With no contests armed, the feed stays silent even when enabled.
+- **Satellite Passes** — one alert when a tracked satellite's next pass begins within 5 minutes, with the pass's max elevation.
+- **Band Openings** — the server watches RBN and cluster spot streams per band and continent path and flags surges against a 3-hour baseline ("20m opening EU→NA (12 spots, 4x baseline)"). One alert per opening episode; quiet while the baseline is still warming after a server restart.
 
 Sensible guardrails: no alert storm on page load or when returning to a background tab, a per-feed cooldown, and one tone per batch of new items.
 

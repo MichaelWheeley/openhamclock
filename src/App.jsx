@@ -41,6 +41,7 @@ import {
   useEmcommData,
   useIBP,
   useSWPCAlerts,
+  useBandOpenings,
 } from './hooks';
 
 import useAppConfig from './hooks/app/useAppConfig';
@@ -66,6 +67,9 @@ import { useLightningAnnouncements } from './hooks/app/useLightningAnnouncements
 import { HELP_EVENT } from './utils/helpTopics.js';
 import { useDXSpotAnnouncements } from './hooks/app/useDXSpotAnnouncements';
 import { useWeatherAlertAnnouncements } from './hooks/app/useWeatherAlertAnnouncements';
+import { extractBaseCall } from './components/CallsignLink.jsx';
+import { getBandFromFreq, detectMode, normalizeFrequencyToMHz } from './utils/callsign';
+import { getContestReminders, contestReminderId, CONTEST_REMINDERS_EVENT } from './utils/contestReminders.js';
 
 // Load DXCC entity database on app startup (non-blocking)
 initCtyLookup();
@@ -336,23 +340,12 @@ const App = () => {
   const dxpeditions = useDXpeditions();
   const contests = useContests();
   const swpcAlerts = useSWPCAlerts();
+  const bandOpenings = useBandOpenings();
   // Audio alert only for significant space weather (R2/S2/G2 or higher)
   const severeSwpcAlerts = useMemo(
     () => (swpcAlerts.data || []).filter((a) => (a.scale?.level ?? 0) >= 2),
     [swpcAlerts.data],
   );
-  // Audio alerts for new items in data feeds
-  useAudioAlerts({
-    pota: potaSpots.data,
-    sota: sotaSpots.data,
-    wwff: wwffSpots.data,
-    wwbota: wwbotaSpots.data,
-    canparks: canparksSpots.data,
-    dxcluster: dxClusterData.spots,
-    dxpeditions: dxpeditions.data?.dxpeditions,
-    contests: contests.data,
-    swpc: severeSwpcAlerts,
-  });
 
   const { announcement: lightningAnnouncement } = useLightningAnnouncements();
   const { announcement: dxSpotAnnouncement } = useDXSpotAnnouncements(dxClusterData.spots);
@@ -363,6 +356,109 @@ const App = () => {
   const { satelliteFilters, setSatelliteFilters } = filterState;
   const satellites = useSatellites(config.location, config.satellite, satelliteFilters);
   const { riseAnnouncement, setAnnouncement: satelliteSetAnnouncement } = useSatelliteAnnouncements(satellites.data);
+
+  // ── Alert-feed item sources (Settings → Alerts) ──
+
+  // Watchlist hits: matched against the RAW cluster accumulator, before any
+  // panel filters, so a watched call alerts even when the DX panel is
+  // filtered elsewhere. Base-call matching (5Z4/OZ6ABL hits "OZ6ABL"), and
+  // watchlist entries keep their prefix semantics ("3Y" hits any 3Y call).
+  const watchlistHits = useMemo(() => {
+    const list = dxFilters?.watchlist;
+    if (!list?.length) return [];
+    const entries = list.map((w) => String(w).toUpperCase()).filter(Boolean);
+    const hits = [];
+    const seen = new Set();
+    for (const item of dxClusterData.rawSpots || []) {
+      const full = String(item.dxCall || '').toUpperCase();
+      if (!full) continue;
+      const base = extractBaseCall(full);
+      if (!entries.some((w) => full.startsWith(w) || base.startsWith(w))) continue;
+      const band = getBandFromFreq(item.freq);
+      const dedupeKey = `${full}-${band}`;
+      if (seen.has(dedupeKey)) continue; // rawSpots is newest-first — keep the newest per call+band
+      seen.add(dedupeKey);
+      const freqMHz = normalizeFrequencyToMHz(item.freq);
+      hits.push({
+        call: full,
+        freq: freqMHz != null ? String(freqMHz) : String(item.freq ?? ''),
+        band,
+        mode: item.mode || detectMode(item.comment, item.freq) || '',
+      });
+    }
+    return hits;
+  }, [dxClusterData.rawSpots, dxFilters?.watchlist]);
+
+  // Contest-start reminders: strictly opt-in per contest via the 🔔 buttons
+  // in ContestPanel — with no reminders set, this feed never alerts. The
+  // minute tick re-evaluates the 15-minute window between contest polls.
+  const [contestReminders, setContestReminders] = useState(() => getContestReminders());
+  useEffect(() => {
+    const sync = () => setContestReminders(getContestReminders());
+    window.addEventListener(CONTEST_REMINDERS_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(CONTEST_REMINDERS_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const [contestAlertTick, setContestAlertTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setContestAlertTick((v) => v + 1), 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+  const contestStartAlerts = useMemo(() => {
+    if (!contestReminders.length) return [];
+    const now = Date.now();
+    return (contests.data || []).filter((c) => {
+      if (!contestReminders.includes(contestReminderId(c))) return false;
+      const start = Date.parse(c.start || '');
+      if (!Number.isFinite(start)) return false;
+      const untilStart = start - now;
+      return untilStart > 0 && untilStart <= 15 * 60 * 1000;
+    });
+    // contestAlertTick re-runs the window check once a minute
+  }, [contests.data, contestReminders, contestAlertTick]);
+
+  // Satellite passes: tracked satellites whose next pass begins within
+  // 5 minutes. satellites.data recomputes every 5 s, so this stays fresh.
+  const satPassAlerts = useMemo(() => {
+    const now = Date.now();
+    const upcoming = [];
+    for (const sat of satellites.data || []) {
+      const starts = sat.nextPassStartTimes || [];
+      for (let i = 0; i < starts.length; i++) {
+        const aos = new Date(starts[i]).getTime();
+        if (!Number.isFinite(aos)) continue;
+        const untilAos = aos - now;
+        if (untilAos > 0 && untilAos <= 5 * 60 * 1000) {
+          upcoming.push({
+            name: sat.name,
+            aos,
+            maxElevation: sat.nextPassMaxElevations?.[i] ?? null,
+          });
+        }
+      }
+    }
+    return upcoming;
+  }, [satellites.data]);
+
+  // Audio alerts for new items in data feeds
+  useAudioAlerts({
+    pota: potaSpots.data,
+    sota: sotaSpots.data,
+    wwff: wwffSpots.data,
+    wwbota: wwbotaSpots.data,
+    canparks: canparksSpots.data,
+    dxcluster: dxClusterData.spots,
+    watchlist: watchlistHits,
+    dxpeditions: dxpeditions.data?.dxpeditions,
+    contests: contests.data,
+    'contest-start': contestStartAlerts,
+    'sat-pass': satPassAlerts,
+    'band-openings': bandOpenings.alertItems,
+    swpc: severeSwpcAlerts,
+  });
   const localWeather = useWeather(config.location, config.allUnits);
   const dxWeather = useWeather(dxLocation, config.allUnits);
   const localAlerts = useWeatherAlerts(config.location);

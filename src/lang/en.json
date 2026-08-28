@@ -186,6 +186,8 @@
   "contest.panel.calendar": "WA7BNM Contest Calendar",
   "contest.panel.live": "🔴 {{liveCount}} LIVE",
   "contest.panel.no.contests": "No upcoming contests",
+  "contest.panel.notify.off": "Alert me when this contest starts (enable the Contest Starts feed in Settings → Alerts)",
+  "contest.panel.notify.on": "Start alert set — click to remove",
   "contest.panel.time.live.hoursMinutes": "{{hours}}H {{minutes}}m left",
   "contest.panel.time.live.minutes": "{{minutes}}m left",
   "contest.panel.time.startsIn": "Starts in {{hours}}H",
