@@ -65,6 +65,7 @@ const SPECS = {
       showCANParks: false,
       showDXPaths: false,
       showPSKReporter: false,
+      showWSJTX: false,
     },
     pluginLayers: {
       wxradar: true,
@@ -89,6 +90,7 @@ const SPECS = {
       showDXPaths: false,
       showPSKReporter: false,
       showSatellites: false,
+      showWSJTX: false,
     },
     pluginLayers: { aircraft: true, 'atc-sectors': true },
   },
@@ -166,6 +168,7 @@ export default function FocusLayout(props) {
     toggleCANParksLabels,
     toggleSatellites,
     togglePSKReporter,
+    toggleWSJTX,
     hoveredSpot,
     setHoveredSpot,
     filteredSatellites,
@@ -195,6 +198,7 @@ export default function FocusLayout(props) {
     showCANParks: toggleCANParks,
     showSatellites: toggleSatellites,
     showPSKReporter: togglePSKReporter,
+    showWSJTX: toggleWSJTX,
   };
   const MANAGED_MAP_FLAGS = Object.keys(mapLayerToggles);
   // Refs so the cleanup sees live values, not the ones from effect setup
