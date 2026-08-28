@@ -294,6 +294,7 @@ require('./server/routes/field-reports')(app, ctx); // EmComm field reports (Win
 require('./server/routes/wsjtx')(app, ctx);
 require('./server/routes/n1mm')(app, ctx);
 require('./server/routes/openapi')(app, ctx); // Open QSO-layer API (#1015) — see docs/API.md
+require('./server/routes/group-log')(app, ctx); // shared multi-operator log sessions (Field Day)
 require('./server/routes/meshtastic')(app, ctx);
 require('./server/routes/meshcom')(app, ctx);
 require('./server/routes/presence')(app, ctx);

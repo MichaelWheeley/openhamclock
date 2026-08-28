@@ -26,6 +26,7 @@ import {
 import { getPendingCount, onQsoLogged, processQueue, subscribeLogsync } from '../utils/logsync.js';
 import CallsignLink from './CallsignLink.jsx';
 import { useCallsignPopup } from './CallsignPopupManager.jsx';
+import GroupLogSection from './GroupLogSection.jsx';
 import QsoForm, { BANDS, inputStyle, smallBtnStyle } from './QsoForm.jsx';
 
 const MAX_ROWS = 200;
@@ -53,6 +54,14 @@ export const LogbookPanel = ({ userCallsign, myGrid }) => {
   const [bandFilter, setBandFilter] = useState('');
   const [modeFilter, setModeFilter] = useState('');
   const [importSummary, setImportSummary] = useState(null); // {imported, skipped} | {error}
+  // Group session UI opens automatically when a session is being resumed.
+  const [showGroup, setShowGroup] = useState(() => {
+    try {
+      return !!localStorage.getItem('openhamclock_groupLog');
+    } catch {
+      return false;
+    }
+  });
   const fileInputRef = useRef(null);
 
   // Log-sync pending pushes (Wavelog/QRZ retry queue) — shown in the footer.
@@ -260,6 +269,20 @@ export const LogbookPanel = ({ userCallsign, myGrid }) => {
           </button>
           <button
             type="button"
+            onClick={() => setShowGroup((v) => !v)}
+            title={t('groupLog.toggleTooltip', {
+              defaultValue: 'Group logging — shared log for multi-station operations',
+            })}
+            aria-label={t('groupLog.toggleTooltip', {
+              defaultValue: 'Group logging — shared log for multi-station operations',
+            })}
+            aria-pressed={showGroup}
+            style={smallBtnStyle(showGroup)}
+          >
+            {t('groupLog.toggle', { defaultValue: 'Group' })}
+          </button>
+          <button
+            type="button"
             onClick={() => fileInputRef.current?.click()}
             title={t('logbook.importTooltip', { defaultValue: 'Import an ADIF (.adi) log file' })}
             aria-label={t('logbook.importTooltip', { defaultValue: 'Import an ADIF (.adi) log file' })}
@@ -289,6 +312,9 @@ export const LogbookPanel = ({ userCallsign, myGrid }) => {
           />
         </div>
       </div>
+
+      {/* Group logging (Field Day multi-station sessions) */}
+      {showGroup && <GroupLogSection userCallsign={userCallsign} />}
 
       {/* Import summary */}
       {importSummary && (
