@@ -13,7 +13,7 @@
  * Changes the user makes afterwards stick until the layout is re-entered —
  * re-picking the layout IS the "give me the standard view again" gesture.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Header,
   WorldMap,
