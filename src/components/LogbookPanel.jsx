@@ -19,6 +19,7 @@ import {
   shouldShowBackupNudge,
 } from '../utils/backup.js';
 import { getBandFromFreq } from '../utils/callsign.js';
+import { getPendingCount, onQsoLogged, processQueue, subscribeLogsync } from '../utils/logsync.js';
 import { useRig } from '../contexts/RigContext.jsx';
 import CallsignLink from './CallsignLink.jsx';
 import { useCallsignPopup } from './CallsignPopupManager.jsx';
@@ -114,6 +115,14 @@ export const LogbookPanel = ({ userCallsign, myGrid }) => {
   const [modeFilter, setModeFilter] = useState('');
   const [importSummary, setImportSummary] = useState(null); // {imported, skipped} | {error}
   const fileInputRef = useRef(null);
+
+  // Log-sync pending pushes (Wavelog/QRZ retry queue) — shown in the footer.
+  // Mounting the panel also retries anything left over from a previous session.
+  const [syncPending, setSyncPending] = useState(() => getPendingCount());
+  useEffect(() => {
+    if (getPendingCount() > 0) processQueue().catch(() => {});
+    return subscribeLogsync(() => setSyncPending(getPendingCount()));
+  }, []);
 
   // Monthly "back up your log" reminder — recheck after dismiss/export.
   const [nudgeCheck, setNudgeCheck] = useState(0);
@@ -264,7 +273,10 @@ export const LogbookPanel = ({ userCallsign, myGrid }) => {
     if (editingId) {
       await update(editingId, record);
     } else {
-      await add({ ...record, extras: {} });
+      const saved = await add({ ...record, extras: {} });
+      // Log-sync hand-off: queue for Wavelog/QRZ push when those integrations
+      // are enabled (fire-and-forget with retry queue — see utils/logsync.js).
+      onQsoLogged(saved, { myCall: userCallsign });
     }
     setShowForm(false);
     setEditingId(null);
@@ -742,6 +754,24 @@ export const LogbookPanel = ({ userCallsign, myGrid }) => {
                   onPopup={showPopup}
                   location={qso.gridsquare ? { grid: qso.gridsquare } : undefined}
                 />
+                {qso.extras?.LOTW_QSL_RCVD === 'Y' && (
+                  <span
+                    title={t('logbook.lotwConfirmed', { defaultValue: 'Confirmed on LoTW' })}
+                    aria-label={t('logbook.lotwConfirmed', { defaultValue: 'Confirmed on LoTW' })}
+                    style={{
+                      marginLeft: 4,
+                      fontSize: '8px',
+                      fontWeight: 700,
+                      color: 'var(--accent-green)',
+                      border: '1px solid var(--accent-green)',
+                      borderRadius: 3,
+                      padding: '0 3px',
+                      verticalAlign: 'middle',
+                    }}
+                  >
+                    LoTW✓
+                  </span>
+                )}
               </div>
               <div role="cell" style={{ color: 'var(--accent-cyan)', alignSelf: 'center', fontSize: '10px' }}>
                 {qso.band || '—'}
@@ -845,6 +875,16 @@ export const LogbookPanel = ({ userCallsign, myGrid }) => {
                   total: filtered.length,
                 })
               : t('logbook.showingAll', { defaultValue: '{{total}} shown', total: filtered.length })}
+            {syncPending > 0 && (
+              <span
+                style={{ marginLeft: 8, color: 'var(--accent-amber)' }}
+                title={t('logbook.syncPendingTooltip', {
+                  defaultValue: 'QSOs waiting to be pushed to Wavelog/QRZ — see Settings → Integrations → Logbook Sync',
+                })}
+              >
+                ⇪ {t('logbook.syncPending', { defaultValue: '{{count}} pending sync', count: syncPending })}
+              </span>
+            )}
           </span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {BANDS.filter((b) => stats.byBand[b])

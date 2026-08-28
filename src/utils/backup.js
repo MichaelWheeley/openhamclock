@@ -37,6 +37,8 @@ const INCLUDED_PREFIXES = ['openhamclock_', 'ohc_'];
 // already; these cover legacy/bookkeeping stragglers.
 const EXCLUDED_KEYS = new Set([
   'ohc-callbook-auth', // QRZ / HamQTH credentials — browser-private by design
+  'ohc-logsync-auth', // Wavelog/QRZ Logbook/LoTW sync credentials — browser-private
+  'ohc-logsync-queue', // pending log-sync pushes — transient, browser-local bookkeeping
   'ohc-carto-key', // CARTO basemap API key
   'ohc_carto_apikey', // legacy (underscore) location of the CARTO key
   'ohc-relay-session', // Rig Bridge cloud relay session
