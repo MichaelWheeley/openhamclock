@@ -23,6 +23,8 @@
  * the flat Leaflet layers and the globe painters cannot drift apart.
  */
 
+import { bandFromFreq } from './workedBefore.js';
+
 // ── Equirectangular projection ─────────────────────────────
 export const lonToX = (lon, width) => ((lon + 180) / 360) * width;
 export const latToY = (lat, height) => ((90 - lat) / 180) * height;
@@ -50,6 +52,76 @@ export function squareLabel(lat, lon) {
   const lonDigit = Math.floor(((normLon(lon) + 180) % 20) / 2);
   const latDigit = Math.floor(((lat + 90) % 10) / 1);
   return field + String(lonDigit) + String(latDigit);
+}
+
+// ── Worked grids (shared with useWorkedGrids.js) ───────────
+
+// 4-char Maidenhead square: field letters A-R, square digits 0-9.
+const GRID4_RE = /^[A-R]{2}[0-9]{2}$/;
+
+/**
+ * Normalize a logbook gridsquare to its 4-char square: uppercase, take the
+ * first 4 chars (so 6-char 'en34ab' → 'EN34'), validate AA00 format.
+ * Returns null for anything that is not a valid square.
+ */
+export function normalizeGrid4(grid) {
+  if (typeof grid !== 'string') return null;
+  const g = grid.trim().toUpperCase().slice(0, 4);
+  return GRID4_RE.test(g) ? g : null;
+}
+
+/**
+ * SW corner of a 4-char square as { south, west } in degrees. Cells are
+ * 2° of longitude × 1° of latitude. Returns null for invalid grids.
+ */
+export function gridToRect(grid) {
+  const g = normalizeGrid4(grid);
+  if (!g) return null;
+  const west = (g.charCodeAt(0) - 65) * 20 + (g.charCodeAt(2) - 48) * 2 - 180;
+  const south = (g.charCodeAt(1) - 65) * 10 + (g.charCodeAt(3) - 48) - 90;
+  return { south, west };
+}
+
+/**
+ * Count logbook QSOs per worked 4-char square.
+ * @param {Array} qsos logbookStore records (gridsquare, band, freq fields used)
+ * @param {string|null} band optional band filter ('20m'); QSOs without a band
+ *   tag fall back to bandFromFreq(freq), and drop out when neither resolves.
+ * @returns {Object} plain { 'EN34': qsoCount } map
+ */
+export function workedGridCounts(qsos, band = null) {
+  const counts = {};
+  if (!Array.isArray(qsos)) return counts;
+  const want = band ? String(band).trim().toLowerCase() : null;
+  for (const q of qsos) {
+    const g = normalizeGrid4(q?.gridsquare);
+    if (!g) continue;
+    if (want) {
+      const b =
+        String(q?.band || '')
+          .trim()
+          .toLowerCase() || bandFromFreq(q?.freq);
+      if (b !== want) continue;
+    }
+    counts[g] = (counts[g] || 0) + 1;
+  }
+  return counts;
+}
+
+// Worked-grids fill: emerald green — bright enough to read on dark basemaps,
+// saturated enough to read on light ones. Shared by the Leaflet layer and the
+// globe painter.
+export const WORKED_GRIDS_COLOR = { r: 46, g: 204, b: 113, hex: '#2ecc71' };
+
+/**
+ * Fill colour bucket for a square's QSO count: 1 / 2-4 / 5+ step the fill
+ * alpha up so often-worked squares read darker. Returns { r, g, b, a } or
+ * null for count < 1.
+ */
+export function workedGridsBucket(count) {
+  if (!(count >= 1)) return null;
+  const a = count >= 5 ? 0.6 : count >= 2 ? 0.42 : 0.25;
+  return { r: WORKED_GRIDS_COLOR.r, g: WORKED_GRIDS_COLOR.g, b: WORKED_GRIDS_COLOR.b, a };
 }
 
 // ── Colour ramps (shared with useDRAP.js / useAurora.js) ───
@@ -314,6 +386,31 @@ export function paintAurora(ctx, { width, height, opacity = 0.6, data }) {
   ctx.restore();
 }
 
+/**
+ * Worked grid squares — translucent fill over every 4-char square present in
+ * the logbook, alpha stepped by QSO count (1 / 2-4 / 5+).
+ * data: { 'EN34': qsoCount } from workedGridCounts().
+ */
+export function paintWorkedGrids(ctx, { width, height, opacity = 0.6, data }) {
+  if (!data) return;
+  const cells = Object.entries(data);
+  if (!cells.length) return;
+
+  const cw = (2 / 360) * width; // 2° lon cell
+  const ch = (1 / 180) * height; // 1° lat cell
+
+  ctx.save();
+  for (const [grid, count] of cells) {
+    const rect = gridToRect(grid);
+    const color = workedGridsBucket(count);
+    if (!rect || !color) continue;
+    ctx.fillStyle = `rgba(${color.r},${color.g},${color.b},${color.a * opacity})`;
+    // NW corner of the cell in canvas space (north = south + 1°).
+    ctx.fillRect(lonToX(rect.west, width), latToY(rect.south + 1, height), cw, ch);
+  }
+  ctx.restore();
+}
+
 // ── Registry ───────────────────────────────────────────────
 // layerId → painter, keyed by the plugin layer ids from layerRegistry.js.
 // Adding a globe rendering for another layer = add a painter here (plus its
@@ -324,6 +421,7 @@ export const GLOBE_OVERLAY_PAINTERS = {
   zones: paintZones,
   drap: paintDrap,
   aurora: paintAurora,
+  'worked-grids': paintWorkedGrids,
 };
 
 // Plugin layer ids the globe can draw itself (satellites render natively and

@@ -22,7 +22,8 @@ import { getSunPosition } from '../utils/geo.js';
 import { MAP_STYLES } from '../utils/config.js';
 import { buildGlobeTexture, buildGlobeDetailPatch, chooseGlobeTileZoom } from '../utils/globeTexture.js';
 import { classifySatellite, getArchetypeTemplate, loadIssTemplate } from '../utils/satelliteModels.js';
-import { GLOBE_OVERLAY_PAINTERS, ZONE_SOURCES } from '../utils/globeOverlays.js';
+import { GLOBE_OVERLAY_PAINTERS, ZONE_SOURCES, workedGridCounts } from '../utils/globeOverlays.js';
+import logbookStore from '../services/logbookStore.js';
 import { ACTIVITY_COLORS } from '../utils/activityColors.js';
 // Project icon set — exists because bare glyphs/emoji render inconsistently
 // (or as tofu) depending on the platform's font coverage.
@@ -1189,7 +1190,7 @@ export default function Globe3D({
     return () => clearInterval(id);
   }, [lowMem]);
 
-  // ── Plugin overlay layers (Maidenhead / zones / D-RAP / aurora) ──────
+  // ── Plugin overlay layers (Maidenhead / zones / D-RAP / aurora / worked grids) ──────
   // The globe-capable subset of the plugin layers, driven by the same
   // enabled/opacity states the flat map persists (openhamclock_mapSettings
   // .layers). Data is fetched with the same endpoints and cadence as the
@@ -1200,9 +1201,11 @@ export default function Globe3D({
   const drapOverlayOn = !lowMem && !!overlayLayerStates?.drap?.enabled;
   const auroraOverlayOn = !lowMem && !!overlayLayerStates?.aurora?.enabled;
   const zonesOverlayOn = !lowMem && !!overlayLayerStates?.zones?.enabled;
+  const workedGridsOverlayOn = !lowMem && !!overlayLayerStates?.['worked-grids']?.enabled;
   const [overlayDrap, setOverlayDrap] = useState(null);
   const [overlayAurora, setOverlayAurora] = useState(null);
   const [overlayZones, setOverlayZones] = useState(null);
+  const [overlayWorkedGrids, setOverlayWorkedGrids] = useState(null);
 
   useEffect(() => {
     if (!drapOverlayOn) return undefined;
@@ -1272,6 +1275,20 @@ export default function Globe3D({
     };
   }, [zonesOverlayOn]);
 
+  useEffect(() => {
+    if (!workedGridsOverlayOn) return undefined;
+    // Same data source as the flat layer: the logbook cache, live via
+    // subscribe (newly logged QSOs repaint immediately). The flat layer's
+    // persisted band filter is honoured, read once per enable.
+    let band = null;
+    try {
+      band = localStorage.getItem('openhamclock_worked_grids_band') || null;
+    } catch {}
+    return logbookStore.subscribe((qsos) => {
+      setOverlayWorkedGrids(workedGridCounts(qsos, band));
+    });
+  }, [workedGridsOverlayOn]);
+
   // Repaint the shared overlay canvas. Content-keyed on the states object so
   // a parent re-render with identical enabled/opacity values repaints nothing.
   const overlayStatesKey = JSON.stringify(overlayLayerStates ?? null);
@@ -1282,7 +1299,12 @@ export default function Globe3D({
     const { width, height } = s.overlayCanvas;
     const ctx = s.overlayCtx;
     ctx.clearRect(0, 0, width, height);
-    const dataById = { zones: overlayZones, drap: overlayDrap, aurora: overlayAurora };
+    const dataById = {
+      zones: overlayZones,
+      drap: overlayDrap,
+      aurora: overlayAurora,
+      'worked-grids': overlayWorkedGrids,
+    };
     let painted = false;
     for (const [id, painter] of Object.entries(GLOBE_OVERLAY_PAINTERS)) {
       const st = states[id];
@@ -1298,7 +1320,7 @@ export default function Globe3D({
     // overlayStatesKey stands in for overlayLayerStates (content compare);
     // lowMem: scene rebuild — repaint onto the fresh canvas.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overlayStatesKey, overlayZones, overlayDrap, overlayAurora, lowMem]);
+  }, [overlayStatesKey, overlayZones, overlayDrap, overlayAurora, overlayWorkedGrids, lowMem]);
 
   // ── Markers + arcs ───────────────────────────────────────
   useEffect(() => {

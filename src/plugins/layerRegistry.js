@@ -32,6 +32,7 @@ import * as AircraftPlugin from './layers/useAircraft.js';
 import * as ATCSectorsPlugin from './layers/useATCSectors.js';
 import * as PSKReporterBandActivityPlugin from './layers/usePSKReporterBandActivity.js';
 import * as MaidenheadGridPlugin from './layers/useMaidenheadGrid.js';
+import * as WorkedGridsPlugin from './layers/useWorkedGrids.js';
 import * as DRAPPlugin from './layers/useDRAP.js';
 import * as ZonesPlugin from './layers/useZones.js';
 
@@ -79,6 +80,7 @@ const layerPlugins = [
   ATCSectorsPlugin,
   PSKReporterBandActivityPlugin,
   MaidenheadGridPlugin,
+  WorkedGridsPlugin,
   DRAPPlugin,
   ZonesPlugin,
   ...localPlugins,
@@ -119,6 +121,7 @@ const PINNED_SHORTCUTS = {
   maidenhead: 'h', // maidenHead grid
   drap: 'j',
   zones: 'y',
+  // 'worked-grids' has no shortcut — all 26 letters are pinned above.
 };
 
 export function getAllLayers() {

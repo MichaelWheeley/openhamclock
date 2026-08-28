@@ -11,6 +11,11 @@ import {
   paintZones,
   paintDrap,
   paintAurora,
+  paintWorkedGrids,
+  normalizeGrid4,
+  gridToRect,
+  workedGridCounts,
+  workedGridsBucket,
   GLOBE_OVERLAY_PAINTERS,
   GLOBE_OVERLAY_LAYER_IDS,
   ZONE_SOURCES,
@@ -290,9 +295,107 @@ describe('paintZones', () => {
   });
 });
 
+describe('worked grids helpers', () => {
+  it('normalizes gridsquares to valid 4-char squares', () => {
+    expect(normalizeGrid4('EN34')).toBe('EN34');
+    expect(normalizeGrid4('en34ab')).toBe('EN34'); // 6-char, lowercase
+    expect(normalizeGrid4(' dm12 ')).toBe('DM12'); // whitespace
+    expect(normalizeGrid4('ZZ99')).toBeNull(); // field letters stop at R
+    expect(normalizeGrid4('E1')).toBeNull(); // too short / malformed
+    expect(normalizeGrid4('1234')).toBeNull();
+    expect(normalizeGrid4('')).toBeNull();
+    expect(normalizeGrid4(null)).toBeNull();
+    expect(normalizeGrid4(1234)).toBeNull();
+  });
+
+  it('maps squares to their SW corner (2° × 1° cells)', () => {
+    expect(gridToRect('JJ00')).toEqual({ south: 0, west: 0 });
+    expect(gridToRect('AA00')).toEqual({ south: -90, west: -180 });
+    expect(gridToRect('RR99')).toEqual({ south: 89, west: 178 });
+    expect(gridToRect('en34xx')).toEqual({ south: 44, west: -94 });
+    expect(gridToRect('bogus')).toBeNull();
+  });
+
+  it('counts QSOs per square, dropping invalid or missing grids', () => {
+    const counts = workedGridCounts([
+      { gridsquare: 'EN34' },
+      { gridsquare: 'en34ab' }, // same square after normalization
+      { gridsquare: 'DM12' },
+      { gridsquare: 'not-a-grid' },
+      { gridsquare: '' },
+      {},
+      null,
+    ]);
+    expect(counts).toEqual({ EN34: 2, DM12: 1 });
+    expect(workedGridCounts(null)).toEqual({});
+  });
+
+  it('filters by band, falling back to freq when the band tag is missing', () => {
+    const qsos = [
+      { gridsquare: 'EN34', band: '20M' }, // tag case-insensitive
+      { gridsquare: 'EN34', freq: 14.074 }, // no tag → bandFromFreq → 20m
+      { gridsquare: 'DM12', band: '40m' },
+      { gridsquare: 'FN31' }, // no band, no freq → dropped by filter
+    ];
+    expect(workedGridCounts(qsos, '20m')).toEqual({ EN34: 2 });
+    expect(workedGridCounts(qsos, '40m')).toEqual({ DM12: 1 });
+    expect(workedGridCounts(qsos)).toEqual({ EN34: 2, DM12: 1, FN31: 1 });
+  });
+
+  it('buckets counts as 1 / 2-4 / 5+ with rising alpha', () => {
+    expect(workedGridsBucket(0)).toBeNull();
+    expect(workedGridsBucket(undefined)).toBeNull();
+    const one = workedGridsBucket(1);
+    const few = workedGridsBucket(2);
+    const many = workedGridsBucket(5);
+    expect(workedGridsBucket(4)).toEqual(few);
+    expect(workedGridsBucket(100)).toEqual(many);
+    expect(one.a).toBeLessThan(few.a);
+    expect(few.a).toBeLessThan(many.a);
+    // Same hue in every bucket — only alpha steps.
+    expect([few.r, few.g, few.b]).toEqual([one.r, one.g, one.b]);
+    expect([many.r, many.g, many.b]).toEqual([one.r, one.g, one.b]);
+  });
+});
+
+describe('paintWorkedGrids', () => {
+  it('paints nothing without data', () => {
+    const ctx = mockCtx();
+    paintWorkedGrids(ctx, { width: 360, height: 180, opacity: 1, data: null });
+    paintWorkedGrids(ctx, { width: 360, height: 180, opacity: 1, data: {} });
+    expect(ctx.calls).toHaveLength(0);
+  });
+
+  it('fills each worked square at its projected cell', () => {
+    const ctx = mockCtx();
+    paintWorkedGrids(ctx, { width: 360, height: 180, opacity: 1, data: { EN34: 1, JJ00: 1 } });
+    const rects = of(ctx, 'fillRect');
+    expect(rects).toHaveLength(2);
+    // EN34 SW corner = (44, -94) → NW corner (45, -94) → x=86, y=45; 2°×1° cell.
+    expect(rects).toContainEqual(['fillRect', 86, 45, 2, 1]);
+    // JJ00 SW corner = (0, 0) → NW (1, 0) → x=180, y=89.
+    expect(rects).toContainEqual(['fillRect', 180, 89, 2, 1]);
+  });
+
+  it('applies bucket colors scaled by layer opacity', () => {
+    const ctx = mockCtx();
+    paintWorkedGrids(ctx, { width: 360, height: 180, opacity: 0.5, data: { EN34: 1, DM12: 3, FN31: 7 } });
+    const fills = of(ctx, 'set:fillStyle').map((c) => c[1]);
+    expect(fills).toContain(`rgba(46,204,113,${0.25 * 0.5})`); // 1 QSO
+    expect(fills).toContain(`rgba(46,204,113,${0.42 * 0.5})`); // 2-4 QSOs
+    expect(fills).toContain(`rgba(46,204,113,${0.6 * 0.5})`); // 5+ QSOs
+  });
+
+  it('skips invalid grid keys instead of throwing', () => {
+    const ctx = mockCtx();
+    paintWorkedGrids(ctx, { width: 360, height: 180, opacity: 1, data: { nope: 3, EN34: 1 } });
+    expect(of(ctx, 'fillRect')).toHaveLength(1);
+  });
+});
+
 describe('painter registry', () => {
-  it('registers the four globe-capable layers under their plugin ids', () => {
-    expect(GLOBE_OVERLAY_LAYER_IDS).toEqual(['maidenhead', 'zones', 'drap', 'aurora']);
+  it('registers the five globe-capable layers under their plugin ids', () => {
+    expect(GLOBE_OVERLAY_LAYER_IDS).toEqual(['maidenhead', 'zones', 'drap', 'aurora', 'worked-grids']);
     for (const id of GLOBE_OVERLAY_LAYER_IDS) {
       expect(typeof GLOBE_OVERLAY_PAINTERS[id]).toBe('function');
     }
@@ -303,5 +406,6 @@ describe('painter registry', () => {
     expect(GLOBE_OVERLAY_PAINTERS.zones).toBe(paintZones);
     expect(GLOBE_OVERLAY_PAINTERS.drap).toBe(paintDrap);
     expect(GLOBE_OVERLAY_PAINTERS.aurora).toBe(paintAurora);
+    expect(GLOBE_OVERLAY_PAINTERS['worked-grids']).toBe(paintWorkedGrids);
   });
 });

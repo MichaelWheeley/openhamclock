@@ -1,4 +1,9 @@
 {
+  "activations.badge.new": "NEW",
+  "activations.badge.newBand": "BAND",
+  "activations.badge.newBandTooltip": "Entity worked before, but not on this band — new band slot",
+  "activations.badge.newTooltip": "New one — this DXCC entity is not in your logbook (ATNO)",
+  "activations.badge.workedTooltip": "In your log — worked this station before",
   "app.bandPlan.aria": "Band plan for {{band}}",
   "app.bandPlan.cw": "CW",
   "app.bandPlan.data": "Data",
