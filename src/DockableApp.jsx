@@ -32,6 +32,7 @@ import {
   RigControlPanel,
   OnAirPanel,
   IDTimerPanel,
+  ImagePanel,
   KeybindingsPanel,
   DXLocalTime,
   DigitalModesPanel,
@@ -460,6 +461,7 @@ export const DockableApp = ({
       'rig-control': { name: 'Rig Control', icon: '📻' },
       'on-air': { name: 'On Air', icon: '🔴' },
       'id-timer': { name: 'ID Timer', icon: '📢' },
+      image: { name: 'Custom Image', icon: '🖼️' },
       keybindings: { name: 'Keyboard Shortcuts', icon: '⌨️' },
       meshtastic: { name: 'Meshtastic', icon: '📡' },
       meshcom: { name: 'MeshCom', icon: '🔗' },
@@ -1111,6 +1113,10 @@ export const DockableApp = ({
 
         case 'id-timer':
           content = <IDTimerPanel callsign={config.callsign} />;
+          break;
+
+        case 'image':
+          content = <ImagePanel />;
           break;
 
         case 'keybindings':

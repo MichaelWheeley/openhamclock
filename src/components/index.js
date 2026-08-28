@@ -5,8 +5,6 @@
 
 export { Header } from './Header.jsx';
 export { WorldMap } from './WorldMap.jsx';
-export { SpaceWeatherPanel } from './SpaceWeatherPanel.jsx';
-export { BandConditionsPanel } from './BandConditionsPanel.jsx';
 export { DXClusterPanel } from './DXClusterPanel.jsx';
 export { POTAPanel } from './POTAPanel.jsx';
 export { default as APRSPanel } from './APRSPanel.jsx';
@@ -39,7 +37,6 @@ export { default as OnAirPanel } from './OnAirPanel.jsx';
 export { IDTimerPanel } from './IDTimerPanel.jsx';
 export { ImagePanel } from './ImagePanel.jsx';
 export { default as RotatorPanel } from './RotatorPanel.jsx';
-export { default as RotatorMapOverlay } from './RotatorMapOverlay.jsx';
 export { DXLocalTime } from './DXLocalTime.jsx';
 export { default as DigitalModesPanel } from './DigitalModesPanel.jsx';
 export { default as WinlinkPanel } from './WinlinkPanel.jsx';
