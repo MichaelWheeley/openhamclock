@@ -14,11 +14,14 @@ import {
   count,
   dedupKey,
   getAll,
+  hasMountedPanel,
   init,
+  registerPanelMount,
   remove,
   requestLogQso,
   subscribe,
   subscribePrefill,
+  unregisterPanelMount,
   update,
 } from './logbookStore.js';
 
@@ -183,5 +186,29 @@ describe('log-from-spot prefill hand-off', () => {
     requestLogQso(null);
     requestLogQso({ freq: 14.2 });
     expect(consumePendingPrefill()).toBe(null);
+  });
+});
+
+describe('logbook panel mount tracking', () => {
+  it('reports no mounted panel initially', () => {
+    expect(hasMountedPanel()).toBe(false);
+  });
+
+  it('refcounts multiple mounted panels', () => {
+    registerPanelMount();
+    registerPanelMount();
+    expect(hasMountedPanel()).toBe(true);
+    unregisterPanelMount();
+    expect(hasMountedPanel()).toBe(true); // one panel still mounted
+    unregisterPanelMount();
+    expect(hasMountedPanel()).toBe(false);
+  });
+
+  it('never goes negative on unbalanced unregisters', () => {
+    unregisterPanelMount();
+    unregisterPanelMount();
+    expect(hasMountedPanel()).toBe(false);
+    registerPanelMount();
+    expect(hasMountedPanel()).toBe(true);
   });
 });
