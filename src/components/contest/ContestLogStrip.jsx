@@ -408,7 +408,10 @@ export const ContestLogStrip = ({
   };
 
   return (
-    <div className="panel" style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    <div
+      className="panel no-theme-header"
+      style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}
+    >
       {/* Sent-exchange setup row — shown until the def's sent values exist */}
       {sentFields.length > 0 && !sentReady && (
         <div

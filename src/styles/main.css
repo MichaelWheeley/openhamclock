@@ -1651,3 +1651,28 @@ pre,
 [data-theme='trek'] ::-webkit-scrollbar-track {
   background: #000 !important;
 }
+
+/* ── Themed-header opt-out ───────────────────────────────── */
+/* Every styled theme above treats .panel > div:first-child as a title bar
+   (solid block, pixel/serif font, negative margins). Panels whose first
+   child is real content — the contest quick-log strip's callsign row, for
+   one — opt out with .no-theme-header so their inputs aren't repainted as
+   a header. Higher specificity + later position beats the theme rules. */
+[data-theme='retro'] .panel.no-theme-header > div:first-child,
+[data-theme='steampunk'] .panel.no-theme-header > div:first-child,
+[data-theme='eightbit'] .panel.no-theme-header > div:first-child,
+[data-theme='matrix'] .panel.no-theme-header > div:first-child,
+[data-theme='trek'] .panel.no-theme-header > div:first-child {
+  background: none !important;
+  color: inherit !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  letter-spacing: inherit;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  text-transform: none !important;
+  animation: none;
+  text-shadow: none;
+}
