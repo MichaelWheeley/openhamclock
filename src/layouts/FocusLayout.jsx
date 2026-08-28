@@ -468,7 +468,9 @@ export default function FocusLayout(props) {
         showSOTA={mapLayers.showSOTA}
         showSOTALabels={mapLayers.showSOTALabels}
         showWWBOTA={mapLayers.showWWBOTA}
+        showWWBOTALabels={mapLayers.showWWBOTALabels}
         showCANParks={mapLayers.showCANParks}
+        showCANParksLabels={mapLayers.showCANParksLabels}
         showSatellites={mapLayers.showSatellites}
         showPSKReporter={mapLayers.showPSKReporter}
         showPSKPaths={mapLayers.showPSKPaths}

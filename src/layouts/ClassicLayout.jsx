@@ -948,7 +948,9 @@ export default function ClassicLayout(props) {
             showPOTA={mapLayers.showPOTA}
             showSOTA={mapLayers.showSOTA}
             showWWBOTA={mapLayers.showWWBOTA}
+            showWWBOTALabels={mapLayers.showWWBOTALabels}
             showCANParks={mapLayers.showCANParks}
+            showCANParksLabels={mapLayers.showCANParksLabels}
             showSatellites={mapLayers.showSatellites}
             showPSKReporter={mapLayers.showPSKReporter}
             showPSKPaths={mapLayers.showPSKPaths}
@@ -1473,7 +1475,9 @@ export default function ClassicLayout(props) {
             showPOTA={mapLayers.showPOTA}
             showSOTA={mapLayers.showSOTA}
             showWWBOTA={mapLayers.showWWBOTA}
+            showWWBOTALabels={mapLayers.showWWBOTALabels}
             showCANParks={mapLayers.showCANParks}
+            showCANParksLabels={mapLayers.showCANParksLabels}
             showSatellites={mapLayers.showSatellites}
             showPSKReporter={mapLayers.showPSKReporter}
             showPSKPaths={mapLayers.showPSKPaths}
@@ -2150,7 +2154,9 @@ export default function ClassicLayout(props) {
             showPOTA={mapLayers.showPOTA}
             showSOTA={mapLayers.showSOTA}
             showWWBOTA={mapLayers.showWWBOTA}
+            showWWBOTALabels={mapLayers.showWWBOTALabels}
             showCANParks={mapLayers.showCANParks}
+            showCANParksLabels={mapLayers.showCANParksLabels}
             showSatellites={mapLayers.showSatellites}
             showPSKReporter={mapLayers.showPSKReporter}
             showPSKPaths={mapLayers.showPSKPaths}
