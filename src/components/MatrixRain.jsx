@@ -15,7 +15,10 @@ import { useEffect, useRef } from 'react';
 const GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789Z';
 const FONT_PX = 16;
 const FRAME_MS = 70; // ~14 fps — plenty for rain, kind to Pis
-const OPACITY = 0.5; // whole-canvas ceiling so it stays background
+// Faint overlay ABOVE the UI: at z-index 0 behind the app, every opaque
+// layout container and the map painted over the rain and nobody ever saw it.
+// Low opacity keeps text readable while the code rain falls over the HUD.
+const OPACITY = 0.14;
 
 export const MatrixRain = () => {
   const canvasRef = useRef(null);
@@ -77,7 +80,7 @@ export const MatrixRain = () => {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 0,
+        zIndex: 6, // above layout containers and the map, below the sidebar (9999) and modals
         opacity: OPACITY,
         pointerEvents: 'none',
       }}
