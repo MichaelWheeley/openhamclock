@@ -1637,7 +1637,10 @@ export const SettingsPanel = ({
 
                   {rigEnabled && (
                     <>
-                      {/* Download Rig Listener */}
+                      {/* The legacy Rig Listener download used to live here — it served a
+                          deprecated script whose status page has no API token, which sent
+                          users hunting for one (discussion #1141). Point at Rig Bridge,
+                          whose installer + Setup UI carry the whole token flow. */}
                       <div
                         style={{
                           background: 'rgba(99,102,241,0.08)',
@@ -1655,63 +1658,26 @@ export const SettingsPanel = ({
                             lineHeight: 1.4,
                           }}
                         >
-                          📻 Download the Rig Listener for your computer. Double-click to run — it connects your radio
-                          to OpenHamClock via USB.
+                          📻 Radio connections are handled by <strong>Rig Bridge</strong> — USB CAT, flrig, rigctld,
+                          TCI, SmartSDR and more, with a guided installer. Its Setup UI (http://localhost:5555) shows
+                          the API token to paste back here. The old Rig Listener is deprecated.
                         </div>
-                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          <a
-                            href="/api/rig/download/windows"
-                            style={{
-                              padding: '5px 12px',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: '600',
-                              background: 'rgba(99,102,241,0.15)',
-                              border: '1px solid rgba(99,102,241,0.3)',
-                              color: '#818cf8',
-                              textDecoration: 'none',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            ⊞ Windows
-                          </a>
-                          <a
-                            href="/api/rig/download/mac"
-                            style={{
-                              padding: '5px 12px',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: '600',
-                              background: 'rgba(99,102,241,0.15)',
-                              border: '1px solid rgba(99,102,241,0.3)',
-                              color: '#818cf8',
-                              textDecoration: 'none',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            {' '}
-                            Mac
-                          </a>
-                          <a
-                            href="/api/rig/download/linux"
-                            style={{
-                              padding: '5px 12px',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: '600',
-                              background: 'rgba(99,102,241,0.15)',
-                              border: '1px solid rgba(99,102,241,0.3)',
-                              color: '#818cf8',
-                              textDecoration: 'none',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            🐧 Linux
-                          </a>
-                        </div>
-                        <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '6px', opacity: 0.7 }}>
-                          Supports Yaesu, Kenwood, Elecraft, and Icom radios. No extra software needed.
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('rig-bridge')}
+                          style={{
+                            padding: '5px 12px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            background: 'rgba(99,102,241,0.15)',
+                            border: '1px solid rgba(99,102,241,0.3)',
+                            color: '#818cf8',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Open the Rig Bridge tab →
+                        </button>
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
