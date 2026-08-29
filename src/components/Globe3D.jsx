@@ -25,6 +25,14 @@ import { buildGlobeTexture, buildGlobeDetailPatch, chooseGlobeTileZoom } from '.
 import { classifySatellite, getArchetypeTemplate, loadIssTemplate } from '../utils/satelliteModels.js';
 import { GLOBE_OVERLAY_PAINTERS, ZONE_SOURCES, workedGridCounts, decimateAircraft } from '../utils/globeOverlays.js';
 import logbookStore from '../services/logbookStore.js';
+import {
+  acquire as acquireHistory,
+  release as releaseHistory,
+  subscribe as subscribeHistory,
+  buildTransportControl as buildHistoryTransportControl,
+} from '../services/historyPlaybackStore.js';
+import { makeDraggable } from '../plugins/layers/makeDraggable.js';
+import { addMinimizeToggle } from '../plugins/layers/addMinimizeToggle.js';
 import { ACTIVITY_COLORS } from '../utils/activityColors.js';
 // Project icon set — exists because bare glyphs/emoji render inconsistently
 // (or as tofu) depending on the platform's font coverage.
@@ -1326,6 +1334,7 @@ export default function Globe3D({
   const tornadoOverlayOn = !lowMem && !!overlayLayerStates?.['tornado-warnings']?.enabled;
   const aircraftOverlayOn = !lowMem && !!overlayLayerStates?.aircraft?.enabled;
   const atcOverlayOn = !lowMem && !!overlayLayerStates?.['atc-sectors']?.enabled;
+  const historyOverlayOn = !lowMem && !!overlayLayerStates?.['history-playback']?.enabled;
   const [overlayDrap, setOverlayDrap] = useState(null);
   const [overlayAurora, setOverlayAurora] = useState(null);
   const [overlayZones, setOverlayZones] = useState(null);
@@ -1338,6 +1347,7 @@ export default function Globe3D({
   const [overlayTornado, setOverlayTornado] = useState(null);
   const [overlayAircraft, setOverlayAircraft] = useState(null);
   const [overlayATC, setOverlayATC] = useState(null);
+  const [overlayHistory, setOverlayHistory] = useState(null);
 
   useEffect(() => {
     if (!drapOverlayOn) return undefined;
@@ -1671,6 +1681,64 @@ export default function Globe3D({
     };
   }, [atcOverlayOn]);
 
+  // History Playback: transport state, fetching, and the control UI live in
+  // the shared store (services/historyPlaybackStore.js) so the flat map and
+  // the globe scrub the same timeline. Subscribe for window data and mount
+  // the same transport control absolutely over the WebGL canvas.
+  useEffect(() => {
+    if (!historyOverlayOn) return undefined;
+    acquireHistory();
+    const unsub = subscribeHistory((snap) => setOverlayHistory(snap.result));
+
+    let control = null;
+    let wrapper = null;
+    const container = containerRef.current;
+    if (container) {
+      control = buildHistoryTransportControl(document);
+      const el = control.el;
+      // Same chrome as the Leaflet placement: .panel-wrapper > div carries
+      // the floating-panel styling.
+      wrapper = document.createElement('div');
+      wrapper.className = 'panel-wrapper';
+      wrapper.style.position = 'absolute';
+      wrapper.style.top = '52px'; // below the projection/style controls
+      wrapper.style.right = '10px';
+      wrapper.style.zIndex = '1000';
+      wrapper.appendChild(el);
+      container.appendChild(wrapper);
+      // Keep drags/scrolls on the control from grabbing the globe
+      for (const evt of ['pointerdown', 'wheel', 'dblclick']) {
+        el.addEventListener(evt, (e) => e.stopPropagation());
+      }
+      const saved = localStorage.getItem('history-playback-panel-position');
+      if (saved) {
+        try {
+          const { top, left } = JSON.parse(saved);
+          el.style.position = 'fixed';
+          el.style.top = top + 'px';
+          el.style.left = left + 'px';
+          el.style.right = 'auto';
+        } catch (_) {}
+      }
+      makeDraggable(el, 'history-playback-panel-position', { snap: 5 });
+      addMinimizeToggle(el, 'history-playback-panel-position', {
+        contentClassName: 'history-panel-content',
+        buttonClassName: 'history-minimize-btn',
+      });
+    }
+
+    return () => {
+      unsub();
+      releaseHistory();
+      setOverlayHistory(null);
+      if (control) {
+        control.dispose();
+        control.el.remove();
+      }
+      wrapper?.remove();
+    };
+  }, [historyOverlayOn]);
+
   // Repaint the shared overlay canvas. Content-keyed on the states object so
   // a parent re-render with identical enabled/opacity values repaints nothing.
   const overlayStatesKey = JSON.stringify(overlayLayerStates ?? null);
@@ -1693,6 +1761,7 @@ export default function Globe3D({
       floods: overlayFloods,
       'tornado-warnings': overlayTornado,
       'atc-sectors': overlayATC,
+      'history-playback': overlayHistory,
     };
     let painted = false;
     for (const [id, painter] of Object.entries(GLOBE_OVERLAY_PAINTERS)) {
@@ -1722,6 +1791,7 @@ export default function Globe3D({
     overlayFloods,
     overlayTornado,
     overlayATC,
+    overlayHistory,
     lowMem,
   ]);
 

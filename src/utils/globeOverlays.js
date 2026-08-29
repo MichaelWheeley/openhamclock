@@ -24,6 +24,8 @@
  */
 
 import { bandFromFreq } from './workedBefore.js';
+import { getGreatCirclePoints } from './geo.js';
+import { getBandColorForFreq } from './bandColors.js';
 
 // ── Equirectangular projection ─────────────────────────────
 export const lonToX = (lon, width) => ((lon + 180) / 360) * width;
@@ -627,6 +629,55 @@ export function decimateAircraft(data, cellDeg = 1) {
 // layerId → painter, keyed by the plugin layer ids from layerRegistry.js.
 // Adding a globe rendering for another layer = add a painter here (plus its
 // data fetch in Globe3D's overlay-data effects); WorldMap's suppressed-layers
+/**
+ * History Playback — the scrubbed window's spot paths as band-colored great
+ * circles fading older-in-window, DX endpoints as dots. Mirrors the flat
+ * layer's rendering (plugins/layers/useHistoryPlayback.js); transport state
+ * and data both come from services/historyPlaybackStore.js via Globe3D.
+ * data: { spots, from, to } — a /api/history/spots response.
+ */
+export function paintHistoryPlayback(ctx, { width, height, opacity = 0.8, data }) {
+  const spots = data?.spots;
+  if (!Array.isArray(spots) || !spots.length) return;
+  const { from, to } = data;
+  const span = Math.max(1, (to || 0) - (from || 0));
+  const drawn = spots.slice(-500);
+
+  ctx.save();
+  ctx.lineWidth = Math.max(1, (width / 2048) * 1.2);
+  ctx.lineCap = 'round';
+
+  for (const s of drawn) {
+    if (s.dxLat == null || s.dxLon == null) continue;
+    const color = getBandColorForFreq(s.freq);
+    const age = Math.max(0, Math.min(1, (s.timestamp - from) / span));
+    const alpha = Math.min(1, opacity * (0.25 + 0.75 * age));
+
+    if (s.spotterLat != null && s.spotterLon != null) {
+      const arc = getGreatCirclePoints(s.spotterLat, s.spotterLon, s.dxLat, s.dxLon, 32);
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      let prevLon = null;
+      for (const [lat, lon] of arc) {
+        const x = lonToX(lon, width);
+        const y = latToY(lat, height);
+        if (prevLon === null || Math.abs(lon - prevLon) > 180) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        prevLon = lon;
+      }
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(lonToX(s.dxLon, width), latToY(s.dxLat, height), Math.max(2, (width / 2048) * 3), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 // note picks the id up automatically via GLOBE_OVERLAY_LAYER_IDS.
 // Ordered: rasters first, area fills, then lines, then point markers on top.
 export const GLOBE_OVERLAY_PAINTERS = {
@@ -641,6 +692,7 @@ export const GLOBE_OVERLAY_PAINTERS = {
   earthquakes: paintEarthquakes,
   wildfires: paintWildfires,
   floods: paintFloods,
+  'history-playback': paintHistoryPlayback,
   lightning: paintLightning,
 };
 

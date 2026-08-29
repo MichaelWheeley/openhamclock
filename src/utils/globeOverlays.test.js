@@ -414,6 +414,7 @@ describe('painter registry', () => {
       'earthquakes',
       'wildfires',
       'floods',
+      'history-playback',
       'lightning',
       // aircraft has no painter — Globe3D renders it as instanced 3D models —
       // but the id must stay in the list for state plumbing + suppression note
