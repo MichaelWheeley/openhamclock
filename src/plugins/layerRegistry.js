@@ -36,6 +36,7 @@ import * as MaidenheadGridPlugin from './layers/useMaidenheadGrid.js';
 import * as WorkedGridsPlugin from './layers/useWorkedGrids.js';
 import * as DRAPPlugin from './layers/useDRAP.js';
 import * as ZonesPlugin from './layers/useZones.js';
+import * as HistoryPlaybackPlugin from './layers/useHistoryPlayback.js';
 
 // Auto-discover local/custom plugins (gitignored — survive updates)
 const localPluginModules = import.meta.glob('./local/*.js', { eager: true });
@@ -85,6 +86,7 @@ const layerPlugins = [
   WorkedGridsPlugin,
   DRAPPlugin,
   ZonesPlugin,
+  HistoryPlaybackPlugin,
   ...localPlugins,
 ];
 

@@ -273,6 +273,9 @@ Object.assign(ctx, rbnExports);
 // Band-opening detection (reads rbn + dxcluster spot caches — register after both)
 require('./server/routes/band-openings')(app, ctx);
 
+// 24h spot recorder for map history playback (samples the dxcluster cache)
+require('./server/routes/history')(app, ctx);
+
 require('./server/routes/satellites')(app, ctx);
 
 const propagationExports = require('./server/routes/propagation')(app, ctx);

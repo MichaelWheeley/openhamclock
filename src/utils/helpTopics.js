@@ -120,6 +120,7 @@ export const PANEL_HELP = {
  * their own topic; everything else links to the Map layers overview.
  */
 export const LAYER_HELP = {
+  'history-playback': 'map-layers',
   satellites: 'satellites',
   'voacap-heatmap': 'propagation',
   'muf-map': 'propagation',
