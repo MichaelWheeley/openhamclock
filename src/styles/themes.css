@@ -298,3 +298,117 @@
   --lcars-bar: #ff9c00;
   --lcars-alt: #9999cc;
 }
+
+/* ============================================
+   THEME: WINTER (frost and steel)
+   Colder and grayer than Midnight's navy: steel
+   blue-gray, ice cyan, candlelight amber. Snow
+   falls via SeasonalEffects.
+   ============================================ */
+[data-theme='winter'] {
+  --bg-primary: #0d141c;
+  --bg-secondary: #16202b;
+  --bg-tertiary: #223140;
+  --bg-panel: rgba(16, 24, 33, 0.92);
+  --border-color: rgba(160, 210, 255, 0.28);
+  --text-primary: #eaf4fc;
+  --text-secondary: #b0c8dc;
+  --text-muted: #82a0b8;
+  --accent-amber: #ffd27f;
+  --accent-amber-dim: rgba(255, 210, 127, 0.5);
+  --accent-green: #7fe0c3;
+  --accent-green-dim: rgba(127, 224, 195, 0.5);
+  --accent-red: #ff7b8a;
+  --accent-blue: #7fb8ff;
+  --accent-cyan: #8ae6ff;
+  --accent-purple: #b8a4ff;
+  --accent-white: #ffffff;
+  --color-aprs-rf: #7fe0c3;
+  --bg-row-alt: rgba(160, 210, 255, 0.05);
+  --map-ocean: #0a1118;
+}
+
+/* ============================================
+   THEME: SPRING (meadow light)
+   A light theme: pale cream-green, leaf green,
+   blossom pink. Petals fall via SeasonalEffects.
+   ============================================ */
+[data-theme='spring'] {
+  --bg-primary: #f4f7ee;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e4eeda;
+  --bg-panel: rgba(255, 255, 255, 0.94);
+  --border-color: rgba(90, 150, 60, 0.3);
+  --text-primary: #24321e;
+  --text-secondary: #4a5f45;
+  --text-muted: #5c7155;
+  --accent-amber: #9c7508;
+  --accent-amber-dim: rgba(156, 117, 8, 0.4);
+  --accent-green: #3d7a24;
+  --accent-green-dim: rgba(61, 122, 36, 0.4);
+  --accent-red: #c23a5a;
+  --accent-blue: #2e6bc4;
+  --accent-cyan: #0f7f96;
+  --accent-purple: #8a4bbf;
+  --accent-white: #24321e;
+  --color-aprs-rf: #3d7a24;
+  --bg-row-alt: rgba(70, 130, 50, 0.06);
+  --map-ocean: #e4f0f6;
+}
+
+/* ============================================
+   THEME: SUMMER (sun and sand)
+   A light theme: warm sand, ocean blue, palm
+   green. Fireflies drift via SeasonalEffects.
+   ============================================ */
+[data-theme='summer'] {
+  --bg-primary: #fdf6e3;
+  --bg-secondary: #fffbf0;
+  --bg-tertiary: #f3e8c8;
+  --bg-panel: rgba(255, 251, 240, 0.94);
+  --border-color: rgba(214, 138, 0, 0.35);
+  --text-primary: #3a2f14;
+  --text-secondary: #6b5a2e;
+  --text-muted: #766335;
+  --accent-amber: #b06f00;
+  --accent-amber-dim: rgba(176, 111, 0, 0.4);
+  --accent-green: #33801f;
+  --accent-green-dim: rgba(51, 128, 31, 0.4);
+  --accent-red: #d0333f;
+  --accent-blue: #1668c9;
+  --accent-cyan: #007a8c;
+  --accent-purple: #8a3d9e;
+  --accent-white: #3a2f14;
+  --color-aprs-rf: #33801f;
+  --bg-row-alt: rgba(176, 111, 0, 0.06);
+  --map-ocean: #d8edf4;
+}
+
+/* ============================================
+   THEME: FALL (foliage)
+   Warmer and redder than Ember's tube glow:
+   mahogany, pumpkin, goldenrod, maple, olive.
+   Leaves fall via SeasonalEffects.
+   ============================================ */
+[data-theme='fall'] {
+  --bg-primary: #1d1208;
+  --bg-secondary: #2a1a0e;
+  --bg-tertiary: #3a2513;
+  --bg-panel: rgba(38, 23, 12, 0.93);
+  --border-color: rgba(230, 126, 34, 0.32);
+  --text-primary: #f7e8d0;
+  --text-secondary: #d9b894;
+  --text-muted: #ad8d68;
+  --accent-amber: #f5a623;
+  --accent-amber-dim: rgba(245, 166, 35, 0.5);
+  --accent-green: #a8b545;
+  --accent-green-dim: rgba(168, 181, 69, 0.5);
+  --accent-red: #e8503a;
+  --accent-blue: #6f9ad9;
+  --accent-cyan: #55bdb2;
+  --accent-purple: #b678c9;
+  --accent-white: #fdf3e3;
+  --color-aprs-rf: #a8b545;
+  --bg-row-alt: rgba(245, 166, 35, 0.06);
+  --map-ocean: #170e06;
+}

@@ -10,6 +10,7 @@ import SidebarMenu from './components/SidebarMenu.jsx';
 
 import DockableLayout from './layouts/DockableLayout.jsx';
 import MatrixRain from './components/MatrixRain.jsx';
+import SeasonalEffects from './components/SeasonalEffects.jsx';
 import ClassicLayout from './layouts/ClassicLayout.jsx';
 import ModernLayout from './layouts/ModernLayout.jsx';
 import EmcommLayout from './layouts/EmcommLayout.jsx';
@@ -874,6 +875,11 @@ const App = () => {
     >
       {/* Matrix theme: digital rain behind the whole UI (skipped on lowMem) */}
       {config.theme === 'matrix' && !config.lowMemoryMode && <MatrixRain />}
+
+      {/* Season themes: snow / petals / fireflies / leaves (skipped on lowMem) */}
+      {['winter', 'spring', 'summer', 'fall'].includes(config.theme) && !config.lowMemoryMode && (
+        <SeasonalEffects season={config.theme} />
+      )}
 
       {/* Display Schedule — black overlay when in sleep window */}
       {displaySleeping && (

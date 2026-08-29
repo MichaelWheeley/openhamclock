@@ -76,8 +76,8 @@ const CHANGELOG = [
       },
       {
         icon: '🎨',
-        title: 'Six New Themes + WCAG AA Contrast Everywhere',
-        desc: "Matrix (with the digital rain), 8-Bit (NES dialog chrome, pixel font), Steampunk (brass and rivets), Midnight, Ember, and a Star Trek LCARS theme. Alongside the fun: a serious accessibility pass — every theme's text and accent colors now clear WCAG AA contrast, enforced by an automated guard test so an invisible color can never ship again. Retro's palette got real fixes (its cyan was literally identical to its background), keyboard focus rings now show on every control, and band colors auto-darken for text on light panels.",
+        title: 'Ten New Themes + WCAG AA Contrast Everywhere',
+        desc: "Matrix (with the digital rain), 8-Bit (NES dialog chrome, pixel font), Steampunk (brass nameplates, rivets, and a gaslight glow), Midnight, Ember, a Star Trek LCARS theme, and four season themes — Winter, Spring, Summer, and Fall — with snow, blossom petals, fireflies, and tumbling leaves drifting over the interface. The seasons hide easter eggs that only appear on the right days of the year; that's all we're saying. Alongside the fun: a serious accessibility pass — every theme's text and accent colors now clear WCAG AA contrast, enforced by an automated guard test so an invisible color can never ship again. Retro's palette got real fixes (its cyan was literally identical to its background), keyboard focus rings now show on every control, and band colors auto-darken for text on light panels.",
       },
       {
         icon: '🎯',

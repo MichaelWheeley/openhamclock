@@ -31,5 +31,9 @@ export const AVAILABLE_THEMES = {
   trek: { label: 'Trek', icon: '🖖' },
   midnight: { label: 'Midnight', icon: '🌌' },
   ember: { label: 'Ember', icon: '🔥' },
+  winter: { label: 'Winter', icon: '❄️' },
+  spring: { label: 'Spring', icon: '🌸' },
+  summer: { label: 'Summer', icon: '☀️' },
+  fall: { label: 'Fall', icon: '🍂' },
   custom: { label: 'Custom', icon: '🎨' },
 };

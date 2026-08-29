@@ -1715,6 +1715,31 @@ pre,
   background: #000 !important;
 }
 
+/* ── Season themes: light chrome, the canvas carries the mood ── */
+
+/* Winter: frost creeping down from the top edge of every panel */
+[data-theme='winter'] .panel {
+  background: linear-gradient(180deg, rgba(200, 230, 255, 0.08), transparent 22%), var(--bg-panel) !important;
+  border-top-color: rgba(200, 230, 255, 0.45) !important;
+}
+[data-theme='winter'] ::-webkit-scrollbar-thumb {
+  background: rgba(160, 210, 255, 0.4) !important;
+}
+
+/* Map-tile tints: cold, fresh, sunny, golden */
+[data-theme='winter'] .leaflet-tile {
+  filter: saturate(0.75) brightness(1.05) hue-rotate(12deg);
+}
+[data-theme='spring'] .leaflet-tile {
+  filter: saturate(1.1) brightness(1.02);
+}
+[data-theme='summer'] .leaflet-tile {
+  filter: saturate(1.15) brightness(1.04) sepia(0.08);
+}
+[data-theme='fall'] .leaflet-tile {
+  filter: sepia(0.25) saturate(1.15) hue-rotate(-10deg);
+}
+
 /* ── Themed-header opt-out ───────────────────────────────── */
 /* Every styled theme above treats .panel > div:first-child as a title bar
    (solid block, pixel/serif font, negative margins). Panels whose first
