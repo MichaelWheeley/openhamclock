@@ -1464,18 +1464,24 @@ pre,
 
 /* ── Steampunk: brass and rivets ─────────────────────────── */
 
+/* Lamp-lit room: a warm gaslight glow from above the workbench */
+[data-theme='steampunk'] body {
+  background: radial-gradient(1100px 700px at 50% -5%, rgba(255, 184, 70, 0.1), transparent 60%), var(--bg-primary);
+}
+
 /* Double brass frame with a lamp-lit inner shadow */
 [data-theme='steampunk'] .panel {
   position: relative;
-  border: 1px solid #8a6a2f !important;
+  border: 1px solid #9a742e !important;
   border-radius: 8px !important;
   box-shadow:
-    inset 0 0 0 1px rgba(227, 167, 47, 0.25),
+    inset 0 1px 0 rgba(255, 220, 150, 0.12),
+    inset 0 0 0 1px rgba(240, 180, 41, 0.22),
     inset 0 0 26px rgba(0, 0, 0, 0.55),
     0 2px 8px rgba(0, 0, 0, 0.6) !important;
 }
 
-/* Corner rivets */
+/* Corner rivets: domed, lit from the upper left */
 [data-theme='steampunk'] .panel::after {
   content: '';
   position: absolute;
@@ -1483,28 +1489,67 @@ pre,
   border-radius: 8px;
   pointer-events: none;
   background-image:
-    radial-gradient(circle 2.5px at 7px 7px, rgba(227, 167, 47, 0.55) 100%, transparent 0),
-    radial-gradient(circle 2.5px at calc(100% - 7px) 7px, rgba(227, 167, 47, 0.55) 100%, transparent 0),
-    radial-gradient(circle 2.5px at 7px calc(100% - 7px), rgba(227, 167, 47, 0.55) 100%, transparent 0),
-    radial-gradient(circle 2.5px at calc(100% - 7px) calc(100% - 7px), rgba(227, 167, 47, 0.55) 100%, transparent 0);
+    radial-gradient(circle 3.5px at 8px 8px, #f7dc94 0%, #cf9c2e 45%, #6d4f1c 78%, transparent 80%),
+    radial-gradient(circle 3.5px at calc(100% - 8px) 8px, #f7dc94 0%, #cf9c2e 45%, #6d4f1c 78%, transparent 80%),
+    radial-gradient(circle 3.5px at 8px calc(100% - 8px), #f7dc94 0%, #cf9c2e 45%, #6d4f1c 78%, transparent 80%),
+    radial-gradient(
+      circle 3.5px at calc(100% - 8px) calc(100% - 8px),
+      #f7dc94 0%,
+      #cf9c2e 45%,
+      #6d4f1c 78%,
+      transparent 80%
+    );
   background-repeat: no-repeat;
 }
 
-/* Engraved-plate panel headers */
+/* Headers: screwed-on brass nameplates with engraved serif text.
+   Self-contained (no negative margins) for the same reason as Trek's
+   pill — panels override the base 10px padding with 8-20px. */
 [data-theme='steampunk'] .panel > div:first-child {
+  background:
+    radial-gradient(circle 2.5px at 9px 50%, #fff3cf 0%, #8a6a2f 55%, #4d3a16 75%, transparent 78%),
+    radial-gradient(circle 2.5px at calc(100% - 9px) 50%, #fff3cf 0%, #8a6a2f 55%, #4d3a16 75%, transparent 78%),
+    linear-gradient(180deg, #e8bc52 0%, #c89a35 45%, #96702a 100%) !important;
+  color: #2b1a08 !important;
   font-family: Georgia, 'Times New Roman', serif !important;
-  letter-spacing: 1px;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+  font-variant: small-caps;
+  letter-spacing: 1.5px;
+  text-shadow: 0 1px 0 rgba(255, 236, 190, 0.5);
+  border: 1px solid #6d4f1c !important;
+  border-radius: 4px !important;
+  padding: 2px 10px 2px 20px !important;
+  margin: 0 0 8px 0 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 240, 200, 0.5),
+    inset 0 -1px 0 rgba(60, 38, 10, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-/* Aged-paper map tiles */
+/* Victorian serif buttons */
+[data-theme='steampunk'] button {
+  font-family: Georgia, 'Times New Roman', serif !important;
+  border-radius: 4px !important;
+}
+
+/* Aged-chart map tiles — warm parchment, not washed out */
 [data-theme='steampunk'] .leaflet-tile {
-  filter: sepia(0.45) saturate(0.85) brightness(0.95);
+  filter: sepia(0.5) saturate(1.05) contrast(1.05) hue-rotate(-8deg);
 }
 
-/* Brass scrollbars */
+/* Brass scrollbars on leather tracks */
 [data-theme='steampunk'] ::-webkit-scrollbar-thumb {
   background: linear-gradient(#d4a017, #8a6a2f) !important;
+  border-radius: 5px !important;
+  border: 1px solid #55401a !important;
+}
+[data-theme='steampunk'] ::-webkit-scrollbar-track {
+  background: rgba(18, 11, 5, 0.8) !important;
+}
+
+/* Brass text selection */
+[data-theme='steampunk'] ::selection {
+  background: #d4a017;
+  color: #1a1208;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1686,10 +1731,13 @@ pre,
   font-family: inherit !important;
   font-size: inherit !important;
   font-weight: inherit !important;
+  font-variant: normal;
   letter-spacing: inherit;
   padding: 0 !important;
   margin: 0 !important;
+  border: none !important;
   border-radius: 0 !important;
+  box-shadow: none !important;
   text-transform: none !important;
   animation: none;
   text-shadow: none;

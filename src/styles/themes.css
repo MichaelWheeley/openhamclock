@@ -186,30 +186,31 @@
 
 /* ============================================
    THEME: STEAMPUNK (brass and parchment)
-   Oiled walnut backgrounds, brass amber, patina
-   cyan, verdigris green.
+   Oiled walnut backgrounds, polished brass,
+   patina cyan, verdigris green. Warmer and
+   brighter than v1, which read as flat brown.
    ============================================ */
 [data-theme='steampunk'] {
-  --bg-primary: #16100a;
-  --bg-secondary: #211710;
-  --bg-tertiary: #2e2016;
-  --bg-panel: rgba(30, 21, 14, 0.94);
-  --border-color: rgba(196, 148, 58, 0.35);
-  --text-primary: #e8d5b0;
-  --text-secondary: #c4a97a;
-  --text-muted: #98825e;
-  --accent-amber: #e3a72f;
-  --accent-amber-dim: rgba(227, 167, 47, 0.5);
-  --accent-green: #8fbf5f;
-  --accent-green-dim: rgba(143, 191, 95, 0.5);
-  --accent-red: #d1495b;
-  --accent-blue: #5e83ba;
-  --accent-cyan: #62b6a2;
-  --accent-purple: #9a6fb0;
-  --accent-white: #f4e9d2;
-  --color-aprs-rf: #8fbf5f;
-  --bg-row-alt: rgba(227, 167, 47, 0.05);
-  --map-ocean: #14100c;
+  --bg-primary: #171008;
+  --bg-secondary: #251a0f;
+  --bg-tertiary: #362718;
+  --bg-panel: rgba(32, 22, 13, 0.95);
+  --border-color: rgba(212, 160, 23, 0.45);
+  --text-primary: #f4e3c0;
+  --text-secondary: #d6ba8b;
+  --text-muted: #ab9166;
+  --accent-amber: #f0b429;
+  --accent-amber-dim: rgba(240, 180, 41, 0.5);
+  --accent-green: #9ccc6b;
+  --accent-green-dim: rgba(156, 204, 107, 0.5);
+  --accent-red: #e0596a;
+  --accent-blue: #7a9bd4;
+  --accent-cyan: #64c9b1;
+  --accent-purple: #b085c6;
+  --accent-white: #f8efdc;
+  --color-aprs-rf: #9ccc6b;
+  --bg-row-alt: rgba(240, 180, 41, 0.06);
+  --map-ocean: #141009;
 }
 
 /* ============================================
