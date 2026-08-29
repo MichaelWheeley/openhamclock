@@ -26,6 +26,7 @@ import { createTerminator } from '../utils/terminator.js';
 import { getAprsSymbolIcon } from '../utils/aprs-symbols.js';
 import { getAllLayers } from '../plugins/layerRegistry.js';
 import { GLOBE_OVERLAY_LAYER_IDS } from '../utils/globeOverlays.js';
+import { countryColor, fetchCountriesGeojson } from '../utils/countriesBasemap.js';
 import PluginLayer from './PluginLayer.jsx';
 import AzimuthalMap from './AzimuthalMap.jsx';
 // three.js is ~600 kB — load it only when the operator actually opens 3D mode.
@@ -1325,44 +1326,9 @@ export const WorldMap = ({
     // Only add overlay for countries style
     if (!MAP_STYLES[mapStyle]?.countriesOverlay) return;
 
-    // Bright distinct colors for countries (designed for maximum contrast between neighbors)
-    const COLORS = [
-      '#e6194b',
-      '#3cb44b',
-      '#4363d8',
-      '#f58231',
-      '#911eb4',
-      '#42d4f4',
-      '#f032e6',
-      '#bfef45',
-      '#fabed4',
-      '#469990',
-      '#dcbeff',
-      '#9A6324',
-      '#800000',
-      '#aaffc3',
-      '#808000',
-      '#000075',
-      '#e6beff',
-      '#ff6961',
-      '#77dd77',
-      '#fdfd96',
-      '#84b6f4',
-      '#fdcae1',
-      '#c1e1c1',
-      '#b39eb5',
-      '#ffb347',
-    ];
-
-    // Simple string hash for consistent color assignment
-    const hashColor = (str) => {
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-        hash = (hash << 5) - hash + str.charCodeAt(i);
-        hash |= 0;
-      }
-      return COLORS[Math.abs(hash) % COLORS.length];
-    };
+    // Palette + hash live in utils/countriesBasemap.js, shared with the 3D
+    // globe's texture builder so both projections color countries identically.
+    const hashColor = countryColor;
 
     // Deep-shift all coordinates in a GeoJSON geometry by a longitude offset
     const shiftCoords = (coords, offset) => {
@@ -1387,12 +1353,9 @@ export const WorldMap = ({
       };
     };
 
-    // Fetch world countries GeoJSON (Natural Earth 110m simplified, ~240KB)
-    fetch('https://cdn.jsdelivr.net/gh/johan/world.geo.json@master/countries.geo.json')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
+    // Fetch world countries GeoJSON (Natural Earth 110m simplified, ~240KB;
+    // session-cached, shared with the globe texture builder)
+    fetchCountriesGeojson()
       .then((geojson) => {
         if (!mapInstanceRef.current) return;
 

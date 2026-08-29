@@ -9,6 +9,8 @@
  * azimuthal canvas; here we bake it once into a texture the GPU can reuse.
  */
 
+import { fetchCountriesGeojson, paintCountriesMercator } from './countriesBasemap.js';
+
 const DEG = Math.PI / 180;
 const MAX_MERCATOR_LAT = 85.0511287798066;
 
@@ -80,7 +82,16 @@ function loadTile(url, signal) {
  * @param {AbortSignal} [opts.signal]     - Cancels in-flight work
  * @returns {Promise<HTMLCanvasElement>}  - 2:1 equirectangular canvas
  */
-export async function buildGlobeTexture({ tileUrlTemplate, tileZoom = 3, lang, baseColor, polar, onProgress, signal }) {
+export async function buildGlobeTexture({
+  tileUrlTemplate,
+  tileZoom = 3,
+  lang,
+  baseColor,
+  countries,
+  polar,
+  onProgress,
+  signal,
+}) {
   const numTiles = Math.pow(2, tileZoom);
   const dim = numTiles * 256;
 
@@ -95,6 +106,20 @@ export async function buildGlobeTexture({ tileUrlTemplate, tileZoom = 3, lang, b
   // be nothing but holes.
   mctx.fillStyle = baseColor || '#0b1a2b';
   mctx.fillRect(0, 0, dim, dim);
+
+  // Countries style: the flat map fills every country with a hashed color
+  // under the transparent boundary tiles; paint the same fills here so the
+  // globe matches (#1166). A failed fetch degrades to base + boundary tiles.
+  if (countries) {
+    try {
+      const geojson = await fetchCountriesGeojson();
+      if (signal?.aborted) throw new Error('aborted');
+      paintCountriesMercator(mctx, dim, geojson);
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      console.warn('[globeTexture] countries fills unavailable:', e?.message || e);
+    }
+  }
 
   const queue = [];
   for (let ty = 0; ty < numTiles; ty++) {
@@ -477,6 +502,7 @@ export async function buildGlobeDetailPatch({
   lonSpan,
   latTop,
   latBottom,
+  countries,
   signal,
 }) {
   const worldTiles = Math.pow(2, zoom);
@@ -496,8 +522,20 @@ export async function buildGlobeDetailPatch({
   merc.width = xCount * 256;
   merc.height = yCount * 256;
   const mctx = merc.getContext('2d');
-  mctx.fillStyle = '#0b1a2b';
+  mctx.fillStyle = countries ? '#4a90d9' : '#0b1a2b';
   mctx.fillRect(0, 0, merc.width, merc.height);
+
+  // Countries style: repaint the fills into the patch window too, or the
+  // close-zoom detail blend would stomp them with bare ocean blue (#1166).
+  if (countries) {
+    try {
+      const geojson = await fetchCountriesGeojson();
+      if (signal?.aborted) throw new Error('aborted');
+      paintCountriesMercator(mctx, worldDim, geojson, { offsetX: xStart * 256, offsetY: tyStart * 256 });
+    } catch (e) {
+      if (signal?.aborted) throw e;
+    }
+  }
 
   const queue = [];
   for (let j = 0; j < yCount; j++) {
