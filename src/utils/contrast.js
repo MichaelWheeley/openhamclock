@@ -41,6 +41,48 @@ export function contrastRatio(a, b) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+const toHex = (rgb) =>
+  `#${rgb
+    .map((v) =>
+      Math.round(Math.max(0, Math.min(255, v)))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+
+/** Linear mix of two hex colors in sRGB space, t=0 → a, t=1 → b. */
+export function mixHex(a, b, t) {
+  const ra = parseHex(a);
+  const rb = parseHex(b);
+  if (!ra || !rb) return a;
+  return toHex(ra.map((v, i) => v + (rb[i] - v) * t));
+}
+
+/**
+ * Return `color` adjusted (darkened on light backgrounds, lightened on dark
+ * ones) just enough to reach `minRatio` against `bg`. Colors that already
+ * pass come back untouched, so dark-theme palettes are unaffected. Mixing
+ * toward black/white preserves the hue, so a band keeps its identity —
+ * 40m yellow becomes dark gold on silver, not gray.
+ */
+export function ensureTextContrast(color, bg, minRatio = 4.5) {
+  const current = contrastRatio(color, bg);
+  if (current == null || current >= minRatio) return color;
+  const bgLum = relativeLuminance(bg);
+  const target = bgLum > 0.5 ? '#000000' : '#ffffff';
+  // Binary search the smallest mix that clears the ratio.
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 12; i++) {
+    const mid = (lo + hi) / 2;
+    if ((contrastRatio(mixHex(color, target, mid), bg) ?? 0) >= minRatio) hi = mid;
+    else lo = mid;
+  }
+  const result = mixHex(color, target, hi);
+  // Full mix can still miss when minRatio is unreachable — return the target.
+  return (contrastRatio(result, bg) ?? 0) >= minRatio ? result : target;
+}
+
 /**
  * Parse `[data-theme='name'] { --var: value; ... }` blocks out of CSS text.
  * Returns { themeName: { varName: value } }. Only top-level custom properties
@@ -62,4 +104,4 @@ export function parseThemePalettes(cssText) {
   return palettes;
 }
 
-export default { parseHex, relativeLuminance, contrastRatio, parseThemePalettes };
+export default { parseHex, relativeLuminance, contrastRatio, mixHex, ensureTextContrast, parseThemePalettes };

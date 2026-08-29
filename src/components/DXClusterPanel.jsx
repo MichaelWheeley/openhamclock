@@ -4,7 +4,7 @@
  */
 import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getBandColor } from '../utils/callsign.js';
+import { getReadableBandColorForFreq } from '../utils/bandColors.js';
 import { matchesDXSpotPath } from '../utils/dxClusterSpotMatcher';
 import { balanceSpotWindow } from '../utils/dxClusterFilters';
 import { IconSearch, IconMap, IconGlobe } from './Icons.jsx';
@@ -574,7 +574,7 @@ export const DXClusterPanel = ({
               }
             }
 
-            const color = getBandColor(freqMHz);
+            const color = getReadableBandColorForFreq(freqMHz);
             const isHovered = matchesDXSpotPath(hoveredSpot, spot);
             // Mode is never on the wire — DX cluster format doesn't carry it. Derive from spot.comment if
             // it has an explicit mode keyword, otherwise fall back to frequency band-plan inference.

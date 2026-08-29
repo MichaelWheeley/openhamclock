@@ -8,7 +8,14 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { contrastRatio, parseHex, parseThemePalettes, relativeLuminance } from './contrast.js';
+import {
+  contrastRatio,
+  ensureTextContrast,
+  mixHex,
+  parseHex,
+  parseThemePalettes,
+  relativeLuminance,
+} from './contrast.js';
 
 const css = readFileSync(resolve(process.cwd(), 'src/styles/themes.css'), 'utf8');
 const themes = parseThemePalettes(css);
@@ -76,4 +83,36 @@ describe('themes.css meets WCAG AA (#1112)', () => {
       });
     }
   }
+});
+
+describe('ensureTextContrast (readable band colors, #997/#1112 follow-up)', () => {
+  it('leaves colors alone when they already pass', () => {
+    expect(ensureTextContrast('#ffcc66', '#0d1520', 4.5)).toBe('#ffcc66'); // 40m on dark
+    expect(ensureTextContrast('#000000', '#ffffff', 4.5)).toBe('#000000');
+  });
+
+  it('darkens a washed-out color on light backgrounds until it passes', () => {
+    const out = ensureTextContrast('#ffcc66', '#c0c0c0', 4.5); // 40m yellow on retro silver
+    expect(out).not.toBe('#ffcc66');
+    expect(contrastRatio(out, '#c0c0c0')).toBeGreaterThanOrEqual(4.5);
+    // Hue survives: still warm (r >= g >= b ordering of the original)
+    const [r, g, b] = parseHex(out);
+    expect(r).toBeGreaterThanOrEqual(g);
+    expect(g).toBeGreaterThan(b);
+  });
+
+  it('lightens on dark backgrounds when needed', () => {
+    const out = ensureTextContrast('#222222', '#000000', 4.5);
+    expect(contrastRatio(out, '#000000')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('falls back to black/white when the ratio is unreachable mid-scale', () => {
+    const out = ensureTextContrast('#808080', '#808080', 21); // impossible target
+    expect(['#000000', '#ffffff']).toContain(out);
+  });
+
+  it('mixHex interpolates and tolerates junk', () => {
+    expect(mixHex('#000000', '#ffffff', 0.5)).toBe('#808080');
+    expect(mixHex('nope', '#ffffff', 0.5)).toBe('nope');
+  });
 });

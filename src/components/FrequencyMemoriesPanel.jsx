@@ -12,7 +12,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRig } from '../contexts/RigContext.jsx';
-import { getBandFromFreq, getBandColor } from '../utils/callsign.js';
+import { getBandFromFreq } from '../utils/callsign.js';
+import { getReadableBandColorForFreq } from '../utils/bandColors.js';
 import {
   loadFreqMemories,
   saveFreqMemories,
@@ -287,7 +288,7 @@ export const FrequencyMemoriesPanel = () => {
         ) : (
           memories.map((m, idx) => {
             const band = getBandFromFreq(m.freq_mhz);
-            const bandColor = getBandColor(m.freq_mhz);
+            const bandColor = getReadableBandColorForFreq(m.freq_mhz);
             return (
               <div
                 key={m.id}

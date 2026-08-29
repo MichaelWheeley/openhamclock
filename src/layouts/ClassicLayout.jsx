@@ -6,7 +6,7 @@ import { DXNewsTicker, WorldMap, DXLocalTime } from '../components';
 import { DXGridInput } from '../components/DXGridInput.jsx';
 import { DXCallsignInput } from '../components/DXCallsignInput.jsx';
 import { DXFavorites } from '../components/DXFavorites.jsx';
-import { getBandColor, getBandColorForBand } from '../utils';
+import { getReadableBandColorForFreq, getBandColorForBand } from '../utils';
 import { calculateBearing, calculateDistance, formatDistance } from '../utils/geo.js';
 import { findDXPathForSpot, matchesDXSpotPath } from '../utils/dxClusterSpotMatcher';
 import CallsignLink from '../components/CallsignLink.jsx';
@@ -1751,7 +1751,7 @@ export default function ClassicLayout(props) {
                 >
                   <span
                     style={{
-                      color: getBandColor(
+                      color: getReadableBandColorForFreq(
                         parseFloat(spot.freq) > 1000 ? parseFloat(spot.freq) / 1000 : parseFloat(spot.freq),
                       ),
                       fontWeight: '700',
@@ -2322,7 +2322,7 @@ export default function ClassicLayout(props) {
               >
                 <span
                   style={{
-                    color: getBandColor(
+                    color: getReadableBandColorForFreq(
                       parseFloat(spot.freq) > 1000 ? parseFloat(spot.freq) / 1000 : parseFloat(spot.freq),
                     ),
                     fontWeight: '700',
