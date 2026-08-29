@@ -19,10 +19,12 @@ const SURFACES = ['bg-primary', 'bg-secondary'];
 
 // Deliberate identity tradeoffs, each with a reason. Keep this list SHORT.
 const EXCEPTIONS = new Set([
-  // Win95 yellow on silver panels: retro's panel headers use the navy
-  // title-bar chrome (white text), so amber text barely occurs on silver;
-  // a 3:1 amber would be brown and cost the theme its identity.
-  'retro:accent-amber:bg-secondary',
+  // Retro's amber is tuned dark for the silver panels where it actually
+  // renders (DX cluster frequency column etc.); nothing draws amber text
+  // directly on the teal desktop, and a color passing BOTH surfaces would
+  // have to be near-black. Staging screenshot 2026-08-29 confirmed the
+  // bright-yellow variant was washed out on silver — panels win.
+  'retro:accent-amber:bg-primary',
 ]);
 
 describe('contrast math', () => {
