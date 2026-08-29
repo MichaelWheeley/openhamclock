@@ -1597,11 +1597,18 @@ pre,
 
 /* ── Trek: LCARS chrome ──────────────────────────────────── */
 
-/* Everything in the condensed LCARS face, all-caps display type */
+/* LCARS display face on the chrome. Set on body (plus form controls
+   and the map, which don't inherit) rather than `* !important`, so
+   the data readouts that pin var(--font-mono) inline keep their
+   monospace column alignment — Antonio is proportional and turns
+   aligned spot tables ragged. */
 [data-theme='trek'] body,
-[data-theme='trek'] * {
-  font-family: 'Antonio', 'Arial Narrow', 'Helvetica Neue', sans-serif !important;
-  letter-spacing: 0.4px;
+[data-theme='trek'] button,
+[data-theme='trek'] input,
+[data-theme='trek'] select,
+[data-theme='trek'] textarea,
+[data-theme='trek'] .leaflet-container {
+  font-family: 'Antonio', 'Arial Narrow', 'Helvetica Neue', sans-serif;
 }
 
 /* Panels: black wells framed by an LCARS side bar and rounded elbows */
@@ -1614,28 +1621,36 @@ pre,
   backdrop-filter: none !important;
 }
 
-/* Alternate elbow colors so a wall of panels reads like an LCARS frame */
-[data-theme='trek'] .panel:nth-of-type(2n) {
+/* Rotate bar colors so a wall of panels reads like an LCARS frame.
+   Keyed on the flexlayout tab containers: each .panel is the sole
+   element of its own tab, so striping panels against their own
+   siblings (.panel:nth-of-type) never matched — every bar sat orange. */
+[data-theme='trek'] .flexlayout__tab:nth-child(2n) .panel {
   border-left-color: var(--lcars-alt, #9999cc) !important;
 }
-[data-theme='trek'] .panel:nth-of-type(3n) {
+[data-theme='trek'] .flexlayout__tab:nth-child(3n) .panel {
   border-left-color: #cc99cc !important;
 }
 
-/* Headers: the classic pill bar — black text on the section color */
+/* Headers: the classic pill bar — black text on the section color.
+   Self-contained pill, no negative margins: panels override the base
+   10px padding with anything from 8px to 20px, so a -10px bleed lands
+   differently in every panel and clips into the elbow radius. */
 [data-theme='trek'] .panel > div:first-child {
   background: var(--lcars-bar, #ff9c00) !important;
   color: #000 !important;
   border-radius: 999px !important;
   padding: 2px 12px !important;
-  margin: -10px -10px 8px -10px !important;
+  margin: 0 0 8px 0 !important;
   text-transform: uppercase;
   font-weight: 700 !important;
+  font-family: 'Antonio', 'Arial Narrow', 'Helvetica Neue', sans-serif !important;
+  letter-spacing: 0.6px;
 }
-[data-theme='trek'] .panel:nth-of-type(2n) > div:first-child {
+[data-theme='trek'] .flexlayout__tab:nth-child(2n) .panel > div:first-child {
   background: var(--lcars-alt, #9999cc) !important;
 }
-[data-theme='trek'] .panel:nth-of-type(3n) > div:first-child {
+[data-theme='trek'] .flexlayout__tab:nth-child(3n) .panel > div:first-child {
   background: #cc99cc !important;
 }
 
@@ -1643,6 +1658,7 @@ pre,
 [data-theme='trek'] button {
   border-radius: 999px !important;
   text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 /* Orange pill scrollbars on black tracks */
