@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { activeEggForDate, easterSunday, fieldDaySaturday } from './seasonalEggs.js';
+import { EGG_NAMES, activeEggForDate, easterSunday, eggOverride, fieldDaySaturday } from './seasonalEggs.js';
+
+describe('eggOverride (?egg= preview)', () => {
+  it('accepts every known egg name', () => {
+    for (const name of EGG_NAMES) {
+      expect(eggOverride(`?egg=${name}`)).toBe(name);
+      expect(eggOverride(`?foo=1&egg=${name}`)).toBe(name);
+    }
+  });
+
+  it('rejects unknown, empty, and absent values', () => {
+    expect(eggOverride('?egg=santa')).toBeNull();
+    expect(eggOverride('?egg=')).toBeNull();
+    expect(eggOverride('?other=1')).toBeNull();
+    expect(eggOverride('')).toBeNull();
+    expect(eggOverride(undefined)).toBeNull();
+  });
+});
 
 describe('easterSunday (computus)', () => {
   // Known Easter dates (Gregorian, Western)

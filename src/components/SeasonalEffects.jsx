@@ -15,7 +15,7 @@
  * wakes up decorated on the right morning.
  */
 import { useEffect, useRef } from 'react';
-import { activeEggForDate } from '../utils/seasonalEggs.js';
+import { activeEggForDate, eggOverride } from '../utils/seasonalEggs.js';
 
 const FRAME_MS = 50; // ~20 fps — smooth enough for drift, kind to Pis
 const EGG_RECHECK_MS = 60 * 60 * 1000;
@@ -117,7 +117,10 @@ export const SeasonalEffects = ({ season }) => {
     const ctx = canvas.getContext('2d');
     const { density } = SEASON_STYLE[season] || SEASON_STYLE.winter;
 
-    let egg = activeEggForDate(season);
+    // ?egg=christmas|newyear|easter|fieldday|july4|halloween previews an
+    // egg without waiting for its date (pinned — the hourly re-check skips)
+    const override = eggOverride(window.location.search);
+    let egg = override ?? activeEggForDate(season);
     let particles = [];
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -135,6 +138,7 @@ export const SeasonalEffects = ({ season }) => {
     // appears/disappears at (roughly) midnight. Fallers rebuild so the egg
     // shows immediately; fireflies read `egg` live each frame anyway.
     const eggTimer = setInterval(() => {
+      if (override) return;
       const next = activeEggForDate(season);
       if (next !== egg) {
         egg = next;

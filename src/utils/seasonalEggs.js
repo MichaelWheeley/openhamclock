@@ -7,6 +7,23 @@
  * (holidays happen in local time, not UTC).
  */
 
+export const EGG_NAMES = ['christmas', 'newyear', 'easter', 'fieldday', 'july4', 'halloween'];
+
+/**
+ * Preview override: `?egg=fieldday` etc. in the URL forces an egg on
+ * regardless of the calendar, so the date-locked effects can be checked
+ * without waiting for the holiday. Deliberately undocumented in the manual —
+ * it would spoil the eggs. Returns null for absent or unknown values.
+ */
+export function eggOverride(search) {
+  try {
+    const value = new URLSearchParams(search).get('egg');
+    return EGG_NAMES.includes(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Easter Sunday for a Gregorian year (Meeus/Jones/Butcher computus). */
 export function easterSunday(year) {
   const a = year % 19;
