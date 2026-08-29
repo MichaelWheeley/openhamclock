@@ -2,8 +2,9 @@
  * ActivatePanel Component
  * Displays <whatever> on the Air activations with ON/OFF toggle
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getListenUrl, loadNearbyReceivers } from '../utils/webSdr.js';
 import CallsignLink from './CallsignLink.jsx';
 import { useCallsignPopup } from './CallsignPopupManager.jsx';
 import { IconSearch, IconRefresh, IconMap, IconTag } from './Icons.jsx';
@@ -32,6 +33,27 @@ export const ActivatePanel = ({
 }) => {
   const { t } = useTranslation();
   const { showPopup } = useCallsignPopup();
+
+  // Warm the nearby web-SDR receiver cache so the 🎧 links can be computed
+  // synchronously at render time (same pattern as DXClusterPanel). DE
+  // location isn't a prop here, so read it from the stored config; without
+  // one, getListenUrl falls back to the static regional receiver list.
+  const [, setSdrDirectoryTick] = useState(0);
+  useEffect(() => {
+    let de = null;
+    try {
+      de = JSON.parse(localStorage.getItem('openhamclock_config') || '{}').location;
+    } catch {}
+    if (de?.lat == null || de?.lon == null) return undefined;
+    let cancelled = false;
+    loadNearbyReceivers(de.lat, de.lon).then((list) => {
+      if (!cancelled && list) setSdrDirectoryTick((n) => n + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Worked-before flag from live logged QSOs (N3FJP + N1MM/DXLog). Call-level
   // only here — activation hunters mostly care whether the activator is
   // already in the log at all. Returns null for everyone when no QSO source
@@ -438,6 +460,44 @@ export const ActivatePanel = ({
                     >
                       📓+
                     </button>
+                    {(() => {
+                      // Web SDR "listen" link — hear the activator without a rig.
+                      const freqVal = parseFloat(spot.freq); // MHz
+                      const listen =
+                        Number.isFinite(freqVal) && freqVal > 0 ? getListenUrl(freqVal * 1000, spot.mode) : null;
+                      if (!listen) return null;
+                      return (
+                        <a
+                          href={listen.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          title={t('dxClusterPanel.listenTooltip', {
+                            defaultValue: 'Listen on a web SDR ({{receiver}})',
+                            receiver: listen.name,
+                          })}
+                          aria-label={t('dxClusterPanel.listenTooltip', {
+                            defaultValue: 'Listen on a web SDR ({{receiver}})',
+                            receiver: listen.name,
+                          })}
+                          style={{
+                            marginLeft: '4px',
+                            fontSize: '10px',
+                            textDecoration: 'none',
+                            opacity: 0.55,
+                            transition: 'opacity 0.15s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.opacity = '1';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.opacity = '0.55';
+                          }}
+                        >
+                          🎧
+                        </a>
+                      );
+                    })()}
                   </span>
                 </div>
                 {(spot.comments?.length > 0 || spot.potaRef) && (
