@@ -171,7 +171,8 @@ export default function SidebarMenu({
       )}
 
       {/* Sidebar panel */}
-      <div
+      <nav
+        aria-label="Main menu"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         style={{
@@ -419,7 +420,7 @@ export default function SidebarMenu({
             {isExpanded && <span aria-hidden="true">Settings</span>}
           </button>
         </div>
-      </div>
+      </nav>
     </>
   );
 }

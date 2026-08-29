@@ -8,10 +8,12 @@
 
 /* Accessibility: visible focus indicator for keyboard users (#997). Uses
    :focus-visible so mouse clicks don't draw the ring — only keyboard
-   navigation does. Sits above any component-level `outline: none` so we
-   don't leave keyboard users guessing where focus is. */
+   navigation does. The !important is load-bearing: a dozen components
+   suppress the default outline via inline style={{ outline: 'none' }},
+   and inline styles beat any stylesheet selector except an !important
+   one — without it, keyboard users get no ring exactly there. */
 :focus-visible {
-  outline: 2px solid var(--accent-cyan, #00d4ff);
+  outline: 2px solid var(--accent-cyan, #00d4ff) !important;
   outline-offset: 2px;
   border-radius: 2px;
 }
