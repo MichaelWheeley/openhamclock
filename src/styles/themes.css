@@ -52,11 +52,11 @@
   --border-color: rgba(0, 100, 200, 0.2);
   --text-primary: #1a2332;
   --text-secondary: #4a5a6a;
-  --text-muted: #7a8a9a;
-  --accent-amber: #d4940a;
-  --accent-amber-dim: rgba(212, 148, 10, 0.4);
-  --accent-green: #00aa55;
-  --accent-green-dim: rgba(0, 170, 85, 0.4);
+  --text-muted: #5f6e7d;
+  --accent-amber: #a87508;
+  --accent-amber-dim: rgba(168, 117, 8, 0.4);
+  --accent-green: #008747;
+  --accent-green-dim: rgba(0, 135, 71, 0.4);
   --accent-red: #cc3344;
   --accent-blue: #2266cc;
   --accent-cyan: #0099bb;
@@ -99,7 +99,7 @@
    THEME: RETRO (90s Windows Style)
    ============================================ */
 [data-theme='retro'] {
-  --bg-primary: #008080;
+  --bg-primary: #009090;
   --bg-secondary: #c0c0c0;
   --bg-tertiary: #dfdfdf;
   --bg-panel: #c0c0c0;
@@ -108,15 +108,15 @@
   --border-dark: #404040;
   --text-primary: #000000;
   --text-secondary: #000000;
-  --text-muted: #404040;
+  --text-muted: #171717;
   --accent-amber: #ffff00;
   --accent-amber-dim: #c0c000;
-  --accent-green: #00ff00;
+  --accent-green: #004000;
   --accent-green-dim: #00c000;
-  --accent-red: #ff0000;
+  --accent-red: #700000;
   --accent-blue: #000080;
-  --accent-cyan: #008080;
-  --accent-purple: #800080;
+  --accent-cyan: #003b3b;
+  --accent-purple: #5a005a;
   --accent-white: #000000;
   --color-aprs-rf: #008000;
   --bg-row-alt: rgba(0, 0, 0, 0.08);
@@ -140,7 +140,7 @@
   --border-color: rgba(0, 255, 65, 0.25);
   --text-primary: #00ff41;
   --text-secondary: #00cc33;
-  --text-muted: #2e7d44;
+  --text-muted: #37a457;
   --accent-amber: #b6ff00;
   --accent-amber-dim: rgba(182, 255, 0, 0.5);
   --accent-green: #00ff41;
@@ -197,7 +197,7 @@
   --border-color: rgba(196, 148, 58, 0.35);
   --text-primary: #e8d5b0;
   --text-secondary: #c4a97a;
-  --text-muted: #937d5a;
+  --text-muted: #98825e;
   --accent-amber: #e3a72f;
   --accent-amber-dim: rgba(227, 167, 47, 0.5);
   --accent-green: #8fbf5f;
@@ -281,7 +281,7 @@
   --border-color: rgba(255, 156, 0, 0.45);
   --text-primary: #ffcc99;
   --text-secondary: #cc99cc;
-  --text-muted: #7a708a;
+  --text-muted: #837a93;
   --accent-amber: #ff9c00;
   --accent-amber-dim: rgba(255, 156, 0, 0.5);
   --accent-green: #66cc66;
