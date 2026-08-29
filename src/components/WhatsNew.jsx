@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 // Set to null to hide. Shown at the top of the What's New modal.
 const ANNOUNCEMENT = {
   emoji: '🎁',
-  text: "Surprise! Two major releases within a week. We shipped the 3D globe, looked at the calendar, and apparently decided sleep is a suggestion — because here's 26.7.0 with a native logbook, group logging for Field Day, a full Contest Mode, offline support, and a time machine for the map. Nobody planned this. It just... happened. Consider it the September drop and its encore playing on the same night. Tips of the hat this cycle: Anthony (@AntDiClementi), chris_debian for the WCAG contrast audit this release implements, Alan Hargreaves (@alanhargreaves), Michael R Wheeley (@MichaelWheeley), Jörg (DO1HOZ) for the countries-globe report, and Lor (W3QA) for the Winlink Express idea that became the EmComm CSV ingest. 73 from K0CJH — see you at the next first Tuesday, probably.",
+  text: "Surprise! Two major releases within a week. We shipped the 3D globe, looked at the calendar, and apparently decided sleep is a suggestion — because here's 26.7.0 with a native logbook, group logging for Field Day, a full Contest Mode, offline support, and a time machine for the map. Nobody planned this. It just... happened. Consider it the September drop and its encore playing on the same night. Tips of the hat this cycle: Anthony (@AntDiClementi), chris_debian for the WCAG contrast audit this release implements, Alan Hargreaves (@alanhargreaves), Michael R Wheeley (@MichaelWheeley), and Jörg (DO1HOZ) for the countries-globe report. 73 from K0CJH — see you at the next first Tuesday, probably.",
   color: '#ffd700',
   bg: 'rgba(255, 215, 0, 0.10)',
   border: 'rgba(255, 215, 0, 0.30)',
@@ -96,8 +96,8 @@ const CHANGELOG = [
       },
       {
         icon: '🚨',
-        title: 'EmComm: Field Reports + After Action Reports',
-        desc: 'Winlink Express at an EOC accumulates a CSV of received forms (Field Situation Reports, Damage Assessments) with embedded positions — point the rig-bridge winlink-express-csv plugin at that file and reports appear in the EmComm layout as a list and map markers (idea courtesy of Lor, W3QA). An event log records net check-ins, alerts, shelters, and field reports automatically, exporting as CSV or a print-ready After Action Report. APRS telemetry dashboards and RF-heard shelter merging round it out.',
+        title: 'EmComm: Event Log + After Action Reports',
+        desc: 'An event log records net check-ins and check-outs, APRS messages, new NWS alerts, shelters, and first-heard EmComm stations automatically, exporting as CSV or a print-ready After Action Report with operator callsign and operation date range. APRS telemetry dashboards and RF-heard shelter merging round it out.',
       },
       {
         icon: '🍁',
