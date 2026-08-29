@@ -105,56 +105,72 @@ export function paintCountriesMercator(ctx, worldDim, geojson, { offsetX = 0, of
     if (!polys.length) continue;
     const fill = countryColor(feature.properties?.name || feature.id || 'Unknown');
 
-    for (const xOff of [-worldDim, 0, worldDim]) {
-      ctx.beginPath();
-      for (const poly of polys) {
-        if (!Array.isArray(poly)) continue;
-        for (const ring of poly) {
-          if (!Array.isArray(ring) || ring.length < 3) continue;
-          let prevLon = null;
-          let firstLon = null;
-          let firstX = 0;
-          let lastX = 0;
-          let latSum = 0;
-          for (let i = 0; i < ring.length; i++) {
-            let lon = ring[i][0];
-            if (prevLon !== null) {
-              while (lon - prevLon > 180) lon -= 360;
-              while (lon - prevLon < -180) lon += 360;
-            }
-            prevLon = lon;
-            const x = lonToX(lon) + xOff;
-            const y = latToY(ring[i][1]);
-            latSum += ring[i][1];
-            if (i === 0) {
-              firstLon = lon;
-              firstX = x;
-              ctx.moveTo(x, y);
-            } else {
-              lastX = x;
-              ctx.lineTo(x, y);
-            }
-          }
-          // A ring whose unwrapped path ends a full world away from its
-          // start circles a pole (Antarctica): closing it directly draws a
-          // chord across the map and the fill misses the polar cap. Close
-          // via the pole edge instead — down to the clamped pole at the end
-          // longitude, across, and back up at the start longitude.
-          if (Math.abs(prevLon - firstLon) > 180) {
-            const poleY = latToY(latSum / ring.length < 0 ? -90 : 90);
-            ctx.lineTo(lastX, poleY);
-            ctx.lineTo(firstX, poleY);
-          }
-          ctx.closePath();
+    // Trace one ring. A ring whose unwrapped path ends a full world away
+    // from its start circles a pole (Antarctica): closing it directly draws
+    // a chord across the map, so when `closePolar` is set it closes via the
+    // clamped pole edge instead. Returns whether the ring was polar so the
+    // stroke pass can skip the synthetic closure edges (they are not
+    // coastline and would draw a white line down the map).
+    const traceRing = (ring, xOff, closePolar) => {
+      let prevLon = null;
+      let firstLon = null;
+      let firstX = 0;
+      let lastX = 0;
+      let latSum = 0;
+      for (let i = 0; i < ring.length; i++) {
+        let lon = ring[i][0];
+        if (prevLon !== null) {
+          while (lon - prevLon > 180) lon -= 360;
+          while (lon - prevLon < -180) lon += 360;
+        }
+        prevLon = lon;
+        const x = lonToX(lon) + xOff;
+        const y = latToY(ring[i][1]);
+        latSum += ring[i][1];
+        if (i === 0) {
+          firstLon = lon;
+          firstX = x;
+          ctx.moveTo(x, y);
+        } else {
+          lastX = x;
+          ctx.lineTo(x, y);
         }
       }
-      // Same look as the flat map's Leaflet layer: 0.65 fill, white 0.8 stroke.
-      ctx.globalAlpha = 0.65;
-      ctx.fillStyle = fill;
-      ctx.fill('evenodd');
-      ctx.globalAlpha = 0.8;
-      ctx.strokeStyle = '#fff';
-      ctx.stroke();
+      const polar = Math.abs(prevLon - firstLon) > 180;
+      if (polar && closePolar) {
+        const poleY = latToY(latSum / ring.length < 0 ? -90 : 90);
+        ctx.lineTo(lastX, poleY);
+        ctx.lineTo(firstX, poleY);
+      }
+      if (!polar || closePolar) ctx.closePath();
+      return polar;
+    };
+
+    for (const xOff of [-worldDim, 0, worldDim]) {
+      // Fill each polygon (outer ring + holes) independently — same as the
+      // flat map's Leaflet layer, and it keeps islands from punching
+      // even-odd holes in the pole-closed Antarctic cap.
+      for (const poly of polys) {
+        if (!Array.isArray(poly)) continue;
+        const rings = poly.filter((r) => Array.isArray(r) && r.length >= 3);
+        if (!rings.length) continue;
+
+        ctx.beginPath();
+        let hadPolar = false;
+        for (const ring of rings) hadPolar = traceRing(ring, xOff, true) || hadPolar;
+        ctx.globalAlpha = 0.65;
+        ctx.fillStyle = fill;
+        ctx.fill('evenodd');
+
+        // Stroke: real coastline only — rebuild without the polar closure.
+        if (hadPolar) {
+          ctx.beginPath();
+          for (const ring of rings) traceRing(ring, xOff, false);
+        }
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = '#fff';
+        ctx.stroke();
+      }
     }
   }
   ctx.restore();
