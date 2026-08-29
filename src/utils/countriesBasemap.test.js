@@ -89,3 +89,34 @@ describe('paintCountriesMercator', () => {
     expect(ctx.calls.filter(([n]) => n === 'fill')).toHaveLength(0);
   });
 });
+
+describe('polar rings (Antarctica)', () => {
+  it('closes pole-circling rings via the pole edge, not a chord', () => {
+    // Synthetic Antarctica: a ring circling the globe at 70°S, closed.
+    const lons = Array.from({ length: 37 }, (_, i) => -180 + i * 10);
+    const ring = lons.map((lon) => [lon, -70]);
+    ring.push([-180, -70]);
+    const ctx = makeCtx();
+    paintCountriesMercator(ctx, 2048, { features: [feature('Antarctica', ring)] });
+    // The closure must touch the clamped south-pole edge (bottom of the map)
+    const ys = ctx.calls.filter(([n]) => n === 'lineTo').map(([, , y]) => y);
+    expect(Math.max(...ys)).toBeGreaterThan(2048 * 0.95);
+  });
+
+  it('leaves ordinary closed rings alone', () => {
+    const ctx = makeCtx();
+    paintCountriesMercator(ctx, 2048, {
+      features: [
+        feature('Testland', [
+          [10, 10],
+          [20, 10],
+          [20, 20],
+          [10, 20],
+          [10, 10],
+        ]),
+      ],
+    });
+    const ys = ctx.calls.filter(([n]) => n === 'lineTo').map(([, , y]) => y);
+    expect(Math.max(...ys)).toBeLessThan(2048 * 0.6); // nothing near the pole edge
+  });
+});

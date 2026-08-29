@@ -112,6 +112,10 @@ export function paintCountriesMercator(ctx, worldDim, geojson, { offsetX = 0, of
         for (const ring of poly) {
           if (!Array.isArray(ring) || ring.length < 3) continue;
           let prevLon = null;
+          let firstLon = null;
+          let firstX = 0;
+          let lastX = 0;
+          let latSum = 0;
           for (let i = 0; i < ring.length; i++) {
             let lon = ring[i][0];
             if (prevLon !== null) {
@@ -121,8 +125,25 @@ export function paintCountriesMercator(ctx, worldDim, geojson, { offsetX = 0, of
             prevLon = lon;
             const x = lonToX(lon) + xOff;
             const y = latToY(ring[i][1]);
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+            latSum += ring[i][1];
+            if (i === 0) {
+              firstLon = lon;
+              firstX = x;
+              ctx.moveTo(x, y);
+            } else {
+              lastX = x;
+              ctx.lineTo(x, y);
+            }
+          }
+          // A ring whose unwrapped path ends a full world away from its
+          // start circles a pole (Antarctica): closing it directly draws a
+          // chord across the map and the fill misses the polar cap. Close
+          // via the pole edge instead — down to the clamped pole at the end
+          // longitude, across, and back up at the start longitude.
+          if (Math.abs(prevLon - firstLon) > 180) {
+            const poleY = latToY(latSum / ring.length < 0 ? -90 : 90);
+            ctx.lineTo(lastX, poleY);
+            ctx.lineTo(firstX, poleY);
           }
           ctx.closePath();
         }
