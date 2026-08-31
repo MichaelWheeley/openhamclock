@@ -130,10 +130,16 @@ module.exports = function (app, ctx) {
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
   function makeCode() {
+    // Rejection-sample so each byte maps uniformly onto the 31-char alphabet —
+    // plain modulo would bias codes toward the first 256 % 31 characters.
+    const limit = 256 - (256 % CODE_ALPHABET.length);
     for (let attempt = 0; attempt < 20; attempt++) {
-      const bytes = crypto.randomBytes(CODE_LENGTH);
       let code = '';
-      for (let i = 0; i < CODE_LENGTH; i++) code += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+      while (code.length < CODE_LENGTH) {
+        for (const byte of crypto.randomBytes(CODE_LENGTH)) {
+          if (byte < limit && code.length < CODE_LENGTH) code += CODE_ALPHABET[byte % CODE_ALPHABET.length];
+        }
+      }
       if (!sessions.has(code)) return code;
     }
     return null; // 20 collisions in a 31^8 space means something is very wrong
