@@ -107,6 +107,63 @@ function buildCubesat() {
   return g;
 }
 
+/**
+ * Trek theme easter egg: a procedural Constitution-class starship for the
+ * 3D globe. Built nose along +Z, bridge along +Y, overall length ~1 so the
+ * caller's constant-screen-size scaling treats it like the archetypes.
+ * Cached template, cloned into the scene like everything else here.
+ */
+let enterprise = null;
+export function getEnterpriseTemplate() {
+  if (enterprise) return enterprise;
+  const hull = new THREE.MeshLambertMaterial({ color: 0xd8dce4, emissive: 0x2a2e36 });
+  const bussard = new THREE.MeshLambertMaterial({ color: 0xff4433, emissive: 0xcc2211 });
+  const deflector = new THREE.MeshLambertMaterial({ color: 0xffc069, emissive: 0xb37a2e });
+  const g = new THREE.Group();
+
+  // Saucer section: shallow tapered disc + bridge dome
+  const saucer = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.26, 0.05, 28), hull);
+  saucer.position.set(0, 0.1, 0.26);
+  g.add(saucer);
+  const bridge = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), hull);
+  bridge.scale.y = 0.6;
+  bridge.position.set(0, 0.14, 0.26);
+  g.add(bridge);
+
+  // Neck between saucer and engineering hull
+  const neck = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.14), hull);
+  neck.rotation.x = 0.35;
+  neck.position.set(0, 0.0, 0.09);
+  g.add(neck);
+
+  // Engineering hull: cylinder with a glowing deflector dish up front
+  const engHull = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.42, 16), hull);
+  engHull.rotation.x = Math.PI / 2;
+  engHull.position.set(0, -0.1, -0.02);
+  g.add(engHull);
+  const dish = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), deflector);
+  dish.position.set(0, -0.1, 0.2);
+  g.add(dish);
+
+  // Warp nacelles on angled pylons, red bussard collectors forward
+  for (const side of [-1, 1]) {
+    const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.2, 0.08), hull);
+    pylon.rotation.z = side * 0.7;
+    pylon.position.set(side * 0.09, 0.0, -0.18);
+    g.add(pylon);
+    const nacelle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 14), hull);
+    nacelle.rotation.x = Math.PI / 2;
+    nacelle.position.set(side * 0.17, 0.09, -0.18);
+    g.add(nacelle);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 8), bussard);
+    cap.position.set(side * 0.17, 0.09, 0.07);
+    g.add(cap);
+  }
+
+  enterprise = g;
+  return enterprise;
+}
+
 const archetypes = {};
 export function getArchetypeTemplate(kind) {
   if (!archetypes[kind]) {

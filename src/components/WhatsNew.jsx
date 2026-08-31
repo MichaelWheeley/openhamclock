@@ -32,7 +32,7 @@ const CHANGELOG = [
     version: '26.7.0',
     date: '2026-09-01',
     heading:
-      'Yes, another major release, days after the last one. This one turns OpenHamClock from a dashboard you watch into a station you operate: a native logbook with ADIF import/export, group logging so a whole Field Day site shares one live log, a full Contest Mode with real exchanges, awards tracking from your own QSOs, and offline PWA support. The map learned to time-travel — scrub back through 24 hours of DX spots on the flat map or the 3D globe. Sixteen new dockable panels, four focus layouts, six new themes, an accessibility pass with WCAG AA contrast on every theme, a built-in manual, and about a hundred other things below.',
+      'Yes, another major release, days after the last one. This one turns OpenHamClock from a dashboard you watch into a station you operate: a native logbook with ADIF import/export, group logging so a whole Field Day site shares one live log, a full Contest Mode with real exchanges, awards tracking from your own QSOs, and offline PWA support. The map learned to time-travel — scrub back through 24 hours of DX spots on the flat map or the 3D globe. Sixteen new dockable panels, four focus layouts, ten new themes, an accessibility pass with WCAG AA contrast on every theme, a built-in manual, and about a hundred other things below.',
     features: [
       {
         icon: '📓',
@@ -77,7 +77,7 @@ const CHANGELOG = [
       {
         icon: '🎨',
         title: 'Ten New Themes + WCAG AA Contrast Everywhere',
-        desc: "Matrix (with the digital rain), 8-Bit (NES dialog chrome, pixel font), Steampunk (brass nameplates, rivets, and a gaslight glow), Midnight, Ember, a Star Trek LCARS theme, and four season themes — Winter, Spring, Summer, and Fall — with snow, blossom petals, fireflies, and tumbling leaves drifting over the interface. The seasons hide easter eggs that only appear on the right days of the year; that's all we're saying. Alongside the fun: a serious accessibility pass — every theme's text and accent colors now clear WCAG AA contrast, enforced by an automated guard test so an invisible color can never ship again. Retro's palette got real fixes (its cyan was literally identical to its background), keyboard focus rings now show on every control, and band colors auto-darken for text on light panels.",
+        desc: "Matrix (with the digital rain), 8-Bit (NES dialog chrome, pixel font), Steampunk (brass nameplates, rivets, and a gaslight glow), Midnight, Ember, a Star Trek LCARS theme, and four season themes — Winter, Spring, Summer, and Fall — with snow, blossom petals, fireflies, and tumbling leaves drifting over the interface. The seasons hide easter eggs that only appear on the right days of the year; that's all we're saying — though Trek fans may want to keep an eye on the 3D globe. Alongside the fun: a serious accessibility pass — every theme's text and accent colors now clear WCAG AA contrast, enforced by an automated guard test so an invisible color can never ship again. Retro's palette got real fixes (its cyan was literally identical to its background), keyboard focus rings now show on every control, and band colors auto-darken for text on light panels.",
       },
       {
         icon: '🎯',

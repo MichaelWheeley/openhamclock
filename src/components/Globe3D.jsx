@@ -22,7 +22,12 @@ import { getSunPosition, getMoonPosition, densifyGeoJson } from '../utils/geo.js
 import { lzwDecode } from '../plugins/layers/useLightning.js';
 import { MAP_STYLES } from '../utils/config.js';
 import { buildGlobeTexture, buildGlobeDetailPatch, chooseGlobeTileZoom } from '../utils/globeTexture.js';
-import { classifySatellite, getArchetypeTemplate, loadIssTemplate } from '../utils/satelliteModels.js';
+import {
+  classifySatellite,
+  getArchetypeTemplate,
+  getEnterpriseTemplate,
+  loadIssTemplate,
+} from '../utils/satelliteModels.js';
 import { GLOBE_OVERLAY_PAINTERS, ZONE_SOURCES, workedGridCounts, decimateAircraft } from '../utils/globeOverlays.js';
 import logbookStore from '../services/logbookStore.js';
 import {
@@ -1313,6 +1318,79 @@ export default function Globe3D({
       s.requestRender?.();
     };
   }, [lowMem]);
+
+  // ── Trek theme easter egg: the Enterprise on patrol ──────
+  // While the LCARS theme is active, a procedural Constitution-class
+  // silhouette flies a slow inclined orbit whose plane precesses so the
+  // ground track drifts around the planet. Purely decorative: never a
+  // raycast target (picking intersects earth/sats/spots explicitly). The
+  // flight is continuous by nature, so its ticker keeps the on-demand
+  // render loop awake — same cost class as the auto-rotate screensaver —
+  // and is skipped entirely in low-memory mode. themeTick re-runs this
+  // effect whenever [data-theme] changes.
+  useEffect(() => {
+    if (lowMem) return undefined;
+    if (document.documentElement.getAttribute('data-theme') !== 'trek') return undefined;
+    const s = gl.current;
+    if (!s.scene) return undefined;
+
+    const ship = getEnterpriseTemplate().clone();
+    s.scene.add(ship);
+
+    const ORBIT_R = EARTH_R * 1.35;
+    const PERIOD_MS = 95_000; // one lap ~95 s — brisk but stately
+    const RAAN_PERIOD_MS = 1_800_000; // orbit plane precesses once per 30 min
+    const INCLINATION = THREE.MathUtils.degToRad(35);
+    const SHIP_PX = 44; // constant apparent size, a touch over a selected sat
+    const TICK_MS = 33; // ~30 fps flight
+
+    const pos = new THREE.Vector3();
+    const forward = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    const basis = new THREE.Matrix4();
+    const qIncl = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), INCLINATION);
+    const qRaan = new THREE.Quaternion();
+    const yAxis = new THREE.Vector3(0, 1, 0);
+
+    let raf = 0;
+    let last = 0;
+    const tick = (now) => {
+      raf = requestAnimationFrame(tick);
+      if (now - last < TICK_MS) return;
+      last = now;
+      if (!s.renderer) return;
+
+      const t = ((now % PERIOD_MS) / PERIOD_MS) * Math.PI * 2;
+      qRaan.setFromAxisAngle(yAxis, ((now % RAAN_PERIOD_MS) / RAAN_PERIOD_MS) * Math.PI * 2);
+      pos.set(Math.cos(t), 0, Math.sin(t)).applyQuaternion(qIncl).applyQuaternion(qRaan).multiplyScalar(ORBIT_R);
+      forward.set(-Math.sin(t), 0, Math.cos(t)).applyQuaternion(qIncl).applyQuaternion(qRaan);
+
+      // Nose along the velocity, saucer facing away from the planet
+      up.copy(pos).normalize();
+      right.crossVectors(up, forward).normalize();
+      forward.crossVectors(right, up); // re-orthogonalize
+      basis.makeBasis(right, up, forward);
+      ship.quaternion.setFromRotationMatrix(basis);
+      ship.position.copy(pos);
+
+      // Constant apparent size, same math as the satellite models
+      const h = s.renderer.domElement.clientHeight || 1;
+      const fovK = 2 * Math.tan((s.camera.fov * Math.PI) / 360);
+      ship.scale.setScalar((SHIP_PX * fovK * s.camera.position.distanceTo(ship.position)) / h);
+
+      s.requestRender?.();
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      s.scene?.remove(ship);
+      s.requestRender?.();
+      // Template geometry/materials are shared session-cached resources —
+      // never disposed, same convention as the satellite archetypes.
+    };
+  }, [lowMem, themeTick]);
 
   // ── Plugin overlay layers (Maidenhead / zones / D-RAP / aurora / worked grids) ──────
   // The globe-capable subset of the plugin layers, driven by the same
