@@ -392,6 +392,7 @@ export default function Globe3D({
   showWWBOTA,
   showCANParks,
   showPSKReporter,
+  showPSKPaths = true,
   showWSJTX,
   onSpotClick,
   callsign,
@@ -607,7 +608,9 @@ export default function Globe3D({
         out.push({
           lat,
           lon,
-          color: isRx ? GLOBE_COLORS.pskRx : GLOBE_COLORS.pskTx,
+          // Band colour to match the flat map's markers (#1169); the RX/TX
+          // colours remain the fallback for spots with no parsable frequency.
+          color: getBandColor(parseFloat(freqMHz)) || (isRx ? GLOBE_COLORS.pskRx : GLOBE_COLORS.pskTx),
           size: 7,
           kind: isRx ? 'PSK RX' : 'PSK TX',
           label: (isRx ? s.sender : s.receiver || s.sender) || 'PSK',
@@ -684,6 +687,27 @@ export default function Globe3D({
       });
     }
 
+    // PSK Reporter DE→spot paths (#1169): band-coloured like the flat map's
+    // polylines, TX brighter than RX, RX dashed (handled at vertex build).
+    if (showPSKReporter && showPSKPaths && pskReporterSpots?.length && Number.isFinite(lat0) && Number.isFinite(lon0)) {
+      pskReporterSpots.forEach((s) => {
+        const lat = parseFloat(s.lat);
+        const lon = parseFloat(s.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        const freqMHz = s.freqMHz || (s.freq ? s.freq / 1e6 : null);
+        const band = normalizeBandKey(s.band) || bandFromAnyFrequency(freqMHz || s.freq);
+        if (!bandPassesMapFilter(band)) return;
+        const isRx = s.direction === 'rx';
+        out.push({
+          from: [lat0, lon0],
+          to: [lat, lon],
+          color: getBandColor(parseFloat(freqMHz)) || GLOBE_COLORS.bandFallback,
+          opacity: isRx ? 0.4 : 0.6,
+          dashed: isRx,
+        });
+      });
+    }
+
     // The DE→DX arc exists to connect the two station markers, so it hides
     // with them — unlike the cluster paths, which have their own toggle.
     if (showDeDxMarkers && Number.isFinite(dxLocation?.lat) && Number.isFinite(dxLocation?.lon)) {
@@ -697,7 +721,19 @@ export default function Globe3D({
 
     return out;
     // themeTick: the DE→DX arc colour is read from a CSS variable.
-  }, [dxPaths, showDXPaths, bandPassesMapFilter, dxLocation, lat0, lon0, themeTick, showDeDxMarkers]);
+  }, [
+    dxPaths,
+    showDXPaths,
+    bandPassesMapFilter,
+    dxLocation,
+    lat0,
+    lon0,
+    themeTick,
+    showDeDxMarkers,
+    pskReporterSpots,
+    showPSKReporter,
+    showPSKPaths,
+  ]);
 
   // ── Scene setup (once) ───────────────────────────────────
   useEffect(() => {
@@ -2103,6 +2139,9 @@ export default function Globe3D({
         const pts = greatCircleArc(a.from[0], a.from[1], a.to[0], a.to[1], 48);
         c.set(a.color);
         for (let i = 0; i < pts.length - 1; i++) {
+          // Dashed arcs (PSK RX paths, #1169) come free with LineSegments:
+          // skipping every other segment leaves 24 separate dashes.
+          if (a.dashed && i % 2) continue;
           verts.push(pts[i].x, pts[i].y, pts[i].z, pts[i + 1].x, pts[i + 1].y, pts[i + 1].z);
           cols.push(c.r, c.g, c.b, c.r, c.g, c.b);
         }
