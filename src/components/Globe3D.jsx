@@ -244,6 +244,26 @@ function footprintRingPoints(lat, lon, angularRadius, r, segments = 72) {
   return pts;
 }
 
+/**
+ * Cone from a satellite down to its footprint ring — the volume it can hear.
+ *
+ * A triangle fan from the satellite to consecutive points of the ring, so the
+ * cone's base is exactly the footprint the ring already draws rather than an
+ * approximation of it. Open at both ends: there is no cap at the satellite (it
+ * is a point) and none on the ground, where the ring itself reads as the edge.
+ */
+function footprintConeGeometry(apex, ringPts) {
+  const positions = new Float32Array(ringPts.length * 9);
+  for (let i = 0; i < ringPts.length; i++) {
+    const a = ringPts[i];
+    const b = ringPts[(i + 1) % ringPts.length];
+    positions.set([apex.x, apex.y, apex.z, a.x, a.y, a.z, b.x, b.y, b.z], i * 9);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  return geo;
+}
+
 // Stars and the atmospheric limb only read against a dark backdrop; on the
 // Light and Retro themes they turn into grey noise around the globe.
 function backdropIsDark() {
@@ -2402,12 +2422,35 @@ export default function Globe3D({
       // Footprint ring for selected satellites — green when workable from DE.
       if (isSelected && Number.isFinite(sat.footprintRadius) && sat.footprintRadius > 0) {
         const ringPts = footprintRingPoints(sat.lat, sat.lon, sat.footprintRadius / 6371, EARTH_R * 1.003);
+        const footprintColor = sat.isVisible ? accentGreen : accentCyan;
+
+        // Cone from the satellite to that ring, so the footprint reads as a
+        // volume rather than a circle that happens to sit near a dot.
+        //
+        // DoubleSide is deliberate: seeing the far wall through the near one is
+        // what gives it depth. depthWrite stays off so it never occludes the
+        // globe, the ground track or the satellite itself — the cone is a hint,
+        // not an object, and at low opacity a depth-writing mesh would punch a
+        // hole in whatever it covers.
+        s.satGroup.add(
+          new THREE.Mesh(
+            footprintConeGeometry(satPos, ringPts),
+            new THREE.MeshBasicMaterial({
+              color: footprintColor,
+              transparent: true,
+              opacity: 0.1,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            }),
+          ),
+        );
+
         const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
         s.satGroup.add(
           new THREE.LineLoop(
             ringGeo,
             new THREE.LineBasicMaterial({
-              color: sat.isVisible ? accentGreen : accentCyan,
+              color: footprintColor,
               transparent: true,
               opacity: 0.8,
               depthWrite: false,
