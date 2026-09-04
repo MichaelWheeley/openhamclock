@@ -162,7 +162,6 @@ export default function EmcommLayout(props) {
     dxFilters,
     mapBandFilter,
     setMapBandFilter,
-    mapLayers,
     aprsData,
     emcommData,
     setShowSettings,
