@@ -44,6 +44,11 @@ const CHANGELOG = [
         title: 'FIX: EmComm Respects the DE/DX Marker Toggle',
         desc: 'The DE/DX map layer toggle worked everywhere except EmComm mode, where the layout hardcoded the markers on. It now tracks the same setting as every other layout.',
       },
+      {
+        icon: '🖖',
+        title: 'FIX: Trek Theme Header Buttons Readable Again',
+        desc: 'Buttons and badges in panel headers kept the light colours they wear on dark panels, which vanished against the bright LCARS pill bars. Plain header text now goes black like a proper LCARS bar, and buttons, selects, and inputs sit in black wells — the cutouts real LCARS consoles have — so their own state colours stay visible.',
+      },
     ],
   },
   {
