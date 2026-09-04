@@ -29,6 +29,24 @@ const ANNOUNCEMENT = {
 
 const CHANGELOG = [
   {
+    version: '26.7.2',
+    date: '2026-09-03',
+    heading:
+      'Another quick hotfix — two EmComm mode bugs from the same sharp pair of eyes (thanks @mbrun-plm), both cases of the EmComm layout ignoring settings the Dockable layout respects.',
+    features: [
+      {
+        icon: '📻',
+        title: 'FIX: EmComm APRS Source Filter Now Filters the Map',
+        desc: 'The RF Only / Internet Only / All Sources select in the EmComm Stations panel filtered the station list but not the map — the map quietly received the unfiltered feed, so "RF Only" still plotted every internet station. The select now drives both, on top of any watchlist or group filter you have active.',
+      },
+      {
+        icon: '📍',
+        title: 'FIX: EmComm Respects the DE/DX Marker Toggle',
+        desc: 'The DE/DX map layer toggle worked everywhere except EmComm mode, where the layout hardcoded the markers on. It now tracks the same setting as every other layout.',
+      },
+    ],
+  },
+  {
     version: '26.7.1',
     date: '2026-09-02',
     heading:
