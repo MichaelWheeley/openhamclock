@@ -45,6 +45,7 @@ const DE_COLOR = '#4488ff';
 const DX_COLOR = '#00ddff';
 const MODE_KEY = 'openhamclock_emeMode';
 const RELAY_SAT_KEY = 'openhamclock_emeRelaySat';
+const ACTIVITY_ON_GLOBE_KEY = 'openhamclock_emeActivityOnGlobe';
 
 const readStored = (key, fallback) => {
   try {
@@ -262,6 +263,65 @@ export default function EmeLayout(props) {
     [dxClusterData?.spots, trackedNames],
   );
 
+  // Show the PSK Reporter reports on the globe: every station involved as a
+  // clickable band-coloured dot, and each report as a faint
+  // sender→Moon→receiver path (both ends bounce off the same moon).
+  const [activityOnGlobe, setActivityOnGlobeState] = useState(() => readStored(ACTIVITY_ON_GLOBE_KEY, '1') !== '0');
+  const setActivityOnGlobe = (on) => {
+    setActivityOnGlobeState(on);
+    writeStored(ACTIVITY_ON_GLOBE_KEY, on ? '1' : '0');
+  };
+  const emeMapSpots = useMemo(() => {
+    if (satMode || !activityOnGlobe) return [];
+    const byCall = new Map();
+    for (const r of emeActivity.spots) {
+      const add = (call, lat, lon, grid) => {
+        if (!call || byCall.has(call)) return;
+        const loc = Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : maidenheadToLatLon(grid || '');
+        if (!loc) return;
+        // Shaped like a PSK Reporter RX spot so the globe labels the dot with
+        // the station's own call and colours it by band.
+        byCall.set(call, {
+          lat: loc.lat,
+          lon: loc.lon,
+          sender: call,
+          call,
+          direction: 'rx',
+          band: r.band,
+          mode: r.mode,
+          freqMHz: r.freqMHz,
+          freq: r.freq,
+          snr: r.snr,
+          timestamp: r.timestamp,
+        });
+      };
+      add(r.sender, r.senderLat, r.senderLon, r.senderGrid);
+      add(r.receiver, r.receiverLat, r.receiverLon, r.receiverGrid);
+    }
+    return [...byCall.values()];
+  }, [emeActivity.spots, satMode, activityOnGlobe]);
+  const emeActivityPaths = useMemo(() => {
+    if (satMode || !activityOnGlobe) return null;
+    return emeActivity.spots
+      .map((r) => {
+        const a = Number.isFinite(r.senderLat)
+          ? { lat: r.senderLat, lon: r.senderLon }
+          : maidenheadToLatLon(r.senderGrid || '');
+        const b = Number.isFinite(r.receiverLat)
+          ? { lat: r.receiverLat, lon: r.receiverLon }
+          : maidenheadToLatLon(r.receiverGrid || '');
+        return a && b ? { aLat: a.lat, aLon: a.lon, bLat: b.lat, bLon: b.lon, freqMHz: r.freqMHz } : null;
+      })
+      .filter(Boolean);
+  }, [emeActivity.spots, satMode, activityOnGlobe]);
+  const handleGlobeSpotClick = useCallback(
+    (raw) => {
+      if (!raw || !Number.isFinite(raw.lat) || !Number.isFinite(raw.lon)) return;
+      handleDXChange({ lat: raw.lat, lon: raw.lon, callsign: raw.call || raw.sender || null });
+    },
+    [handleDXChange],
+  );
+
   const handleEmeActivityClick = useCallback(
     (r) => {
       const loc =
@@ -441,7 +501,9 @@ export default function EmeLayout(props) {
             mapBandFilter={mapBandFilter}
             onMapBandFilterChange={setMapBandFilter}
             satellites={satMode ? trackedSats : []}
-            pskReporterSpots={[]}
+            pskReporterSpots={emeMapSpots}
+            emeActivityPaths={emeActivityPaths}
+            onSpotClick={handleGlobeSpotClick}
             showDeDxMarkers={mapLayers?.showDeDxMarkers ?? true}
             showDXPaths={false}
             showDXLabels={false}
@@ -451,7 +513,7 @@ export default function EmeLayout(props) {
             showWWBOTA={false}
             showCANParks={false}
             showSatellites={satMode}
-            showPSKReporter={false}
+            showPSKReporter={!satMode && activityOnGlobe}
             showPSKPaths={false}
             wsjtxSpots={[]}
             showWSJTX={false}
@@ -843,9 +905,23 @@ export default function EmeLayout(props) {
               count={emeActivity.spots.length}
               color="#38bdf8"
               extra={
-                <span style={{ color: '#667', fontSize: '9px', marginLeft: '6px' }}>
-                  Q65 / JT65 · 50 MHz+ · 2h
-                  {emeActivity.connected === false ? ' · feed offline' : ''}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginLeft: '6px' }}>
+                  <span style={{ color: '#667', fontSize: '9px' }}>
+                    Q65 / JT65 · 50 MHz+ · 2h
+                    {emeActivity.connected === false ? ' · feed offline' : ''}
+                  </span>
+                  <label
+                    title="Plot the reporting stations on the globe with their sender→Moon→receiver paths"
+                    style={{ color: activityOnGlobe ? '#38bdf8' : '#667', fontSize: '9px', cursor: 'pointer' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={activityOnGlobe}
+                      onChange={(e) => setActivityOnGlobe(e.target.checked)}
+                      style={{ verticalAlign: 'middle', marginRight: '3px' }}
+                    />
+                    globe
+                  </label>
                 </span>
               }
             >

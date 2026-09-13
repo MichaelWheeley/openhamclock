@@ -432,6 +432,9 @@ export default function Globe3D({
   // framing centres over its sub-point. relayTarget refreshes every second.
   relaySatName = null,
   relayTarget = null, // { lat, lon, altKm, deUp, dxUp }
+  // EME activity (PSK Reporter Q65/JT65 reports): faint sender→Moon→receiver
+  // paths in band colour, drawn alongside the DE/DX legs in moon mode.
+  emeActivityPaths = null, // [{ aLat, aLon, bLat, bLon, freqMHz }]
   onNightDarknessChange,
 }) {
   const { t, i18n } = useTranslation();
@@ -1469,6 +1472,40 @@ export default function Globe3D({
         }
       }
 
+      // Third-party moonbounce reports: both stations bounce off the same
+      // moon, so each report is two thin legs meeting at the sprite. Capped
+      // and faint so the operator's own DE/DX legs stay the loudest lines.
+      if (!viaSat && emeActivityPaths?.length) {
+        const c = new THREE.Color();
+        const verts = [];
+        const cols = [];
+        emeActivityPaths.slice(0, 60).forEach((r) => {
+          if (![r.aLat, r.aLon, r.bLat, r.bLon].every(Number.isFinite)) return;
+          c.set(getBandColor(parseFloat(r.freqMHz)) || GLOBE_COLORS.bandFallback);
+          const a = latLonToVec3(r.aLat, r.aLon, EARTH_R * MARKER_ALT);
+          const b = latLonToVec3(r.bLat, r.bLon, EARTH_R * MARKER_ALT);
+          verts.push(a.x, a.y, a.z, targetVec.x, targetVec.y, targetVec.z);
+          verts.push(b.x, b.y, b.z, targetVec.x, targetVec.y, targetVec.z);
+          for (let k = 0; k < 4; k++) cols.push(c.r, c.g, c.b);
+        });
+        if (verts.length) {
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+          geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(cols), 3));
+          const mat = new THREE.LineBasicMaterial({
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.35,
+            depthWrite: false,
+            blending: isDarkBackdrop ? THREE.AdditiveBlending : THREE.NormalBlending,
+          });
+          const lines = new THREE.LineSegments(geo, mat);
+          lines.frustumCulled = false;
+          group.add(lines);
+          disposables.push(geo, mat);
+        }
+      }
+
       if (hasDE) {
         addLeg(
           latLonToVec3(lat0, lon0, EARTH_R * MARKER_ALT),
@@ -1499,7 +1536,20 @@ export default function Globe3D({
       s.requestRender?.();
     };
     // themeTick: leg colours come from CSS variables. lowMem: scene rebuild.
-  }, [emeMode, hasDE, lat0, lon0, dxLocation?.lat, dxLocation?.lon, themeTick, lowMem, relayTarget]);
+    // emeActivityPaths / isDarkBackdrop: third-party report legs.
+  }, [
+    emeMode,
+    hasDE,
+    lat0,
+    lon0,
+    dxLocation?.lat,
+    dxLocation?.lon,
+    themeTick,
+    lowMem,
+    relayTarget,
+    emeActivityPaths,
+    isDarkBackdrop,
+  ]);
 
   // ── EME: frame Earth + Moon ──────────────────────────────
   // Orbit around the Earth–Moon midpoint from a point beside the line, tilted

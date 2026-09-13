@@ -176,6 +176,7 @@ export const WorldMap = ({
   // go through it, and the satellites plugin layer is forced on.
   relaySatName = null,
   relayTarget = null,
+  emeActivityPaths = null,
 }) => {
   const { t, i18n } = useTranslation();
   const mapLang = i18n.language?.split('-')[0] || 'en'; // e.g. 'de', 'ja', 'en'
@@ -2628,6 +2629,7 @@ export const WorldMap = ({
               emeFrameKey={emeFrameKey}
               relaySatName={relaySatName}
               relayTarget={relayTarget}
+              emeActivityPaths={emeActivityPaths}
             />
           </React.Suspense>
         </AzimuthalErrorBoundary>
