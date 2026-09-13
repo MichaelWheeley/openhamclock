@@ -427,6 +427,11 @@ export default function Globe3D({
   // emeFrameKey re-runs the framing when bumped (a "re-centre" button).
   emeMode = false,
   emeFrameKey = 0,
+  // Satellite relay mode (EME layout): legs go DE→satellite→DX instead of
+  // via the moon, only this satellite is drawn (with its footprint), and
+  // framing centres over its sub-point. relayTarget refreshes every second.
+  relaySatName = null,
+  relayTarget = null, // { lat, lon, altKm, deUp, dxUp }
   onNightDarknessChange,
 }) {
   const { t, i18n } = useTranslation();
@@ -1388,6 +1393,10 @@ export default function Globe3D({
     };
   }, [lowMem]);
 
+  // Latest relay target, read by the framing effect without re-running it.
+  const relayTargetRef = useRef(null);
+  relayTargetRef.current = relayTarget;
+
   // ── EME: DE→Moon→DX legs ─────────────────────────────────
   // Straight lines in space from each station to the moon sprite's position
   // (same compressed sublunar placement as the sprite, so the legs meet it).
@@ -1434,43 +1443,63 @@ export default function Globe3D({
     const build = () => {
       clear();
       const now = new Date();
-      const moonPos = getMoonPosition(now);
-      const moonVec = latLonToVec3(moonPos.lat, moonPos.lon, MOON_DIST);
-
-      if (lowMem) {
-        const geo = new THREE.SphereGeometry(0.3, 16, 12);
-        const mat = new THREE.MeshBasicMaterial({ color: '#e6e6f0' });
-        group.add(new THREE.Mesh(geo, mat).translateX(0).add(new THREE.Object3D()));
-        group.children[group.children.length - 1].position.copy(moonVec);
-        disposables.push(geo, mat);
+      const viaSat = !!relayTarget && Number.isFinite(relayTarget.lat) && Number.isFinite(relayTarget.lon);
+      let targetVec;
+      let deUp;
+      let dxUp;
+      if (viaSat) {
+        targetVec = latLonToVec3(relayTarget.lat, relayTarget.lon, EARTH_R + (relayTarget.altKm || 0) / 6371);
+        deUp = !!relayTarget.deUp;
+        dxUp = !!relayTarget.dxUp;
+      } else {
+        const moonPos = getMoonPosition(now);
+        targetVec = latLonToVec3(moonPos.lat, moonPos.lon, MOON_DIST);
+        deUp = hasDE && getMoonAzEl(now, lat0, lon0).elevation >= 0;
+        dxUp =
+          Number.isFinite(dxLocation?.lat) &&
+          Number.isFinite(dxLocation?.lon) &&
+          getMoonAzEl(now, dxLocation.lat, dxLocation.lon).elevation >= 0;
+        if (lowMem) {
+          const geo = new THREE.SphereGeometry(0.3, 16, 12);
+          const mat = new THREE.MeshBasicMaterial({ color: '#e6e6f0' });
+          const disc = new THREE.Mesh(geo, mat);
+          disc.position.copy(targetVec);
+          group.add(disc);
+          disposables.push(geo, mat);
+        }
       }
 
       if (hasDE) {
-        const up = getMoonAzEl(now, lat0, lon0).elevation >= 0;
-        addLeg(latLonToVec3(lat0, lon0, EARTH_R * MARKER_ALT), moonVec, cssVarColor('--accent-blue', '#4488ff'), up);
+        addLeg(
+          latLonToVec3(lat0, lon0, EARTH_R * MARKER_ALT),
+          targetVec,
+          cssVarColor('--accent-blue', '#4488ff'),
+          deUp,
+        );
       }
       if (Number.isFinite(dxLocation?.lat) && Number.isFinite(dxLocation?.lon)) {
-        const up = getMoonAzEl(now, dxLocation.lat, dxLocation.lon).elevation >= 0;
         addLeg(
           latLonToVec3(dxLocation.lat, dxLocation.lon, EARTH_R * MARKER_ALT),
-          moonVec,
+          targetVec,
           cssVarColor('--accent-cyan', '#00ddff'),
-          up,
+          dxUp,
         );
       }
       s.requestRender?.();
     };
 
     build();
-    const id = setInterval(build, 60_000);
+    // Moon legs drift slowly (one-minute tick); satellite legs rebuild with
+    // every relayTarget update instead, so no timer in that mode.
+    const id = relayTarget ? null : setInterval(build, 60_000);
     return () => {
-      clearInterval(id);
+      if (id) clearInterval(id);
       clear();
       s.scene?.remove(group);
       s.requestRender?.();
     };
     // themeTick: leg colours come from CSS variables. lowMem: scene rebuild.
-  }, [emeMode, hasDE, lat0, lon0, dxLocation?.lat, dxLocation?.lon, themeTick, lowMem]);
+  }, [emeMode, hasDE, lat0, lon0, dxLocation?.lat, dxLocation?.lon, themeTick, lowMem, relayTarget]);
 
   // ── EME: frame Earth + Moon ──────────────────────────────
   // Orbit around the Earth–Moon midpoint from a point beside the line, tilted
@@ -1489,6 +1518,21 @@ export default function Globe3D({
     }
     // The QTH auto-follow re-centres on Earth; it must not fight the framing.
     userMovedRef.current = true;
+    if (relaySatName) {
+      // Satellite relay: an ordinary Earth-centred orbit above the satellite's
+      // sub-point (LEO — no need to pull back), so DE, satellite and DX all
+      // sit under the camera.
+      const rt = relayTargetRef.current;
+      s.controls.target.set(0, 0, 0);
+      if (rt && Number.isFinite(rt.lat) && Number.isFinite(rt.lon)) {
+        latLonToVec3(rt.lat, rt.lon, DEFAULT_CAM_DISTANCE + 0.6, s.camera.position);
+      } else if (hasDE) {
+        latLonToVec3(lat0, lon0, DEFAULT_CAM_DISTANCE + 0.6, s.camera.position);
+      }
+      s.controls.update();
+      s.requestRender?.();
+      return;
+    }
     const pos = getMoonPosition(new Date());
     const moonDir = latLonToVec3(pos.lat, pos.lon, 1);
     const up = new THREE.Vector3(0, 1, 0);
@@ -1510,7 +1554,9 @@ export default function Globe3D({
     s.controls.update();
     s.requestRender?.();
     // lowMem: scene rebuild — re-apply to the fresh camera/controls.
-  }, [emeMode, emeFrameKey, lowMem]);
+    // relaySatName: re-frame when the relay satellite changes, not per tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emeMode, emeFrameKey, lowMem, relaySatName]);
 
   // ── Trek theme easter egg: the Enterprise on patrol ──────
   // While the LCARS theme is active, a procedural Constitution-class
@@ -2357,6 +2403,14 @@ export default function Globe3D({
     // lowMem: scene rebuild — repopulate the fresh overlay group.
   }, [markers, arcs, lat0, lon0, dxLocation, themeTick, showDeDxMarkers, isDarkBackdrop, lowMem]);
 
+  // Relay mode draws only the relay satellite (the rest are one click away
+  // in the layout's candidate list) and always shows its footprint.
+  const globeSatellites = useMemo(
+    () => (relaySatName ? (satellites || []).filter((sat) => sat.name === relaySatName) : satellites),
+    [satellites, relaySatName],
+  );
+  const isSatSelected = (name) => selectedSats.includes(name) || name === relaySatName;
+
   // ── Satellites ───────────────────────────────────────────
   // Rendered from the same position/track data the Leaflet layer consumes, so
   // both projections agree. The one thing 3D adds for free is honesty about
@@ -2383,13 +2437,13 @@ export default function Globe3D({
     // a group that has since been cleared.
     s.satModelToken = (s.satModelToken || 0) + 1;
 
-    if (!satellitesEnabled || !satellites?.length) return;
+    if (!satellitesEnabled || !globeSatellites?.length) return;
 
     const accentCyan = cssVarColor('--accent-cyan', '#00ddff');
     const accentGreen = cssVarColor('--accent-green', '#00ff88');
     const accentAmber = cssVarColor('--accent-amber', '#ffb432');
     const blending = isDarkBackdrop ? THREE.AdditiveBlending : THREE.NormalBlending;
-    const sats = satellites.filter((sat) => Number.isFinite(sat?.lat) && Number.isFinite(sat?.lon));
+    const sats = globeSatellites.filter((sat) => Number.isFinite(sat?.lat) && Number.isFinite(sat?.lon));
     if (!sats.length) return;
 
     // Dots at true altitude, constant screen size like the spot markers.
@@ -2409,7 +2463,7 @@ export default function Globe3D({
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
       colors[i * 3 + 2] = c.b;
-      sizes[i] = selectedSats.includes(sat.name) ? 13 : 8;
+      sizes[i] = isSatSelected(sat.name) ? 13 : 8;
     });
 
     const geo = new THREE.BufferGeometry();
@@ -2497,7 +2551,7 @@ export default function Globe3D({
         obj.up.copy(pos).normalize();
         obj.lookAt(pos.clone().add(forward.normalize()));
         obj.visible = false; // renderFrame owns visibility via the LOD gate
-        obj.userData.satSelected = selectedSats.includes(sat.name);
+        obj.userData.satSelected = isSatSelected(sat.name);
         s.satGroup.add(obj);
         s.satModels.push(obj);
       };
@@ -2526,7 +2580,7 @@ export default function Globe3D({
     }
 
     sats.forEach((sat) => {
-      const isSelected = selectedSats.includes(sat.name);
+      const isSelected = isSatSelected(sat.name);
       const altR = Math.max(1 + (Number.isFinite(sat.alt) ? sat.alt : 0) / 6371, MARKER_ALT);
 
       // Nadir line — makes the altitude legible against the ground track.
@@ -2595,7 +2649,7 @@ export default function Globe3D({
         s.satGroup.add(lead);
       }
 
-      // Footprint ring for selected satellites — green when workable from DE.
+      // Footprint ring for selected globeSatellites — green when workable from DE.
       if (isSelected && Number.isFinite(sat.footprintRadius) && sat.footprintRadius > 0) {
         const ringPts = footprintRingPoints(sat.lat, sat.lon, sat.footprintRadius / 6371, EARTH_R * 1.003);
         const footprintColor = sat.isVisible ? accentGreen : accentCyan;
@@ -2637,7 +2691,7 @@ export default function Globe3D({
     });
     // lowMem: scene rebuild — repopulate the fresh satellite group.
     s.requestRender?.();
-  }, [satellites, satellitesEnabled, selectedSats, themeTick, isDarkBackdrop, lowMem]);
+  }, [globeSatellites, satellitesEnabled, selectedSats, themeTick, isDarkBackdrop, lowMem, relaySatName]);
 
   // ── Pointer interaction: hover tooltip + click ───────────
   useEffect(() => {

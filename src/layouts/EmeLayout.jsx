@@ -8,7 +8,10 @@
  * sky tracks for both stations on one dial, a DX entry, and cluster spots
  * that look like EME traffic.
  *
- * Satellite-relay (DE→sat→DX) is a planned follow-up on the same chassis.
+ * SAT mode swaps the moon for a relay satellite: legs go DE→satellite→DX,
+ * only that satellite is drawn (with its footprint), and the rail lists the
+ * tracked satellites that carry a repeater/transponder, ranked by their next
+ * mutual pass, with the selected pass's timing and live Doppler for DE.
  */
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { WorldMap } from '../components';
@@ -22,11 +25,38 @@ import {
   isEmeSpot,
   formatDurationShort,
 } from '../utils/eme.js';
+import {
+  satrecFor,
+  makeObserver,
+  relayGeometry,
+  computeMutualPasses,
+  rankRelayCandidates,
+  dopplerCorrected,
+  formatMHz,
+} from '../utils/satRelay.js';
 import { findDXPathForSpot } from '../utils/dxClusterSpotMatcher';
 
 const ACCENT = '#c9d1e6'; // moonlight
+const SAT_ACCENT = '#ffb432';
 const DE_COLOR = '#4488ff';
 const DX_COLOR = '#00ddff';
+const MODE_KEY = 'openhamclock_emeMode';
+const RELAY_SAT_KEY = 'openhamclock_emeRelaySat';
+
+const readStored = (key, fallback) => {
+  try {
+    return localStorage.getItem(key) || fallback;
+  } catch {
+    return fallback;
+  }
+};
+const writeStored = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* private mode */
+  }
+};
 
 const fmtUtc = (d) => (d ? d.toISOString().substring(11, 16) + 'z' : '—');
 const fmtDay = (d) => (d ? d.toISOString().substring(5, 10) : '');
@@ -50,17 +80,33 @@ export default function EmeLayout(props) {
     toggleDXLabels,
     hoveredSpot,
     setShowSettings,
+    filteredSatellites,
   } = props;
 
   const [seconds, setSeconds] = useState(() => String(new Date().getUTCSeconds()).padStart(2, '0'));
   const [minuteTick, setMinuteTick] = useState(0);
   const [frameKey, setFrameKey] = useState(0);
   const [minElev, setMinElev] = useState(0);
+  // MOON (EME) or SAT (relay through a repeater/transponder satellite)
+  const [mode, setModeState] = useState(() => (readStored(MODE_KEY, 'moon') === 'sat' ? 'sat' : 'moon'));
+  const setMode = (m) => {
+    setModeState(m);
+    writeStored(MODE_KEY, m);
+    setFrameKey((k) => k + 1);
+  };
+  const [relaySatName, setRelaySatState] = useState(() => readStored(RELAY_SAT_KEY, ''));
+  const setRelaySat = (name) => {
+    setRelaySatState(name);
+    writeStored(RELAY_SAT_KEY, name);
+  };
+  const [secondTick, setSecondTick] = useState(0);
+  const satMinElev = Number.isFinite(config.satellite?.minElev) ? config.satellite.minElev : 5;
 
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       setSeconds(String(now.getUTCSeconds()).padStart(2, '0'));
+      setSecondTick((t) => t + 1);
       if (now.getUTCSeconds() === 0) setMinuteTick((t) => t + 1);
     }, 1000);
     return () => clearInterval(timer);
@@ -92,6 +138,64 @@ export default function EmeLayout(props) {
   );
 
   const emeSpots = useMemo(() => (dxClusterData?.spots || []).filter(isEmeSpot), [dxClusterData?.spots]);
+
+  // ── Satellite relay mode ───────────────────────────────────────────────
+  const satMode = mode === 'sat';
+  const trackedSats = useMemo(
+    () => (Array.isArray(filteredSatellites) ? filteredSatellites : []),
+    [filteredSatellites],
+  );
+
+  // Candidates ranked by next mutual pass — a 24 h scan per relay-capable
+  // satellite at a one-minute step; recomputed every 10 minutes or when the
+  // DX / tracked list / threshold changes. Runs only in SAT mode.
+  const candidates = useMemo(() => {
+    if (!satMode || !de) return [];
+    return rankRelayCandidates(trackedSats, new Date(), de, dxLocation, {
+      hours: 24,
+      stepSec: 60,
+      minElev: satMinElev,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satMode, trackedSats, de?.lat, de?.lon, dxLat, dxLon, satMinElev, tenMinTick]);
+
+  // Default the selection to the best candidate when nothing (valid) is chosen
+  const relaySat = useMemo(() => trackedSats.find((s) => s.name === relaySatName) || null, [trackedSats, relaySatName]);
+  useEffect(() => {
+    if (!satMode || relaySat || !candidates.length) return;
+    const first = candidates.find((c) => c.relay) || candidates[0];
+    if (first) setRelaySat(first.sat.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satMode, relaySat, candidates]);
+
+  // Selected satellite's passes at a finer step
+  const relayPasses = useMemo(() => {
+    if (!satMode || !relaySat?.omm || !de || !dxLocation) return [];
+    return computeMutualPasses(relaySat.omm, new Date(), de, dxLocation, {
+      hours: 24,
+      stepSec: 30,
+      minElev: satMinElev,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satMode, relaySat?.name, relaySat?.omm, de?.lat, de?.lon, dxLat, dxLon, satMinElev, tenMinTick]);
+
+  // Live geometry every second: position for the globe legs, look angles for
+  // both ends, Doppler for DE.
+  const live = useMemo(() => {
+    if (!satMode || !relaySat?.omm || !de) return null;
+    const g = relayGeometry(satrecFor(relaySat.omm), new Date(), makeObserver(de), makeObserver(dxLocation));
+    if (!g) return null;
+    return { ...g, deUp: g.de.elevation >= satMinElev, dxUp: !!g.dx && g.dx.elevation >= satMinElev };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satMode, relaySat?.name, relaySat?.omm, de?.lat, de?.lon, dxLat, dxLon, satMinElev, secondTick]);
+
+  const relayTarget = useMemo(
+    () => (live ? { lat: live.lat, lon: live.lon, altKm: live.altKm, deUp: live.deUp, dxUp: live.dxUp } : null),
+    [live],
+  );
+  const relayTx = relaySat?.relayTransmitters?.[0] || null;
+  const doppler = live && relayTx ? dopplerCorrected(relayTx, live.de.dopplerFactor) : null;
+  const common = !!(live?.deUp && live?.dxUp);
 
   const handleSpotClick = useCallback(
     (spot) => {
@@ -142,10 +246,47 @@ export default function EmeLayout(props) {
           <span style={{ color: '#667', fontSize: '11px' }}>{deGridStr}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '16px' }}>{snap?.moon.phaseEmoji || '🌙'}</span>
-          <span style={{ color: ACCENT, fontWeight: 700, fontSize: '16px', letterSpacing: '2px' }}>
-            EME · MOONBOUNCE
+          <span style={{ fontSize: '16px' }}>{satMode ? '🛰️' : snap?.moon.phaseEmoji || '🌙'}</span>
+          <span
+            style={{ color: satMode ? SAT_ACCENT : ACCENT, fontWeight: 700, fontSize: '16px', letterSpacing: '2px' }}
+          >
+            {satMode ? 'SAT RELAY' : 'EME · MOONBOUNCE'}
           </span>
+          <div
+            role="tablist"
+            aria-label="Relay mode"
+            style={{
+              display: 'flex',
+              marginLeft: '10px',
+              border: '1px solid #333',
+              borderRadius: '4px',
+              overflow: 'hidden',
+            }}
+          >
+            {[
+              ['moon', '🌙 MOON'],
+              ['sat', '🛰️ SAT'],
+            ].map(([m, label]) => (
+              <button
+                key={m}
+                role="tab"
+                aria-selected={mode === m}
+                onClick={() => setMode(m)}
+                style={{
+                  background: mode === m ? (m === 'sat' ? SAT_ACCENT : ACCENT) : 'transparent',
+                  color: mode === m ? '#000' : '#888',
+                  border: 'none',
+                  padding: '3px 9px',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'pointer',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <span
             style={{
               color: '#888',
@@ -158,22 +299,38 @@ export default function EmeLayout(props) {
           >
             BETA
           </span>
-          {snap && (
-            <span
-              style={{
-                marginLeft: '10px',
-                fontSize: '10px',
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: '10px',
-                background: snap.mutual ? 'rgba(34,197,94,0.15)' : 'rgba(136,136,136,0.12)',
-                color: snap.mutual ? '#22c55e' : '#888',
-                border: `1px solid ${snap.mutual ? '#22c55e' : '#444'}`,
-              }}
-            >
-              {snap.mutual ? 'MUTUAL WINDOW OPEN' : snap.dx ? 'NO COMMON MOON' : 'SET A DX TARGET'}
-            </span>
-          )}
+          {(() => {
+            const good = satMode ? common : !!snap?.mutual;
+            let text = null;
+            if (satMode) {
+              text = !relaySat
+                ? 'PICK A SATELLITE'
+                : common
+                  ? 'COMMON FOOTPRINT'
+                  : live?.dx
+                    ? 'NOT IN COMMON VIEW'
+                    : 'SET A DX TARGET';
+            } else if (snap) {
+              text = snap.mutual ? 'MUTUAL WINDOW OPEN' : snap.dx ? 'NO COMMON MOON' : 'SET A DX TARGET';
+            }
+            if (!text) return null;
+            return (
+              <span
+                style={{
+                  marginLeft: '10px',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  background: good ? 'rgba(34,197,94,0.15)' : 'rgba(136,136,136,0.12)',
+                  color: good ? '#22c55e' : '#888',
+                  border: `1px solid ${good ? '#22c55e' : '#444'}`,
+                }}
+              >
+                {text}
+              </span>
+            );
+          })()}
         </div>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px' }}>
           <span style={{ color: '#fff', fontWeight: 600 }}>
@@ -196,6 +353,8 @@ export default function EmeLayout(props) {
             projectionOverride="globe3d"
             emeMode={true}
             emeFrameKey={frameKey}
+            relaySatName={satMode ? relaySat?.name || null : null}
+            relayTarget={satMode ? relayTarget : null}
             potaSpots={[]}
             sotaSpots={[]}
             wwbotaSpots={[]}
@@ -205,7 +364,7 @@ export default function EmeLayout(props) {
             dxFilters={dxFilters}
             mapBandFilter={mapBandFilter}
             onMapBandFilterChange={setMapBandFilter}
-            satellites={[]}
+            satellites={satMode ? trackedSats : []}
             pskReporterSpots={[]}
             showDeDxMarkers={mapLayers?.showDeDxMarkers ?? true}
             showDXPaths={false}
@@ -215,7 +374,7 @@ export default function EmeLayout(props) {
             showSOTA={false}
             showWWBOTA={false}
             showCANParks={false}
-            showSatellites={false}
+            showSatellites={satMode}
             showPSKReporter={false}
             showPSKPaths={false}
             wsjtxSpots={[]}
@@ -248,7 +407,7 @@ export default function EmeLayout(props) {
               cursor: 'pointer',
             }}
           >
-            🌙 Frame Earth + Moon
+            {satMode ? '🛰️ Frame satellite' : '🌙 Frame Earth + Moon'}
           </button>
         </div>
 
@@ -264,130 +423,250 @@ export default function EmeLayout(props) {
             gap: '8px',
           }}
         >
-          {/* MOON NOW */}
-          <PanelSection title="Moon Now" color={ACCENT}>
-            {!snap ? (
-              <EmptyState text="Set your station location in Settings" />
-            ) : (
-              <div style={{ padding: '4px 8px', fontSize: '11px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', marginBottom: '6px' }}>
-                  <span>
-                    {snap.moon.phaseEmoji} {phaseName(snap.moon.phase)}
-                  </span>
-                  <span>{Math.round(snap.moon.distanceKm).toLocaleString()} km</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', marginBottom: '8px' }}>
-                  <span>
-                    Dec{' '}
-                    <b style={{ color: snap.moon.declination >= 0 ? '#22c55e' : '#f59e0b' }}>
-                      {snap.moon.declination >= 0 ? '+' : ''}
-                      {snap.moon.declination.toFixed(1)}°
-                    </b>
-                  </span>
-                  <span>
-                    Path{' '}
-                    <b style={{ color: snap.moon.pathDeltaDb <= 0 ? '#22c55e' : '#f59e0b' }}>
-                      {snap.moon.pathDeltaDb >= 0 ? '+' : ''}
-                      {snap.moon.pathDeltaDb.toFixed(1)} dB
-                    </b>
-                    <span style={{ color: '#667' }}> vs mean</span>
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                  <StationCard label="DE" color={DE_COLOR} view={snap.de} grid={deGridStr} />
-                  <StationCard
-                    label={dxCallsign ? `DX · ${dxCallsign}` : 'DX'}
-                    color={DX_COLOR}
-                    view={snap.dx}
-                    grid={dxGrid}
-                  />
-                </div>
-              </div>
-            )}
-          </PanelSection>
-
-          {/* SKY TRACKS */}
-          <PanelSection title="Sky Tracks · next 24h" color={ACCENT}>
-            {!snap ? (
-              <EmptyState text="No station location" />
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 8px' }}>
-                <MoonSkyChart
-                  size={150}
-                  ariaLabel="Moon sky tracks for DE and DX"
-                  tracks={[
-                    { points: tracks.de, color: DE_COLOR },
-                    { points: tracks.dx, color: DX_COLOR, dash: '3,2' },
-                  ]}
-                  markers={[
-                    { az: snap.de?.azimuth, el: snap.de?.elevation, color: DE_COLOR, label: 'DE' },
-                    ...(snap.dx ? [{ az: snap.dx.azimuth, el: snap.dx.elevation, color: DX_COLOR, label: 'DX' }] : []),
-                  ]}
-                />
-                <div style={{ fontSize: '10px', color: '#aaa', lineHeight: 1.7 }}>
-                  <div>
-                    <span style={{ color: DE_COLOR }}>━━</span> DE track
-                  </div>
-                  <div>
-                    <span style={{ color: DX_COLOR }}>┄┄</span> DX track
-                  </div>
-                  <div style={{ color: '#667', marginTop: '4px' }}>
-                    Centre = zenith
-                    <br />
-                    Edge = horizon
-                    <br />
-                    Hollow = below
-                  </div>
-                </div>
-              </div>
-            )}
-          </PanelSection>
-
-          {/* MUTUAL WINDOWS */}
-          <PanelSection
-            title="Mutual Windows · 48h"
-            count={windows.length}
-            color="#22c55e"
-            extra={
-              <select
-                value={minElev}
-                onChange={(e) => setMinElev(Number(e.target.value))}
-                title="Minimum elevation at both ends"
-                style={{
-                  background: '#141826',
-                  border: '1px solid #2a3040',
-                  borderRadius: '3px',
-                  color: '#aaa',
-                  fontSize: '9px',
-                  padding: '1px 4px',
-                  marginLeft: '6px',
-                }}
+          {satMode && (
+            <>
+              {/* RELAY CANDIDATES */}
+              <PanelSection
+                title="Relay Satellites"
+                count={candidates.filter((c) => c.relay).length}
+                color={SAT_ACCENT}
               >
-                {[0, 5, 10, 15, 20, 30].map((v) => (
-                  <option key={v} value={v}>
-                    ≥ {v}°
-                  </option>
-                ))}
-              </select>
-            }
-          >
-            {!snap?.dx ? (
-              <EmptyState text="Set a DX target to see when you both see the moon" />
-            ) : windows.length === 0 ? (
-              <EmptyState text={`No shared moon above ${minElev}° in the next 48 hours`} />
-            ) : (
-              <div style={{ padding: '2px 4px' }}>
-                {nextWindow && !openWindow && (
-                  <div style={{ fontSize: '10px', color: '#667', padding: '2px 4px 6px' }}>
-                    Next window opens in {formatDurationShort(nextWindow.start - Date.now())}
+                {trackedSats.length === 0 ? (
+                  <EmptyState text="No satellites tracked — pick some in Settings → Satellites" />
+                ) : (
+                  candidates.map(({ sat, relay, nextPass }) => {
+                    const sel = sat.name === relaySat?.name;
+                    const tx = sat.relayTransmitters?.[0];
+                    return (
+                      <div
+                        key={sat.name}
+                        onClick={() => setRelaySat(sat.name)}
+                        title={relay ? 'Select for relay' : 'No repeater/transponder data in SatNOGS'}
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '11px',
+                          marginBottom: '2px',
+                          borderLeft: `2px solid ${sel ? SAT_ACCENT : relay ? '#2a3040' : 'transparent'}`,
+                          background: sel ? 'rgba(255,180,50,0.08)' : '#0d1117',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          opacity: relay ? 1 : 0.55,
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ color: sel ? SAT_ACCENT : '#ddd', fontWeight: 600 }}>{sat.name}</span>
+                          <span style={{ color: nextPass ? '#22c55e' : '#667', fontSize: '10px' }}>
+                            {nextPass
+                              ? nextPass.open
+                                ? 'in common view now'
+                                : `mutual in ${formatDurationShort(nextPass.start - Date.now())}`
+                              : relay
+                                ? 'no mutual pass in 24h'
+                                : 'no relay data'}
+                          </span>
+                        </div>
+                        {tx && (
+                          <div style={{ color: '#888', fontSize: '10px' }}>
+                            {tx.mode} · ↑ {tx.uplink} · ↓ {tx.downlink}
+                            {tx.tone ? ` · ${tx.tone}` : ''}
+                            {sat.relayTransmitters.length > 1 ? ` · +${sat.relayTransmitters.length - 1}` : ''}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </PanelSection>
+
+              {/* LIVE */}
+              <PanelSection title={relaySat ? `Live · ${relaySat.name}` : 'Live'} color={SAT_ACCENT}>
+                {!live ? (
+                  <EmptyState text={relaySat ? 'Waiting for orbital elements' : 'Select a satellite above'} />
+                ) : (
+                  <div style={{ padding: '4px 8px', fontSize: '11px' }}>
+                    <div
+                      style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', marginBottom: '6px' }}
+                    >
+                      <span>
+                        {live.lat.toFixed(1)}°, {live.lon.toFixed(1)}°
+                      </span>
+                      <span>{Math.round(live.altKm)} km alt</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                      <SatCard label="DE" color={DE_COLOR} view={live.de} up={live.deUp} minElev={satMinElev} />
+                      <SatCard
+                        label={dxCallsign ? `DX · ${dxCallsign}` : 'DX'}
+                        color={DX_COLOR}
+                        view={live.dx}
+                        up={live.dxUp}
+                        minElev={satMinElev}
+                      />
+                    </div>
+                    {relayTx && (
+                      <div style={{ marginTop: '8px', background: '#0d1117', borderRadius: '4px', padding: '6px 8px' }}>
+                        <div style={{ color: '#888', fontSize: '10px', marginBottom: '3px' }}>
+                          {relayTx.mode}
+                          {relayTx.invert ? ' · inverting' : ''} · Doppler-corrected at DE
+                        </div>
+                        <DopplerRow label="↑ TX" hz={doppler?.uplinkHz} shift={doppler?.uplinkShiftHz} />
+                        <DopplerRow label="↓ RX" hz={doppler?.downlinkHz} shift={doppler?.downlinkShiftHz} />
+                      </div>
+                    )}
                   </div>
                 )}
-                {windows.map((w, i) => (
-                  <WindowRow key={i} w={w} />
-                ))}
-              </div>
-            )}
-          </PanelSection>
+              </PanelSection>
+
+              {/* MUTUAL PASSES */}
+              <PanelSection title="Mutual Passes · 24h" count={relayPasses.length} color="#22c55e">
+                {!relaySat ? (
+                  <EmptyState text="Select a satellite" />
+                ) : !live?.dx ? (
+                  <EmptyState text="Set a DX target to see when you both see it" />
+                ) : relayPasses.length === 0 ? (
+                  <EmptyState text={`No pass with both ends ≥ ${satMinElev}° in the next 24 hours`} />
+                ) : (
+                  <div style={{ padding: '2px 4px' }}>
+                    {relayPasses.map((p, i) => (
+                      <PassRow key={i} p={p} />
+                    ))}
+                  </div>
+                )}
+              </PanelSection>
+            </>
+          )}
+
+          {/* MOON NOW */}
+          {!satMode && (
+            <PanelSection title="Moon Now" color={ACCENT}>
+              {!snap ? (
+                <EmptyState text="Set your station location in Settings" />
+              ) : (
+                <div style={{ padding: '4px 8px', fontSize: '11px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', marginBottom: '6px' }}>
+                    <span>
+                      {snap.moon.phaseEmoji} {phaseName(snap.moon.phase)}
+                    </span>
+                    <span>{Math.round(snap.moon.distanceKm).toLocaleString()} km</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', marginBottom: '8px' }}>
+                    <span>
+                      Dec{' '}
+                      <b style={{ color: snap.moon.declination >= 0 ? '#22c55e' : '#f59e0b' }}>
+                        {snap.moon.declination >= 0 ? '+' : ''}
+                        {snap.moon.declination.toFixed(1)}°
+                      </b>
+                    </span>
+                    <span>
+                      Path{' '}
+                      <b style={{ color: snap.moon.pathDeltaDb <= 0 ? '#22c55e' : '#f59e0b' }}>
+                        {snap.moon.pathDeltaDb >= 0 ? '+' : ''}
+                        {snap.moon.pathDeltaDb.toFixed(1)} dB
+                      </b>
+                      <span style={{ color: '#667' }}> vs mean</span>
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                    <StationCard label="DE" color={DE_COLOR} view={snap.de} grid={deGridStr} />
+                    <StationCard
+                      label={dxCallsign ? `DX · ${dxCallsign}` : 'DX'}
+                      color={DX_COLOR}
+                      view={snap.dx}
+                      grid={dxGrid}
+                    />
+                  </div>
+                </div>
+              )}
+            </PanelSection>
+          )}
+
+          {/* SKY TRACKS */}
+          {!satMode && (
+            <PanelSection title="Sky Tracks · next 24h" color={ACCENT}>
+              {!snap ? (
+                <EmptyState text="No station location" />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 8px' }}>
+                  <MoonSkyChart
+                    size={150}
+                    ariaLabel="Moon sky tracks for DE and DX"
+                    tracks={[
+                      { points: tracks.de, color: DE_COLOR },
+                      { points: tracks.dx, color: DX_COLOR, dash: '3,2' },
+                    ]}
+                    markers={[
+                      { az: snap.de?.azimuth, el: snap.de?.elevation, color: DE_COLOR, label: 'DE' },
+                      ...(snap.dx
+                        ? [{ az: snap.dx.azimuth, el: snap.dx.elevation, color: DX_COLOR, label: 'DX' }]
+                        : []),
+                    ]}
+                  />
+                  <div style={{ fontSize: '10px', color: '#aaa', lineHeight: 1.7 }}>
+                    <div>
+                      <span style={{ color: DE_COLOR }}>━━</span> DE track
+                    </div>
+                    <div>
+                      <span style={{ color: DX_COLOR }}>┄┄</span> DX track
+                    </div>
+                    <div style={{ color: '#667', marginTop: '4px' }}>
+                      Centre = zenith
+                      <br />
+                      Edge = horizon
+                      <br />
+                      Hollow = below
+                    </div>
+                  </div>
+                </div>
+              )}
+            </PanelSection>
+          )}
+
+          {/* MUTUAL WINDOWS */}
+          {!satMode && (
+            <PanelSection
+              title="Mutual Windows · 48h"
+              count={windows.length}
+              color="#22c55e"
+              extra={
+                <select
+                  value={minElev}
+                  onChange={(e) => setMinElev(Number(e.target.value))}
+                  title="Minimum elevation at both ends"
+                  style={{
+                    background: '#141826',
+                    border: '1px solid #2a3040',
+                    borderRadius: '3px',
+                    color: '#aaa',
+                    fontSize: '9px',
+                    padding: '1px 4px',
+                    marginLeft: '6px',
+                  }}
+                >
+                  {[0, 5, 10, 15, 20, 30].map((v) => (
+                    <option key={v} value={v}>
+                      ≥ {v}°
+                    </option>
+                  ))}
+                </select>
+              }
+            >
+              {!snap?.dx ? (
+                <EmptyState text="Set a DX target to see when you both see the moon" />
+              ) : windows.length === 0 ? (
+                <EmptyState text={`No shared moon above ${minElev}° in the next 48 hours`} />
+              ) : (
+                <div style={{ padding: '2px 4px' }}>
+                  {nextWindow && !openWindow && (
+                    <div style={{ fontSize: '10px', color: '#667', padding: '2px 4px 6px' }}>
+                      Next window opens in {formatDurationShort(nextWindow.start - Date.now())}
+                    </div>
+                  )}
+                  {windows.map((w, i) => (
+                    <WindowRow key={i} w={w} />
+                  ))}
+                </div>
+              )}
+            </PanelSection>
+          )}
 
           {/* DX TARGET */}
           <PanelSection title="DX Target" color={DX_COLOR}>
@@ -426,54 +705,130 @@ export default function EmeLayout(props) {
           </PanelSection>
 
           {/* EME SPOTS */}
-          <PanelSection title="EME Spots" count={emeSpots.length} color="#a855f7">
-            {emeSpots.length === 0 ? (
-              <EmptyState text="No cluster spots on EME bands mentioning EME / JT65 / Q65 right now" />
-            ) : (
-              emeSpots.map((spot, i) => (
-                <div
-                  key={`${spot.call}-${spot.freq}-${spot.spotter}-${i}`}
-                  onClick={() => handleSpotClick(spot)}
-                  title="Set as DX target"
-                  style={{
-                    padding: '4px 8px',
-                    fontSize: '11px',
-                    marginBottom: '2px',
-                    borderLeft: '2px solid #a855f7',
-                    background: '#0d1117',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#161b2a')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = '#0d1117')}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>
-                      <b style={{ color: '#a855f7' }}>{spot.call}</b>
-                      <span style={{ color: '#888', marginLeft: '6px', fontSize: '10px' }}>{spot.freq} MHz</span>
-                    </span>
-                    <span style={{ color: '#667', fontSize: '10px' }}>
-                      {spot.time} · {spot.spotter}
-                    </span>
-                  </div>
-                  {spot.comment && (
-                    <div
-                      style={{
-                        color: '#aaa',
-                        fontSize: '10px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {spot.comment}
+          {!satMode && (
+            <PanelSection title="EME Spots" count={emeSpots.length} color="#a855f7">
+              {emeSpots.length === 0 ? (
+                <EmptyState text="No cluster spots on EME bands mentioning EME / JT65 / Q65 right now" />
+              ) : (
+                emeSpots.map((spot, i) => (
+                  <div
+                    key={`${spot.call}-${spot.freq}-${spot.spotter}-${i}`}
+                    onClick={() => handleSpotClick(spot)}
+                    title="Set as DX target"
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      marginBottom: '2px',
+                      borderLeft: '2px solid #a855f7',
+                      background: '#0d1117',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#161b2a')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = '#0d1117')}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>
+                        <b style={{ color: '#a855f7' }}>{spot.call}</b>
+                        <span style={{ color: '#888', marginLeft: '6px', fontSize: '10px' }}>{spot.freq} MHz</span>
+                      </span>
+                      <span style={{ color: '#667', fontSize: '10px' }}>
+                        {spot.time} · {spot.spotter}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))
-            )}
-          </PanelSection>
+                    {spot.comment && (
+                      <div
+                        style={{
+                          color: '#aaa',
+                          fontSize: '10px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {spot.comment}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </PanelSection>
+          )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Per-station satellite look-angle card. */
+function SatCard({ label, color, view, up, minElev }) {
+  return (
+    <div style={{ background: '#0d1117', borderRadius: '4px', padding: '6px 8px', borderTop: `2px solid ${color}` }}>
+      <div style={{ color, fontWeight: 700, fontSize: '10px', marginBottom: '4px' }}>{label}</div>
+      {!view ? (
+        <div style={{ color: '#667', fontSize: '10px' }}>no target</div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: '#888' }}>AZ</span>
+            <b style={{ color: '#ddd' }}>{Math.round(view.azimuth)}°</b>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: '#888' }}>EL</span>
+            <b style={{ color: up ? '#22c55e' : '#888' }} title={`workable at ≥ ${minElev}°`}>
+              {up ? '▲' : '▼'} {view.elevation.toFixed(1)}°
+            </b>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: '#888' }}>Range</span>
+            <span style={{ color: '#aaa' }}>{Math.round(view.rangeKm).toLocaleString()} km</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DopplerRow({ label, hz, shift }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <span style={{ color: '#888' }}>{label}</span>
+      <b style={{ color: '#ddd' }}>{formatMHz(hz)} MHz</b>
+      <span style={{ color: '#667', fontSize: '10px', minWidth: '58px', textAlign: 'right' }}>
+        {Number.isFinite(shift) ? `${shift >= 0 ? '+' : ''}${Math.round(shift)} Hz` : ''}
+      </span>
+    </div>
+  );
+}
+
+function PassRow({ p }) {
+  const now = Date.now();
+  const active = p.start.getTime() <= now && p.end.getTime() > now;
+  return (
+    <div
+      style={{
+        padding: '4px 8px',
+        fontSize: '11px',
+        marginBottom: '2px',
+        borderLeft: `2px solid ${active ? '#22c55e' : '#2a3040'}`,
+        background: active ? 'rgba(34,197,94,0.08)' : '#0d1117',
+        borderRadius: '4px',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span style={{ color: active ? '#22c55e' : '#ddd', fontWeight: 600 }}>
+          {fmtDay(p.start)} {fmtUtc(p.start)} → {fmtUtc(p.end)}
+          {p.truncated ? '+' : ''}
+        </span>
+        <span style={{ color: '#888' }}>{formatDurationShort(p.end - p.start)}</span>
+      </div>
+      <div style={{ color: '#667', fontSize: '10px' }}>
+        {active ? `open · closes in ${formatDurationShort(p.end - now)} · ` : ''}
+        peak common {p.peakCommonEl.toFixed(0)}° at {fmtUtc(p.peakAt)}
+      </div>
+      <div style={{ color: '#667', fontSize: '10px' }}>
+        <span style={{ color: DE_COLOR }}>DE</span> {fmtUtc(p.de.aos)}–{fmtUtc(p.de.los)} ·{' '}
+        <span style={{ color: DX_COLOR }}>DX</span> {fmtUtc(p.dx.aos)}–{fmtUtc(p.dx.los)}
       </div>
     </div>
   );
