@@ -7,6 +7,9 @@ import {
   rankRelayCandidates,
   hasRelay,
   dopplerCorrected,
+  matchSatSpot,
+  satShortName,
+  findAmsatRow,
 } from './satRelay.js';
 
 // ISS-like element set (mid-2026 epoch). Structural checks only — the tests
@@ -122,5 +125,39 @@ describe('dopplerCorrected', () => {
   it('handles missing data', () => {
     expect(dopplerCorrected(null, 1)).toBeNull();
     expect(dopplerCorrected(tx, 0)).toBeNull();
+  });
+});
+
+describe('matchSatSpot / satShortName / findAmsatRow', () => {
+  const tracked = ['ISS (ZARYA)', 'SO-50', 'AO-91 (Fox-1B)', 'RS-44 (DOSAAF)'];
+  it('recognises satellite spots on satellite bands and names the tracked bird', () => {
+    expect(matchSatSpot({ freq: '145.850', comment: 'via SO-50 FM 67.0' }, tracked)).toEqual({ satName: 'SO-50' });
+    expect(matchSatSpot({ freq: '436.795', comment: 'AO-91 loud' }, tracked)).toEqual({ satName: 'AO-91 (Fox-1B)' });
+    expect(matchSatSpot({ freq: '437.800', comment: 'ISS repeater' }, tracked)).toEqual({ satName: 'ISS (ZARYA)' });
+    expect(matchSatSpot({ freq: '29.450', comment: 'AO-7 mode A' }, tracked)).toEqual({ satName: null });
+  });
+  it('rejects non-satellite VHF traffic and HF', () => {
+    expect(matchSatSpot({ freq: '144.174', comment: 'FT8 tropo' }, tracked)).toBeNull();
+    expect(matchSatSpot({ freq: '14.074', comment: 'via SO-50' }, tracked)).toBeNull();
+    expect(matchSatSpot(null, tracked)).toBeNull();
+  });
+  it('shortens tracked names to their designator', () => {
+    expect(satShortName('AO-91 (Fox-1B)')).toBe('AO-91');
+    expect(satShortName('ISS (ZARYA)')).toBe('ISS');
+  });
+  it('pairs tracked satellites with AMSAT status rows, preferring the voice row for the ISS', () => {
+    const rows = [
+      { name: 'ISS [DATA]' },
+      { name: 'ISS [FM]' },
+      { name: 'SO-50 [FM]' },
+      { name: 'AO-91 [FM]' },
+      { name: 'FO-29 [V/u]' },
+      { name: 'GRBBeta [UHF Digi]' },
+    ];
+    expect(findAmsatRow('ISS (ZARYA)', rows).name).toBe('ISS [FM]');
+    expect(findAmsatRow('SO-50', rows).name).toBe('SO-50 [FM]');
+    expect(findAmsatRow('AO-91 (Fox-1B)', rows).name).toBe('AO-91 [FM]');
+    expect(findAmsatRow('FO-29 (JAS-2)', rows).name).toBe('FO-29 [V/u]');
+    expect(findAmsatRow('RS-44 (DOSAAF)', rows)).toBeNull();
   });
 });

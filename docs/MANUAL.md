@@ -486,7 +486,8 @@ The rail:
 - **Sky Tracks** — both stations' moon tracks for the next 24 hours on one polar dial (centre = zenith, edge = horizon), with each station's moon marker; hollow markers are below the horizon at their rising azimuth.
 - **Mutual Windows** — the next 48 hours of windows where _both_ ends have the moon at or above the selectable minimum elevation, with duration, the peak of the lower elevation, and a countdown to the next one. The header badge turns green while a window is open.
 - **DX Target** — type a grid, click the globe, or pick a spot; lock it while you work a station.
-- **EME Spots** — DX cluster spots on an amateur EME band (6 m and up) whose comment mentions EME, moonbounce, JT65, Q65, or QRA64. Clicking one sets it as the DX target.
+- **EME Activity (PSK Reporter)** — every Q65 and JT65 report at 50 MHz and above from PSK Reporter's live feed over the last two hours, sender → receiver with mode, frequency, SNR and grids. Q65 is a VHF+ mode by design and JT65 above 6 m is EME, so this is where digital moonbounce activity actually shows up. Clicking a row sets the sender as the DX target. The server subscribes to the band-wide feed only while an EME layout is asking for it.
+- **EME Spots (cluster)** — DX cluster spots on an amateur EME band (6 m and up) whose comment mentions EME, moonbounce, JT65, Q65, or QRA64. Clicking one sets it as the DX target.
 
 ### SAT mode: relay through a satellite
 
@@ -495,6 +496,8 @@ The **MOON / SAT** switch in the header swaps the moon for a repeater or transpo
 - **Relay Satellites** — your tracked satellites that carry an active repeater or transponder (an uplink _and_ a downlink in the SatNOGS transmitter database), ranked by their next mutual pass with the current DX, with mode and frequencies. Satellites without relay data stay listed, greyed, so you can see what is tracked. Clicking one selects it.
 - **Live** — the satellite's position and altitude, azimuth/elevation/range from both ends, and the Doppler-corrected uplink and downlink for _your_ end, updating every second. The header badge turns green with COMMON FOOTPRINT while both stations see it.
 - **Mutual Passes** — the next 24 hours of passes where both ends have the satellite at or above the minimum elevation: the common window, its duration and peak common elevation, and each station's own AOS–LOS around it.
+- **Sat Spots (cluster)** — satellite contacts in the DX cluster feed: spots on satellite bands whose comment names a bird ("via SO-50", "AO-91 FM") or says SAT. When the comment names one of your tracked satellites, clicking the spot selects that satellite and sets the DX target.
+- Each relay candidate also shows its **AMSAT status board** line (Heard / Not Heard / Crew Active, last heard, report count) from the same feed as the AMSAT Status panel.
 
 DX-side Doppler is deliberately not shown — that belongs to the other operator's radio.
 

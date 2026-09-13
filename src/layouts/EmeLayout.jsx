@@ -17,7 +17,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { WorldMap } from '../components';
 import { DXGridInput } from '../components/DXGridInput.jsx';
 import { MoonSkyChart } from '../components/MoonSkyChart.jsx';
-import { latLonToMaidenhead } from '../utils/geo.js';
+import { latLonToMaidenhead, maidenheadToLatLon } from '../utils/geo.js';
 import {
   computeEmeSnapshot,
   computeMutualWindows,
@@ -33,7 +33,10 @@ import {
   rankRelayCandidates,
   dopplerCorrected,
   formatMHz,
+  matchSatSpot,
+  findAmsatRow,
 } from '../utils/satRelay.js';
+import { apiFetch } from '../utils/apiFetch.js';
 import { findDXPathForSpot } from '../utils/dxClusterSpotMatcher';
 
 const ACCENT = '#c9d1e6'; // moonlight
@@ -196,6 +199,79 @@ export default function EmeLayout(props) {
   const relayTx = relaySat?.relayTransmitters?.[0] || null;
   const doppler = live && relayTx ? dopplerCorrected(relayTx, live.de.dopplerFactor) : null;
   const common = !!(live?.deUp && live?.dxUp);
+
+  // ── Activity feeds ─────────────────────────────────────────────────────
+  // MOON: PSK Reporter Q65/JT65 reports at 50 MHz+ (band-wide, via the
+  // server's MQTT proxy) — where digital EME activity is actually visible.
+  const [emeActivity, setEmeActivity] = useState({ spots: [], connected: null });
+  useEffect(() => {
+    if (satMode) return undefined;
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await apiFetch('/api/pskreporter/eme?minutes=120', { cache: 'no-store' });
+        if (!res?.ok) return;
+        const data = await res.json();
+        if (alive) setEmeActivity({ spots: Array.isArray(data.spots) ? data.spots : [], connected: !!data.connected });
+      } catch {
+        /* keep the last list */
+      }
+    };
+    load();
+    const id = setInterval(load, 60_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [satMode]);
+
+  // SAT: AMSAT status board (already proxied for the AMSAT panel) — who has
+  // been heard on which bird over the last few days.
+  const [amsat, setAmsat] = useState({ satellites: [], hours: null });
+  useEffect(() => {
+    if (!satMode) return undefined;
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await apiFetch('/api/amsat/status');
+        if (!res?.ok) return;
+        const data = await res.json();
+        if (alive) setAmsat({ satellites: Array.isArray(data.satellites) ? data.satellites : [], hours: data.hours });
+      } catch {
+        /* keep the last board */
+      }
+    };
+    load();
+    const id = setInterval(load, 10 * 60_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [satMode]);
+
+  // SAT: satellite contacts in the cluster feed ("via SO-50", "AO-91 FM"…)
+  const trackedNames = useMemo(() => trackedSats.map((s) => s.name), [trackedSats]);
+  const satSpots = useMemo(
+    () =>
+      (dxClusterData?.spots || [])
+        .map((spot) => {
+          const m = matchSatSpot(spot, trackedNames);
+          return m ? { spot, satName: m.satName } : null;
+        })
+        .filter(Boolean),
+    [dxClusterData?.spots, trackedNames],
+  );
+
+  const handleEmeActivityClick = useCallback(
+    (r) => {
+      const loc =
+        Number.isFinite(r.senderLat) && Number.isFinite(r.senderLon)
+          ? { lat: r.senderLat, lon: r.senderLon }
+          : maidenheadToLatLon(r.senderGrid || '');
+      if (loc) handleDXChange({ lat: loc.lat, lon: loc.lon, callsign: r.sender ?? null });
+    },
+    [handleDXChange],
+  );
 
   const handleSpotClick = useCallback(
     (spot) => {
@@ -472,6 +548,7 @@ export default function EmeLayout(props) {
                             {sat.relayTransmitters.length > 1 ? ` · +${sat.relayTransmitters.length - 1}` : ''}
                           </div>
                         )}
+                        <AmsatLine row={findAmsatRow(sat.name, amsat.satellites)} hours={amsat.hours} />
                       </div>
                     );
                   })
@@ -530,6 +607,61 @@ export default function EmeLayout(props) {
                       <PassRow key={i} p={p} />
                     ))}
                   </div>
+                )}
+              </PanelSection>
+
+              {/* SAT SPOTS (cluster) */}
+              <PanelSection title="Sat Spots · cluster" count={satSpots.length} color="#a855f7">
+                {satSpots.length === 0 ? (
+                  <EmptyState text="No satellite contacts in the cluster feed right now (spots like “via SO-50” on 2 m / 70 cm)" />
+                ) : (
+                  satSpots.map(({ spot, satName }, i) => (
+                    <div
+                      key={`${spot.call}-${spot.freq}-${spot.spotter}-${i}`}
+                      onClick={() => {
+                        if (satName) setRelaySat(satName);
+                        handleSpotClick(spot);
+                      }}
+                      title={satName ? `Select ${satName} and set DX` : 'Set as DX target'}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '11px',
+                        marginBottom: '2px',
+                        borderLeft: `2px solid ${satName ? SAT_ACCENT : '#a855f7'}`,
+                        background: '#0d1117',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#161b2a')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = '#0d1117')}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>
+                          <b style={{ color: '#a855f7' }}>{spot.call}</b>
+                          <span style={{ color: '#888', marginLeft: '6px', fontSize: '10px' }}>{spot.freq} MHz</span>
+                          {satName && (
+                            <span style={{ color: SAT_ACCENT, marginLeft: '6px', fontSize: '10px' }}>{satName}</span>
+                          )}
+                        </span>
+                        <span style={{ color: '#667', fontSize: '10px' }}>
+                          {spot.time} · {spot.spotter}
+                        </span>
+                      </div>
+                      {spot.comment && (
+                        <div
+                          style={{
+                            color: '#aaa',
+                            fontSize: '10px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {spot.comment}
+                        </div>
+                      )}
+                    </div>
+                  ))
                 )}
               </PanelSection>
             </>
@@ -704,9 +836,71 @@ export default function EmeLayout(props) {
             </div>
           </PanelSection>
 
-          {/* EME SPOTS */}
+          {/* EME ACTIVITY (PSK Reporter) */}
           {!satMode && (
-            <PanelSection title="EME Spots" count={emeSpots.length} color="#a855f7">
+            <PanelSection
+              title="EME Activity · PSK Reporter"
+              count={emeActivity.spots.length}
+              color="#38bdf8"
+              extra={
+                <span style={{ color: '#667', fontSize: '9px', marginLeft: '6px' }}>
+                  Q65 / JT65 · 50 MHz+ · 2h
+                  {emeActivity.connected === false ? ' · feed offline' : ''}
+                </span>
+              }
+            >
+              {emeActivity.spots.length === 0 ? (
+                <EmptyState
+                  text={
+                    emeActivity.connected === false
+                      ? 'PSK Reporter feed not connected'
+                      : 'No Q65 / JT65 reports above 50 MHz in the last two hours'
+                  }
+                />
+              ) : (
+                emeActivity.spots.slice(0, 60).map((r, i) => (
+                  <div
+                    key={`${r.sender}-${r.receiver}-${r.freq}-${r.timestamp}-${i}`}
+                    onClick={() => handleEmeActivityClick(r)}
+                    title="Set the sender as DX target"
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      marginBottom: '2px',
+                      borderLeft: '2px solid #38bdf8',
+                      background: '#0d1117',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#161b2a')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = '#0d1117')}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>
+                        <b style={{ color: '#38bdf8' }}>{r.sender}</b>
+                        <span style={{ color: '#667', margin: '0 5px' }}>→</span>
+                        <span style={{ color: '#ddd' }}>{r.receiver}</span>
+                        <span style={{ color: '#888', marginLeft: '6px', fontSize: '10px' }}>
+                          {r.mode} · {r.freqMHz} MHz
+                        </span>
+                      </span>
+                      <span style={{ color: '#667', fontSize: '10px' }}>
+                        {Number.isFinite(r.snr) ? `${r.snr >= 0 ? '+' : ''}${r.snr} dB · ` : ''}
+                        {fmtUtc(new Date(r.timestamp))}
+                      </span>
+                    </div>
+                    <div style={{ color: '#667', fontSize: '10px' }}>
+                      {r.senderGrid || '?'} → {r.receiverGrid || '?'}
+                    </div>
+                  </div>
+                ))
+              )}
+            </PanelSection>
+          )}
+
+          {/* EME SPOTS (cluster) */}
+          {!satMode && (
+            <PanelSection title="EME Spots · cluster" count={emeSpots.length} color="#a855f7">
               {emeSpots.length === 0 ? (
                 <EmptyState text="No cluster spots on EME bands mentioning EME / JT65 / Q65 right now" />
               ) : (
@@ -785,6 +979,20 @@ function SatCard({ label, color, view, up, minElev }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** AMSAT status board line for a relay candidate. */
+function AmsatLine({ row, hours }) {
+  if (!row) return null;
+  const heard = row.status === 'Heard' || row.status === 'Crew Active';
+  const ago = row.lastHeard ? formatDurationShort(Date.now() - Date.parse(row.lastHeard)) : null;
+  return (
+    <div style={{ color: '#667', fontSize: '10px' }}>
+      AMSAT: <span style={{ color: heard ? '#22c55e' : '#888' }}>{row.status}</span>
+      {ago && heard ? ` ${ago} ago` : ''}
+      {row.total ? ` · ${row.total} reports${hours ? ` / ${hours}h` : ''}` : ''}
     </div>
   );
 }

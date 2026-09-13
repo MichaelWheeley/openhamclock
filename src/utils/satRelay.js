@@ -227,3 +227,70 @@ export function dopplerCorrected(tx, dopplerFactor) {
 
 export const formatMHz = (hz, digits = 4) => (Number.isFinite(hz) ? (hz / 1e6).toFixed(digits) : '—');
 export { C_KM_S };
+
+// ── Cluster spot matching ────────────────────────────────────────────────
+/** Amateur satellite downlink/uplink ranges, MHz (incl. AO-7 mode A on 10 m). */
+const SAT_BANDS_MHZ = [
+  [29.3, 29.55],
+  [145.8, 146.0],
+  [435.0, 438.0],
+  [1260.0, 1270.0],
+  [2400.0, 2450.0],
+];
+const SAT_WORDS_RE = /\bSAT\b|\bSATELLITE\b|\bVIA\b|\bOSCAR\b|\bFM\s?SAT\b|\bLINEAR\b|\bTRANSPONDER\b/i;
+const SAT_DESIGNATOR_RE =
+  /\b(?:AO|SO|RS|FO|JO|IO|PO|CAS|TEVEL2?|LILACSAT|XW|EO|NO|HO|MO|QO|TO|UO|VO|ISS)-?\d*[A-Z]?\b/i;
+
+/** Short designator a satellite is known by in spot comments: "AO-91 (Fox-1B)" → "AO-91", "ISS (ZARYA)" → "ISS". */
+export function satShortName(name) {
+  return String(name || '')
+    .split(' (')[0]
+    .trim()
+    .toUpperCase();
+}
+
+/**
+ * Is this cluster spot a satellite contact, and via which tracked satellite?
+ * @param {object} spot  cluster spot ({ freq: "145.850" MHz string, comment })
+ * @param {string[]} [trackedNames]  satellite names to recognise by designator
+ * @returns {null|{ satName: string|null }}  null when not a satellite spot;
+ *   satName is the tracked satellite's full name when the comment names it.
+ */
+export function matchSatSpot(spot, trackedNames = []) {
+  if (!spot) return null;
+  const f = Number(spot.freq);
+  if (!Number.isFinite(f) || !SAT_BANDS_MHZ.some(([lo, hi]) => f >= lo && f <= hi)) return null;
+  const comment = String(spot.comment || '').toUpperCase();
+  let satName = null;
+  for (const name of trackedNames) {
+    const short = satShortName(name);
+    if (short && new RegExp(`\\b${short.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`).test(comment)) {
+      satName = name;
+      break;
+    }
+  }
+  if (!satName && !SAT_WORDS_RE.test(comment) && !SAT_DESIGNATOR_RE.test(comment)) return null;
+  return { satName };
+}
+
+/**
+ * Pair AMSAT status rows with a tracked satellite. AMSAT names look like
+ * "ISS [FM]", "FO-29 [V/u]", "AO-91 [FM]", "GRBBeta [UHF Digi]": designator
+ * plus a bracketed mode tag. Match on the designator; when a bird has several
+ * rows, prefer the voice/transponder one over data or digipeater rows.
+ * @param {string} trackedName
+ * @param {Array<{name:string}>} amsatRows
+ */
+export function findAmsatRow(trackedName, amsatRows = []) {
+  const short = satShortName(trackedName);
+  if (!short) return null;
+  const parse = (n) => {
+    const str = String(n || '');
+    const m = str.match(/^\s*([^[\]]+?)\s*(?:\[([^\]]*)\])?\s*$/);
+    return { short: (m ? m[1] : str).trim().toUpperCase().replace(/\s+/g, ''), tag: m && m[2] ? m[2] : '' };
+  };
+  const rows = amsatRows.map((r) => ({ r, ...parse(r.name) })).filter((x) => x.short === short);
+  if (!rows.length) return null;
+  const voice = rows.find((x) => /FM|V\/U|U\/V|L\/V|VOICE|REPEATER|TRANSPONDER|SSB|LINEAR/i.test(x.tag));
+  return (voice || rows[0]).r;
+}
