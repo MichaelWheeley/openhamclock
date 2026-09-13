@@ -47,6 +47,10 @@ OpenHamClock is a browser app. Everything you configure — callsign, layout, fi
 
 The header bar shows your callsign (click it to open Settings), the version number (click it to open the What's New release notes), UTC and local clocks (click the local clock to flip 12/24-hour), current weather, and live SFI / K / SSN indices. On self-hosted installs an **UPDATE** button appears when a new version is available.
 
+![The Modern layout: header bar with clocks and solar indices, DE and DX panels, the world map, and the spot panels](images/manual/layout-modern.jpg)
+
+_The Modern layout: header bar with clocks and solar indices, DE and DX panels, the world map, and the spot panels_
+
 Two terms you'll see everywhere, inherited from the original HamClock:
 
 - **DE** — your station ("from" in Morse shorthand).
@@ -68,6 +72,10 @@ A projection toggle on the map switches between three views:
 | **Azimuthal** | Azimuthal-equidistant projection centered on your QTH — the "beam heading" view. A straight line from center is your true antenna bearing.                                                                                                                                                                                               |
 | **3D Globe**  | A WebGL globe with true great-circle arcs, a real day/night terminator, and satellites orbiting at actual altitude with ground tracks and footprints. The 3D engine lazy-loads on first use and renders only when something changes, so an idle globe is cheap even on a Pi. No WebGL? The app falls back to the flat map automatically. |
 
+<table>
+<tr><td width="33%" valign="top"><img src="images/manual/map-flat.jpg" alt="Flat (Mercator)"><br><sub>Flat (Mercator)</sub></td><td width="33%" valign="top"><img src="images/manual/map-azimuthal.jpg" alt="Azimuthal — centred on your QTH"><br><sub>Azimuthal — centred on your QTH</sub></td><td width="33%" valign="top"><img src="images/manual/map-globe.jpg" alt="3D globe with satellites at true altitude"><br><sub>3D globe with satellites at true altitude</sub></td></tr>
+</table>
+
 All spot traffic (DX cluster, POTA/SOTA/WWFF/WWBOTA, PSKReporter, WSJT-X) and map overlays render in all three projections. On the globe, zooming in on a satellite swaps its dot for a 3D model — the ISS uses NASA's actual station model; other birds get procedural models matched to their type. The globe's overlay coverage now includes the weather and hazard layers: NEXRAD radar, live lightning, earthquakes, wildfires, floods/severe storms, tornado warnings, live aircraft, and ATC sectors all paint onto the 3D globe (joining aurora, D-RAP, zones, Maidenhead, and worked grids). The **moon** also appears in the 3D scene — at its real position over the Earth, showing its actual current phase via NASA's Dial-A-Moon imagery, refreshed hourly. Size and distance are compressed so it's visible (a to-scale moon would be a sub-pixel dot thirty Earth-widths away); the Earth occludes it correctly as it sets. Both are skipped in Low Memory Mode.
 
 ### Basemap styles
@@ -84,6 +92,10 @@ Other map controls: zoom, a **map lock** (prevents accidental pan/zoom on touch 
 ### Map layers
 
 Around 29 overlay layers can be toggled from **Settings → Map Layers** (grouped by category, each with an opacity slider) or with the single-key [keyboard shortcuts](#keyboard-shortcuts). All layers except Satellite Tracks default to off.
+
+![Settings → Map Layers: every overlay grouped by category, each with an opacity slider](images/manual/settings-map-layers.jpg)
+
+_Settings → Map Layers: every overlay grouped by category, each with an opacity slider_
 
 **Propagation**
 
@@ -132,8 +144,8 @@ Around 29 overlay layers can be toggled from **Settings → Map Layers** (groupe
 | Aircraft            | Live civilian aircraft (adsb.lol), with an optional track-prediction lead time                                                                                                                                                                                                    | X   |
 | ATC Sectors         | FIR/ARTCC boundaries with primary frequencies and LiveATC links                                                                                                                                                                                                                   | Z   |
 | Active Users        | Other OpenHamClock operators, live (opt out in Settings → Station)                                                                                                                                                                                                                | U   |
-| Logged QSOs (N3FJP) | Recently logged QSOs and live entry previews from the N3FJP bridge (self-hosted)                                                                                                                                                                                                  | N   |
-| Logged QSOs (API)   | QSOs pushed by any external logger via the open REST API (self-hosted) — see [API.md](API.md)                                                                                                                                                                                     | —   |
+| Logged QSOs (N3FJP) | Recently logged QSOs and live entry previews from the N3FJP bridge (self-hosted); each contact gets a callsign pill in the layer colour (previews with a trailing ?) that follows the map's Show/Hide Calls button                                                                | N   |
+| Logged QSOs (API)   | QSOs pushed by any external logger via the open REST API (self-hosted) — see [API.md](API.md); callsign pills as above, per-QSO colours carry into the pill                                                                                                                       | —   |
 | History Playback    | Scrub through the last 24h of DX spots — timeline slider, 5–60 min window, play/pause with speeds up to 15 min/s, paths colored by band. Works on the flat map and the 3D globe, sharing one timeline. History records from server start; the control shows how far back it goes. | —   |
 
 **Write your own layer or panel:** drop a plugin file into `src/plugins/local/` (map layers) or `src/plugins/local/panels/` (dockable panels) and it's auto-discovered — no registration, and it survives updates. See [PLUGINS.md](PLUGINS.md).
@@ -142,11 +154,15 @@ Around 29 overlay layers can be toggled from **Settings → Map Layers** (groupe
 
 - **Your station (DE)** is marked at your configured location. The DE panel shows grid, coordinates, sunrise/sunset, and local weather.
 - **Click anywhere on the map** to set the DX target there. The DX panel updates with bearing, distance, grid, sun times, and (optionally) weather; the propagation panels recalculate for the new path.
-- **Click any spot** (cluster, POTA, PSK, WSJT-X…) to set that station as the DX target.
+- **Click any spot** (cluster, POTA, PSK, WSJT-X…) to set that station as the DX target. The map drops a short expanding-ring **pulse** on the target so your eye finds it in a busy view, and pans to it if it is off-screen (if it is already in view the map stays put). APRS panel rows and, in the EmComm layout, station, gateway, and roster rows work the same way. Flat map only for now — the Azimuthal and 3D views ignore the pan.
 - **Type a locator:** click the DX grid display and enter a grid like `JN58sm`.
 - **DX Favorites:** star up to 10 DX grids for one-click recall — great for regular skeds.
 - **DXCC entity picker:** browse/search the full DXCC list next to the DX grid display.
 - If you have a rotator connected, **Shift+click the map** to turn the antenna to that bearing.
+
+![The DE and DX panels: grid, coordinates, sun times, weather, and the DX bearing and distance](images/manual/panel-de-location.jpg)
+
+_The DE and DX panels: grid, coordinates, sun times, weather, and the DX bearing and distance_
 
 ### Map Data text view (accessibility)
 
@@ -157,6 +173,14 @@ The **Map Data (text view)** panel renders the map's content as structured, scre
 ## Keyboard shortcuts
 
 Press **`?`** anywhere to open the shortcuts panel. Shortcuts are ignored while typing in a text field, while a modal is open, or when Ctrl/Alt/Cmd is held. Layer keys are pinned — adding new layers never reshuffles them.
+
+![The shortcuts panel (press ? anywhere)](images/manual/keyboard-shortcuts.jpg)
+
+_The shortcuts panel (press ? anywhere)_
+
+![The command palette (Ctrl/Cmd+K): jump to any panel, layout, layer, or setting by name](images/manual/command-palette.jpg)
+
+_The command palette (Ctrl/Cmd+K): jump to any panel, layout, layer, or setting by name_
 
 **Command palette.** Press **Ctrl+K** (⌘K on Mac) for a fuzzy-searchable list of most things you can do: toggle map layers, switch layouts (named dockable presets included, as "Dockable — _name_"), open Settings on a specific tab, jump to a manual topic, toggle fullscreen, open What's New — and, in the Dockable layout, open or focus any panel. Arrow keys select, Enter runs, Esc closes.
 
@@ -202,7 +226,15 @@ Mouse extras: **Shift+click** the map turns a connected rotator; holding **Ctrl*
 
 In the **Dockable** layout, every panel below can be added from the **+** panel picker — a category-grouped, multi-column grid that scrolls — then dragged, tabbed, split, and resized however you like (a lock toggle freezes the arrangement). Other layouts include a curated subset.
 
+![The Dockable layout: panels as draggable, tabbable, resizable tiles](images/manual/layout-dockable.jpg)
+
+_The Dockable layout: panels as draggable, tabbable, resizable tiles_
+
 ### Spots and activity
+
+![The DX Cluster panel: band-coloured spots with age, mode, and the tune / listen / log buttons](images/manual/panel-dx-cluster.jpg)
+
+_The DX Cluster panel: band-coloured spots with age, mode, and the tune / listen / log buttons_
 
 - **DX Cluster** — live spots with band coloring, filtering, worked/dupe badges, click-to-tune, click-to-listen, and log-from-spot. Detailed below in [DX cluster in depth](#dx-cluster-in-depth).
 - **PSK Reporter** — who hears you (**TX** tab) and who you hear (**RX** tab) on digital modes, live via a server-side MQTT proxy with HTTP fallback. Filter by band, mode, retention window (2–15 min), callsign or grid. A gold star ★ marks _mutual_ reception — you hear them and they hear you on the same band, so a QSO is likely. A trash-can button clears all spots.
@@ -215,6 +247,10 @@ In the **Dockable** layout, every panel below can be added from the **+** panel 
 - **POTA Activator** — self-spotting for park activations. Enter the park reference (verified live against the POTA park directory, so you see the park name before you post), frequency in kHz, and mode; the spot posts to pota.app under your callsign. POTA's response is shown verbatim, and a 30-second cooldown prevents accidental double-spots. Re-spot after a QSY to stay on the hunters' active list.
 
 ### Propagation and space weather
+
+![The Solar panel cycling through live imagery, indices, X-ray flux, and the moon](images/manual/panel-solar.jpg)
+
+_The Solar panel cycling through live imagery, indices, X-ray flux, and the moon_
 
 - **Propagation (VOACAP Chart / Bars)** — per-band reliability between DE and DX, as a 24-hour chart or as bars for right now. Detailed below in [Propagation in depth](#propagation-in-depth).
 - **Sked Planner** — best times to work the current DX target over the next 48 hours: a band × hour grid colored by the same P.533 predictions the VOACAP panel computes (same mode/power/antenna settings — changing them here changes them everywhere), annotated with UTC plus both stations' local hours and sunrise/sunset markers, with the top three contact windows called out ("Best: 20m 02:00–05:00z"). Day 2 tiles the 24-hour monthly-median prediction honestly — HF predictions repeat diurnally, so it's labeled as a repeat, not a fresh forecast.
@@ -299,6 +335,10 @@ On the **hosted site**, spots come from the **OpenHamClock Cluster** — our own
 Cluster logins use your callsign with SSID `-56` (`-57` for a second instance; the original HamClock uses `-55`, so they coexist). Spots stay in the list for `SPOT_RETENTION_MINUTES` (default 30).
 
 ### Filters
+
+![The DX spot filter dialog: band, mode, continent, and more](images/manual/dx-filters.jpg)
+
+_The DX spot filter dialog: band, mode, continent, and more_
 
 The funnel icon opens the DX Filter Manager. Filters combine with AND:
 
@@ -405,6 +445,10 @@ Data acknowledgement: ionosonde data from prop.kc2g.com originates from the [Glo
 
 The Satellite Tracks layer (key **S**, on by default) tracks amateur satellites with SGP4 orbital mechanics computed in your browser.
 
+![Settings → Satellites: pick your birds, station altitude, minimum elevation, track duration](images/manual/settings-satellites.jpg)
+
+_Settings → Satellites: pick your birds, station altitude, minimum elevation, track duration_
+
 - **Element sets** are fetched server-side from **CelesTrak**, **AMSAT**, and **SatNOGS** (each individually disableable in `.env`), with **Space-Track** available as the primary source if you add credentials. Multi-source failover means a rate-limited upstream doesn't blank your sky.
 - **Pick your birds** in **Settings → Satellites**: search, select, Select All/Clear. Only selected satellites are computed — a real CPU saver on a Pi. Set your **station altitude** and **minimum elevation** (default 5°) for pass math.
 - **Track duration** is configurable — the slider draws ±15 to ±120 minutes of orbit (default 45), and footprint circles can be toggled.
@@ -428,6 +472,10 @@ Two dockable panels build on the tracking:
 - **What doesn't:** everything else in OpenHamClock works without it, hosted or self-hosted.
 
 **Setup:** Settings → **Rig Bridge** tab → enable, download for your OS (Windows/Mac/Linux — requires Node.js and git), run it, and configure your radio in its local setup UI (default `http://localhost:5555`). Read [rig-bridge/README.md](../rig-bridge/README.md) first — it covers every radio and plugin in detail.
+
+![Settings → Rig Bridge: enable, download for your OS, connect](images/manual/settings-rig-bridge.jpg)
+
+_Settings → Rig Bridge: enable, download for your OS, connect_
 
 **Plugins at a glance:**
 
@@ -462,6 +510,10 @@ Selecting a callsign in WSJT-X can auto-set your DX target, and clicking a decod
 
 A purpose-built dashboard for ARES/RACES/SKYWARN and served-agency work (Settings → Display → Layout → **EmComm**). Design principle: **local-first** — with a local TNC, the core functions work over RF alone when the internet is down.
 
+![The EmComm layout: map with range rings and alert polygons, and the operations rail](images/manual/layout-emcomm.jpg)
+
+_The EmComm layout: map with range rings and alert polygons, and the operations rail_
+
 - **Map:** range rings at 50/100/200 km, NWS alert polygons by severity, shelter markers, EmComm APRS stations, and an APRS source toggle (All / RF Only / Internet Only).
 - **Panels:** Resource Summary (aggregated resource dashboard), NWS Alerts, FEMA Disaster Declarations, Nearby Shelters (with capacity, ♿ and 🐾 indicators — including shelter reports heard over RF), EmComm Stations, and a live Net Roster.
 - **Net operations:** check in by APRS message (`CQ NETNAME <status>` to `EMCOMM`), check out with `U NETNAME`, or use the manual check-in API; the roster tracks status, last-heard, and resources.
@@ -480,6 +532,10 @@ Deep dive: [docs/emcomm-roadmap.md](emcomm-roadmap.md).
 
 A moonbounce operating dashboard (Settings → Display → Layout → **EME**). The map is pinned to the 3D globe (your saved projection for the other layouts is untouched) and framed so Earth and Moon share the view, with the **DE→Moon** and **Moon→DX** legs drawn between them: a leg is solid in its station's colour while that station can see the moon and turns dashed red once the moon drops below its horizon. The moon sits at a compressed distance (true scale is ~60 Earth radii, which would shrink Earth to a dot); the rail shows the real distance. **Frame Earth + Moon** re-centres the view after you have orbited away.
 
+![The EME layout in MOON mode: Earth and Moon framed together with the DE→Moon and Moon→DX legs, moon readouts, sky tracks, mutual windows, and the PSK Reporter EME activity feed](images/manual/layout-eme.jpg)
+
+_The EME layout in MOON mode: Earth and Moon framed together with the DE→Moon and Moon→DX legs, moon readouts, sky tracks, mutual windows, and the PSK Reporter EME activity feed_
+
 The rail:
 
 - **Moon Now** — phase, distance, declination (positive is the northern hemisphere's friend), the two-way path-loss delta against the mean distance (loss goes with distance⁴, so the perigee–apogee cycle is worth about ±2 dB), and an az/el card for each end with the next rise or set.
@@ -493,6 +549,10 @@ The rail:
 
 The **MOON / SAT** switch in the header swaps the moon for a repeater or transponder satellite. The globe shows only the selected satellite, at its true altitude with its footprint cone, and the legs run **DE→satellite→DX** with the same solid-or-dashed-red rule, judged against your satellite minimum elevation (Settings → Satellites). **Frame satellite** centres the view over its sub-point.
 
+![SAT mode: the relay satellite at true altitude with its footprint cone, DE→satellite→DX legs, live look angles, and mutual passes](images/manual/layout-eme-sat.jpg)
+
+_SAT mode: the relay satellite at true altitude with its footprint cone, DE→satellite→DX legs, live look angles, and mutual passes_
+
 - **Relay Satellites** — your tracked satellites that carry an active repeater or transponder (an uplink _and_ a downlink in the SatNOGS transmitter database), ranked by their next mutual pass with the current DX, with mode and frequencies. Satellites without relay data stay listed, greyed, so you can see what is tracked. Clicking one selects it.
 - **Live** — the satellite's position and altitude, azimuth/elevation/range from both ends, and the Doppler-corrected uplink and downlink for _your_ end, updating every second. The header badge turns green with COMMON FOOTPRINT while both stations see it.
 - **Mutual Passes** — the next 24 hours of passes where both ends have the satellite at or above the minimum elevation: the common window, its duration and peak common elevation, and each station's own AOS–LOS around it.
@@ -502,6 +562,10 @@ The **MOON / SAT** switch in the header swaps the moon for a repeater or transpo
 DX-side Doppler is deliberately not shown — that belongs to the other operator's radio.
 
 ## Alerts and notifications
+
+![Settings → Alerts: pick what wakes you and how](images/manual/settings-alerts.jpg)
+
+_Settings → Alerts: pick what wakes you and how_
 
 **Settings → Alerts** plays a tone when new items appear in a feed. Feeds: POTA, SOTA, WWFF, WWBOTA, CANParks, DX Cluster, Watchlist Hits, DXpeditions, Contests, Contest Starts, Satellite Passes, Band Openings, Lightning Proximity, and Space Weather — all off by default, each with its own tone (nine Web Audio presets — no sound files) and a master volume.
 
@@ -541,19 +605,29 @@ Separately from the PWA, the app polls the server version and — on the hosted 
 
 ### Layouts (Settings → Display)
 
-| Layout          | Best for                                                                                                                       |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Modern**      | Widescreen monitors — responsive 3-column grid around the map                                                                  |
-| **Classic**     | Dedicated displays and Pi kiosks — the original HamClock look, refreshed                                                       |
-| **Tablet**      | 7–10" widescreen displays (16:9)                                                                                               |
-| **Compact**     | 4:3 and smaller screens — data-first                                                                                           |
-| **Dockable**    | Power users — every panel draggable, tabbable, resizable; layout lock; reset button                                            |
-| **EmComm**      | Emergency communications operations (beta)                                                                                     |
-| **Contest**     | Contest operating — quick-log strip, dupe check, rate meter, session multipliers                                               |
-| **Activator**   | In the field: POTA self-spotting, activations, RBN "am I being heard", nearby repeaters — park/summit map overlays switched on |
-| **Hunter**      | Chasing activators: DX cluster, every activation program, sun & moon — spot overlays and DX paths switched on                  |
-| **Weather**     | Radar, lightning, natural-hazard, and aurora overlays on a big map, with terrestrial + space weather panels                    |
-| **Air Traffic** | Live aircraft and ATC sector overlays over a dominant map, with the Aircraft Nearby list and world clocks                      |
+| Layout          | Best for                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Modern**      | Widescreen monitors — responsive 3-column grid around the map                                                                         |
+| **Classic**     | Dedicated displays and Pi kiosks — the original HamClock look, refreshed                                                              |
+| **Tablet**      | 7–10" widescreen displays (16:9)                                                                                                      |
+| **Compact**     | 4:3 and smaller screens — data-first                                                                                                  |
+| **Dockable**    | Power users — every panel draggable, tabbable, resizable; layout lock; reset button                                                   |
+| **EmComm**      | Emergency communications operations (beta)                                                                                            |
+| **Contest**     | Contest operating — quick-log strip, dupe check, rate meter, session multipliers                                                      |
+| **Activator**   | In the field: POTA self-spotting, activations, RBN "am I being heard", nearby repeaters — park/summit map overlays switched on        |
+| **Hunter**      | Chasing activators: DX cluster, every activation program, sun & moon — spot overlays and DX paths switched on                         |
+| **Weather**     | Radar, lightning, natural-hazard, and aurora overlays on a big map, with terrestrial + space weather panels                           |
+| **Air Traffic** | Live aircraft and ATC sector overlays over a dominant map, with the Aircraft Nearby list and world clocks                             |
+| **EME**         | Moonbounce and satellite relay on the 3D globe — DE→Moon→DX or DE→satellite→DX legs, mutual windows and passes, activity feeds (beta) |
+
+<table>
+<tr><td width="50%" valign="top"><img src="images/manual/layout-modern.jpg" alt="Modern"><br><sub>Modern</sub></td><td width="50%" valign="top"><img src="images/manual/layout-classic.jpg" alt="Classic"><br><sub>Classic</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="images/manual/layout-tablet.jpg" alt="Tablet"><br><sub>Tablet</sub></td><td width="50%" valign="top"><img src="images/manual/layout-compact.jpg" alt="Compact"><br><sub>Compact</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="images/manual/layout-dockable.jpg" alt="Dockable"><br><sub>Dockable</sub></td><td width="50%" valign="top"><img src="images/manual/layout-emcomm.jpg" alt="EmComm"><br><sub>EmComm</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="images/manual/layout-contest.jpg" alt="Contest"><br><sub>Contest</sub></td><td width="50%" valign="top"><img src="images/manual/layout-eme.jpg" alt="EME"><br><sub>EME</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="images/manual/layout-activator.jpg" alt="Activator"><br><sub>Activator</sub></td><td width="50%" valign="top"><img src="images/manual/layout-hunter.jpg" alt="Hunter"><br><sub>Hunter</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="images/manual/layout-weather.jpg" alt="Weather"><br><sub>Weather</sub></td><td width="50%" valign="top"><img src="images/manual/layout-airtraffic.jpg" alt="Air Traffic"><br><sub>Air Traffic</sub></td></tr>
+</table>
 
 The four focus layouts (Activator/Hunter/Weather/Air Traffic) fully reset the overlays each time you switch into one: the layout's own preset is applied exhaustively, and when you leave, your previous layer setup is restored exactly as it was.
 
@@ -565,6 +639,10 @@ The four focus layouts (Activator/Hunter/Weather/Air Traffic) fully reset the ov
 
 A dedicated single-screen layout for contest weekends — no map, maximum information density, and everything one keystroke away.
 
+![The Contest layout: quick-log strip, rate meter, multipliers, and the cluster pane](images/manual/layout-contest.jpg)
+
+_The Contest layout: quick-log strip, rate meter, multipliers, and the cluster pane_
+
 - **Quick-log strip.** A persistent callsign box sits right under the header. As you type, it renders an instant verdict for the current band+mode: **DUPE** (already worked on this band+mode), **WKD** (in the log, but not on this band+mode), or **NEW** — plus a **NEW ENTITY** / **NEW BAND** flag when the call's DXCC entity would be an all-time or band new one. Press **Enter** and the QSO is logged straight into the native logbook with the rig's current frequency and mode (or the manual band/mode picks when no rig is connected), the box clears, and focus stays put for the next call. **Esc** clears without logging. RST defaults follow the mode (59 phone / 599 everything else), and QSOs flow to Wavelog/QRZ push if those integrations are on.
 - **Contest picker.** A select in the header chooses the contest, and the quick-log strip grows the right exchange columns for it — labeled, validated, and cty.dat-autofilled where possible: **CQ WW DX** (RST + CQ zone, zone autofilled from the callsign), **CQ WPX** (RST + serial), **ARRL DX** (RST + a smart State/Power field — a state or province maps to ADIF `STATE`, a wattage to `RX_PWR`), **ARRL Field Day** (class + section), **ARRL Sweepstakes** (serial + precedence + check + section), **IARU HF** (RST + ITU zone or HQ society, zone autofilled), **NAQP** (name + state/province), plus **Generic serial** and the default **General DX** (RST only — the original behavior). Contests that need your own sent values (my zone / class / section / precedence-check / name) collect them once in a compact setup row before logging enables; serial contests show your auto-incrementing sent number (recomputed from the session log, so it survives reloads). Every logged QSO carries the full ADIF contest mapping — `CONTEST_ID` (mode-correct, e.g. `CQ-WW-CW` vs `CQ-WW-SSB`), `STX`/`SRX` serials, `STX_STRING`/`SRX_STRING` composites, and the specific fields ADIF defines (`CQZ`, `ITUZ`, `CLASS`, `ARRL_SECT`, `PRECEDENCE`, `CHECK`, `STATE`, `MY_CQ_ZONE`, …) — so the ADIF export drops straight into a log checker. Switching contests mid-session warns first; logged QSOs are never modified.
 - **Rate meter.** QSOs in the last 10 and 60 minutes, the extrapolated hourly rate, and a trailing-hour sparkline in 5-minute buckets.
@@ -575,9 +653,18 @@ The session marker syncs and profiles like any other setting, so a mid-contest b
 
 ### Themes (Settings → Display)
 
+![Settings → Display: layout, theme, fonts, header size, scene rotation](images/manual/settings-display.jpg)
+
+_Settings → Display: layout, theme, fonts, header size, scene rotation_
+
 The interface chrome — panel picker, settings tabs, sidebar, and map control buttons — now uses a stroke-based line-icon set instead of emoji, so icons render identically on every OS and follow your theme colors. Panels added by plugins keep showing their emoji.
 
 **Dark** (default), **Light**, **Legacy** (green CRT terminal), **Retro** (90s Windows), and **Custom** — a full editor for backgrounds, text, borders, map ocean, and every accent color. You can also pick the monospace font used for callsigns and frequencies (JetBrains Mono, Fira Code, IBM Plex Mono — the latter two with slashed zeros). Six more themes join the lineup, and the character themes bring a whole design language, not just a palette: **Matrix** (the movie treatment — live katakana digital rain falling behind translucent glass panels, CRT scanlines, phosphor glow, flickering headers, all-monospace; the rain is skipped in Low Memory Mode and under reduced-motion), **8-Bit** (console graphics — pixel font on headers and buttons, stepped pixel-rounded dialog corners, solid menu-bar headers, buttons that physically press in, pixelated map tiles), **Trek** (LCARS-style bridge console — pure black wells with rounded orange/lavender elbow bars, pill headers and pill buttons, condensed all-caps type), **Steampunk** (brass double-frame panels with corner rivets, engraved serif headers, sepia-aged map tiles), plus two color moods: **Midnight** (deep blue and ice) and **Ember** (tube-amp warmth). All work everywhere the built-in themes do, including the map ocean color and both 2D and 3D projections. Self-hosted installs get the pixel and LCARS fonts after re-running `scripts/vendor-download.sh`; without them the themes fall back to system faces.
+
+<table>
+<tr><td width="50%" valign="top"><img src="images/manual/theme-light.jpg" alt="Light"><br><sub>Light</sub></td><td width="50%" valign="top"><img src="images/manual/theme-retro.jpg" alt="Retro"><br><sub>Retro</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="images/manual/theme-trek.jpg" alt="Trek (LCARS)"><br><sub>Trek (LCARS)</sub></td><td width="50%" valign="top"><img src="images/manual/theme-midnight.jpg" alt="Midnight"><br><sub>Midnight</sub></td></tr>
+</table>
 
 The four **season themes** each bring a palette, a matching map tint, and living weather drawn over the interface: **Winter** (frost-steel blues with drifting snow and frost creeping down panel edges), **Spring** (a light meadow theme with falling blossom petals), **Summer** (sun-washed sand with fireflies wandering after dark colors), and **Fall** (foliage golds and maple reds with tumbling leaves). The animations follow the same rules as the Matrix rain — skipped in Low Memory Mode and under reduced-motion. Each season also hides at least one easter egg that only appears on the right day of the year; we won't spoil the dates, but operators who work Field Day may notice the fireflies acting oddly well-trained.
 
@@ -586,6 +673,10 @@ Display extras: header size slider, local-time-first clock swap, mutual-receptio
 ### Profiles (Settings → Profiles)
 
 A profile captures _everything_ — callsign, location, theme, layout, dock arrangement, map layers, filters, satellite selection, propagation preferences, units. Save under a name, **Load** to switch (page reloads), **Update** to overwrite, **Export/Import** as JSON to move between devices or operators. Perfect for shared shacks and contest-vs-everyday setups. Profiles can also be selected as **Scene Rotation** scenes (Settings → Display), so a kiosk can cycle through entire saved configurations, not just layouts — renaming a profile keeps it in the rotation.
+
+![Settings → Profiles: save, load, export/import, share codes, and full backup](images/manual/settings-profiles.jpg)
+
+_Settings → Profiles: save, load, export/import, share codes, and full backup_
 
 **Share codes**. Every saved profile also gets a 🔗 **Copy share code** button — the whole profile packed into a single `OHC1:…` string you can paste into an email, a group chat, or a forum post. The receiving side pastes it into **Import from Share Code** on the same tab and gets your layout as a new named profile. Codes are compressed and decoded entirely in the browser; nothing is uploaded anywhere.
 
@@ -604,6 +695,14 @@ Want to add or improve one? See the [translation guide in CONTRIBUTING.md](../CO
 ## Settings reference
 
 A quick map of where things live (⚙ Settings, via the gear or your callsign):
+
+![Settings → Station: callsign, location, units, language, cluster source, propagation defaults](images/manual/settings-station.jpg)
+
+_Settings → Station: callsign, location, units, language, cluster source, propagation defaults_
+
+![Settings → Integrations: basemap key, callbooks, rotator, N3FJP](images/manual/settings-integrations.jpg)
+
+_Settings → Integrations: basemap key, callbooks, rotator, N3FJP_
 
 | Tab                 | What's in it                                                                                                                                                                                                                                                          |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
