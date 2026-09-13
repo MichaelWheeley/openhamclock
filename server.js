@@ -28,6 +28,8 @@ const {
   CONFIG,
   APP_VERSION,
   ROOT_DIR,
+  ASSET_DIR,
+  IS_PACKAGED,
   PORT,
   HOST,
   API_WRITE_KEY,
@@ -110,6 +112,8 @@ const ctx = {
   CONFIG,
   APP_VERSION,
   ROOT_DIR,
+  ASSET_DIR,
+  IS_PACKAGED,
   PORT,
   HOST,
   ITURHFPROP_URL,
@@ -177,8 +181,10 @@ Object.assign(ctx, {
 });
 
 // ── Serve static files ──
-const distDir = path.join(ROOT_DIR, 'dist');
-const publicDir = path.join(ROOT_DIR, 'public');
+// Bundled frontend + static files come from ASSET_DIR (the repo root, or the
+// read-only snapshot inside a packaged executable). Writes go to ROOT_DIR.
+const distDir = path.join(ASSET_DIR, 'dist');
+const publicDir = path.join(ASSET_DIR, 'public');
 const distExists = fs.existsSync(path.join(distDir, 'index.html'));
 
 const staticOptions = {
@@ -332,8 +338,8 @@ app.get('/metrics', async (req, res) => {
 
 // ── Catch-all for SPA ──
 app.get('*', (req, res) => {
-  const distIndex = path.join(ROOT_DIR, 'dist', 'index.html');
-  const publicIndex = path.join(ROOT_DIR, 'public', 'index.html');
+  const distIndex = path.join(distDir, 'index.html');
+  const publicIndex = path.join(publicDir, 'index.html');
   const indexPath = fs.existsSync(distIndex) ? distIndex : publicIndex;
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('CDN-Cache-Control', 'no-store'); // Cloudflare: never cache at edge
@@ -410,6 +416,11 @@ app.listen(PORT, '0.0.0.0', () => {
   }
   console.log('  \uD83D\uDDA5\uFE0F  Open your browser to start using OpenHamClock');
   console.log('');
+  if (IS_PACKAGED) {
+    console.log(`  \uD83D\uDCC1 Settings and data folder: ${ROOT_DIR}`);
+    console.log('     (.env, config.json and data/ live here; set OPENHAMCLOCK_HOME to move them)');
+    console.log('');
+  }
   if (CONFIG.callsign !== 'N0CALL') {
     console.log(`  \uD83D\uDCFB Station: ${CONFIG.callsign} @ ${CONFIG.gridSquare}`);
   } else {
@@ -456,7 +467,31 @@ app.listen(PORT, '0.0.0.0', () => {
   setTimeout(() => {
     if (ctx.prewarmN0NBH) ctx.prewarmN0NBH();
   }, 3000);
+
+  // Packaged executable launched interactively (double-click / terminal):
+  // open the app in the default browser so "download and run" is all it takes.
+  // Headless (systemd, no TTY) and OPEN_BROWSER=false skip this.
+  if (IS_PACKAGED && process.stdout.isTTY && process.env.OPEN_BROWSER !== 'false') {
+    openInBrowser(`http://localhost:${PORT}`);
+  }
 });
+
+function openInBrowser(url) {
+  const { spawn } = require('child_process');
+  const [cmd, args] =
+    process.platform === 'win32'
+      ? ['cmd', ['/c', 'start', '', url]]
+      : process.platform === 'darwin'
+        ? ['open', [url]]
+        : ['xdg-open', [url]];
+  try {
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+    child.on('error', () => {});
+    child.unref();
+  } catch {
+    /* no desktop session — the banner already shows the URL */
+  }
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

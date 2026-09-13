@@ -9,6 +9,7 @@
     "electron-builder": "electron-builder",
     "prebuild": "node scripts/fetch-wasm.js",
     "build": "npx vite build",
+    "build:binaries": "node scripts/build-binaries.js",
     "bridge:n3fjp": "node scripts/n3fjp-bridge.js",
     "lang:check": "node scripts/lang-check-json-key-sort.js",
     "lang:sort": "node scripts/lang-json-key-sort.mjs",
@@ -92,5 +93,18 @@
   "license": "MIT",
   "overrides": {
     "qs": "^6.16.0"
+  },
+  "pkg": {
+    "scripts": [
+      "node_modules/geo-tz/dist/find-all.js"
+    ],
+    "assets": [
+      "dist/**/*",
+      "public/**/*",
+      ".env.example",
+      "config.example.json",
+      "node_modules/geo-tz/package.json",
+      "node_modules/geo-tz/data/timezones.geojson.geo.dat"
+    ]
   }
 }

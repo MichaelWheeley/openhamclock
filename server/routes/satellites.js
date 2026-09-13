@@ -28,7 +28,7 @@ module.exports = function (app, ctx) {
   // Note: later will fall back to hardcoded list if JSON file not found
   const loadSatellitesJson = () => {
     const jsonPaths = [
-      path.join(ROOT_DIR, 'public', 'data', 'satellites.json'),
+      path.join(ctx.ASSET_DIR || ROOT_DIR, 'public', 'data', 'satellites.json'),
       path.join(ROOT_DIR, 'data', 'satellites.json'),
     ];
     for (const p of jsonPaths) {
