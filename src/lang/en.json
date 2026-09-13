@@ -836,6 +836,8 @@
   "station.settings.layout.dockable.describe": "Resizable, draggable panels with tabs",
   "station.settings.layout.emcomm": "EmComm (Beta)",
   "station.settings.layout.emcomm.describe": "Emergency Communications operations dashboard (Beta)",
+  "station.settings.layout.eme": "EME (Beta)",
+  "station.settings.layout.eme.describe": "→ Moonbounce: 3D globe framed on Earth and Moon with the DE→Moon→DX legs, moon az/el at both ends, mutual windows, sky tracks, and EME cluster spots",
   "station.settings.layout.hunter": "Hunter",
   "station.settings.layout.hunter.describe": "→ Chasing activators: cluster, all activation programs, greyline — spot overlays and DX paths on",
   "station.settings.layout.modern": "Modern",

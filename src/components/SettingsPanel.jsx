@@ -801,6 +801,10 @@ export const SettingsPanel = ({
     dockable: t('station.settings.layout.dockable.describe'),
     emcomm: t('station.settings.layout.emcomm.describe'),
     contest: t('station.settings.layout.contest.describe'),
+    eme: t('station.settings.layout.eme.describe', {
+      defaultValue:
+        'Moonbounce: 3D globe framed on Earth and Moon with the DE→Moon→DX legs, moon az/el at both ends, mutual windows, sky tracks, and EME cluster spots.',
+    }),
     activator: t('station.settings.layout.activator.describe', {
       defaultValue:
         'In the field: self-spotting, activations, RBN checks, and nearby repeaters — park/summit overlays on.',
@@ -4244,6 +4248,7 @@ export const SettingsPanel = ({
                     'dockable',
                     'emcomm',
                     'contest',
+                    'eme',
                     'activator',
                     'hunter',
                     'weather',
@@ -4270,6 +4275,7 @@ export const SettingsPanel = ({
                         compact: '📊',
                         emcomm: '📍',
                         contest: '🏆',
+                        eme: '🌙',
                         activator: '▲',
                         hunter: '🎯',
                         weather: '🌩️',
@@ -4389,6 +4395,7 @@ export const SettingsPanel = ({
                         ...presetIds,
                         'emcomm',
                         'contest',
+                        'eme',
                         'activator',
                         'hunter',
                         'weather',

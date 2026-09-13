@@ -28,6 +28,7 @@ Features tagged are already merged and will ship in the next monthly drop — yo
 - [Rig control and Rig Bridge](#rig-control-and-rig-bridge)
 - [WSJT-X and digital modes](#wsjt-x-and-digital-modes)
 - [The EmComm layout](#the-emcomm-layout)
+- [The EME layout](#the-eme-layout)
 - [Alerts and notifications](#alerts-and-notifications)
 - [Offline mode (PWA)](#offline-mode-pwa)
 - [Layouts, themes, and profiles](#layouts-themes-and-profiles)
@@ -474,6 +475,20 @@ A purpose-built dashboard for ARES/RACES/SKYWARN and served-agency work (Setting
 Deep dive: [docs/emcomm-roadmap.md](emcomm-roadmap.md).
 
 ---
+
+## The EME layout
+
+A moonbounce operating dashboard (Settings → Display → Layout → **EME**). The map is pinned to the 3D globe (your saved projection for the other layouts is untouched) and framed so Earth and Moon share the view, with the **DE→Moon** and **Moon→DX** legs drawn between them: a leg is solid in its station's colour while that station can see the moon and turns dashed red once the moon drops below its horizon. The moon sits at a compressed distance (true scale is ~60 Earth radii, which would shrink Earth to a dot); the rail shows the real distance. **Frame Earth + Moon** re-centres the view after you have orbited away.
+
+The rail:
+
+- **Moon Now** — phase, distance, declination (positive is the northern hemisphere's friend), the two-way path-loss delta against the mean distance (loss goes with distance⁴, so the perigee–apogee cycle is worth about ±2 dB), and an az/el card for each end with the next rise or set.
+- **Sky Tracks** — both stations' moon tracks for the next 24 hours on one polar dial (centre = zenith, edge = horizon), with each station's moon marker; hollow markers are below the horizon at their rising azimuth.
+- **Mutual Windows** — the next 48 hours of windows where _both_ ends have the moon at or above the selectable minimum elevation, with duration, the peak of the lower elevation, and a countdown to the next one. The header badge turns green while a window is open.
+- **DX Target** — type a grid, click the globe, or pick a spot; lock it while you work a station.
+- **EME Spots** — DX cluster spots on an amateur EME band (6 m and up) whose comment mentions EME, moonbounce, JT65, Q65, or QRA64. Clicking one sets it as the DX target.
+
+Satellite relay (DE→satellite→DX) on the same chassis is planned.
 
 ## Alerts and notifications
 

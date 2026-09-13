@@ -167,6 +167,11 @@ export const WorldMap = ({
   rotatorControlEnabled,
   onRotatorTurnRequest,
   onMapReady,
+  // Purpose-built layouts (EME) can pin a projection without touching the
+  // user's saved choice; the projection toggle hides while pinned.
+  projectionOverride = null,
+  emeMode = false,
+  emeFrameKey = 0,
 }) => {
   const { t, i18n } = useTranslation();
   const mapLang = i18n.language?.split('-')[0] || 'en'; // e.g. 'de', 'ja', 'en'
@@ -629,7 +634,8 @@ export const WorldMap = ({
   });
   const [showMapRotationMenu, setShowMapRotationMenu] = useState(false);
   const [mapRotationMenuActivity, setMapRotationMenuActivity] = useState(0);
-  const [mapProjection, setMapProjection] = useState(initialProjection);
+  const [mapProjectionState, setMapProjection] = useState(initialProjection);
+  const mapProjection = projectionOverride || mapProjectionState;
   // The Leaflet path applies mode/continent/watchlist filters at render time;
   // the globe consumes paths as data, so hand it the already-filtered list or
   // those filters silently stop working in 3D.
@@ -938,8 +944,8 @@ export const WorldMap = ({
           ...existing,
           mapStyle,
           mapProjection: projectionPersistBlockedRef.current
-            ? (existing.mapProjection ?? mapProjection)
-            : mapProjection,
+            ? (existing.mapProjection ?? mapProjectionState)
+            : mapProjectionState,
           center: mapView.center,
           zoom: mapView.zoom,
           wheelPxPerZoomLevel: getScaledZoomLevel(mouseZoom),
@@ -948,7 +954,7 @@ export const WorldMap = ({
     } catch (e) {
       console.error('Failed to save map settings:', e);
     }
-  }, [mapStyle, mapProjection, mapView, mouseZoom]);
+  }, [mapStyle, mapProjectionState, mapView, mouseZoom]);
 
   // Initialize map
   useEffect(() => {
@@ -2614,6 +2620,8 @@ export const WorldMap = ({
               lowMemoryMode={lowMemoryMode}
               nightDarkness={nightDarkness}
               onNightDarknessChange={setNightDarkness}
+              emeMode={emeMode}
+              emeFrameKey={emeFrameKey}
             />
           </React.Suspense>
         </AzimuthalErrorBoundary>
@@ -2913,7 +2921,7 @@ export const WorldMap = ({
           {/* Projection toggle */}
           <div
             style={{
-              display: 'flex',
+              display: projectionOverride ? 'none' : 'flex',
               background: 'rgba(0, 0, 0, 0.8)',
               border: '1px solid #444',
               borderRadius: '4px',

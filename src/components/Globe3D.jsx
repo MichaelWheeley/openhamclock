@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { getBandColor, getBandFromFreq } from '../utils/callsign.js';
-import { getSunPosition, getMoonPosition, densifyGeoJson } from '../utils/geo.js';
+import { getSunPosition, getMoonPosition, getMoonAzEl, densifyGeoJson } from '../utils/geo.js';
 import { lzwDecode } from '../plugins/layers/useLightning.js';
 import { MAP_STYLES } from '../utils/config.js';
 import { buildGlobeTexture, buildGlobeDetailPatch, chooseGlobeTileZoom } from '../utils/globeTexture.js';
@@ -47,6 +47,16 @@ import SatelliteInfoPanel from './SatelliteInfoPanel.jsx';
 const DEG = Math.PI / 180;
 const EARTH_R = 1;
 const DEFAULT_CAM_DISTANCE = 3.2;
+// Orbit ceiling. The EME layout lifts it so Earth and Moon frame together.
+const CAM_MAX_DISTANCE = 8;
+const EME_CAM_MAX_DISTANCE = 22;
+// Where the moon sprite sits: compressed (true scale is ~60 Earth radii) but
+// outside the normal orbit ceiling and inside the starfield.
+const MOON_DIST = 12;
+// EME framing: orbit target at the Earth–Moon midpoint; the camera distance
+// is derived from the viewport so Earth (radius 1) and Moon both fit, with
+// this much clearance beyond the Earth's limb, in Earth radii.
+const EME_FRAME_MARGIN = 1.8;
 // Altitude of every overlay above the sphere, as a multiple of EARTH_R.
 // Markers and arc endpoints share it so arcs start exactly at the dot.
 const MARKER_ALT = 1.012;
@@ -413,6 +423,10 @@ export default function Globe3D({
   tileStyle = 'dark',
   lowMemoryMode = false,
   nightDarkness = 60,
+  // EME layout: draw the DE→Moon→DX legs and frame Earth + Moon together.
+  // emeFrameKey re-runs the framing when bumped (a "re-centre" button).
+  emeMode = false,
+  emeFrameKey = 0,
   onNightDarknessChange,
 }) {
   const { t, i18n } = useTranslation();
@@ -776,7 +790,7 @@ export default function Globe3D({
     controls.zoomSpeed = 0.7;
     controls.enablePan = false;
     controls.minDistance = 1.25;
-    controls.maxDistance = 8;
+    controls.maxDistance = emeMode ? EME_CAM_MAX_DISTANCE : CAM_MAX_DISTANCE;
     controls.autoRotate = false;
     controls.autoRotateSpeed = AUTOROTATE_SPEED;
     // Fires on pointer-down / wheel, i.e. genuine user gestures — programmatic
@@ -1291,7 +1305,6 @@ export default function Globe3D({
     const s = gl.current;
     if (!s.scene) return undefined;
 
-    const MOON_DIST = 12; // world units (camera maxDistance is 8, starfield ~22+)
     const MOON_SIZE = 0.85; // sprite diameter in world units
     const MOON_TEX_SIZE = 512;
 
@@ -1374,6 +1387,130 @@ export default function Globe3D({
       s.requestRender?.();
     };
   }, [lowMem]);
+
+  // ── EME: DE→Moon→DX legs ─────────────────────────────────
+  // Straight lines in space from each station to the moon sprite's position
+  // (same compressed sublunar placement as the sprite, so the legs meet it).
+  // A leg is solid in the station's marker colour while that station can see
+  // the moon, and dashed red once the moon is below its horizon — the path
+  // then visibly dives through the Earth, which is the point. In low-memory
+  // mode the sprite is skipped, so a plain disc stands in for the moon.
+  useEffect(() => {
+    const s = gl.current;
+    if (!s.scene || !emeMode) return undefined;
+
+    const group = new THREE.Group();
+    s.scene.add(group);
+    const disposables = [];
+
+    const clear = () => {
+      while (group.children.length) {
+        const child = group.children[0];
+        group.remove(child);
+      }
+      disposables.forEach((d) => d.dispose?.());
+      disposables.length = 0;
+    };
+
+    const addLeg = (fromVec, toVec, color, up) => {
+      const geo = new THREE.BufferGeometry().setFromPoints([fromVec, toVec]);
+      const mat = up
+        ? new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.95, depthWrite: false })
+        : new THREE.LineDashedMaterial({
+            color: '#ef4444',
+            dashSize: 0.22,
+            gapSize: 0.14,
+            transparent: true,
+            opacity: 0.6,
+            depthWrite: false,
+          });
+      const line = new THREE.Line(geo, mat);
+      if (!up) line.computeLineDistances();
+      line.frustumCulled = false;
+      group.add(line);
+      disposables.push(geo, mat);
+    };
+
+    const build = () => {
+      clear();
+      const now = new Date();
+      const moonPos = getMoonPosition(now);
+      const moonVec = latLonToVec3(moonPos.lat, moonPos.lon, MOON_DIST);
+
+      if (lowMem) {
+        const geo = new THREE.SphereGeometry(0.3, 16, 12);
+        const mat = new THREE.MeshBasicMaterial({ color: '#e6e6f0' });
+        group.add(new THREE.Mesh(geo, mat).translateX(0).add(new THREE.Object3D()));
+        group.children[group.children.length - 1].position.copy(moonVec);
+        disposables.push(geo, mat);
+      }
+
+      if (hasDE) {
+        const up = getMoonAzEl(now, lat0, lon0).elevation >= 0;
+        addLeg(latLonToVec3(lat0, lon0, EARTH_R * MARKER_ALT), moonVec, cssVarColor('--accent-blue', '#4488ff'), up);
+      }
+      if (Number.isFinite(dxLocation?.lat) && Number.isFinite(dxLocation?.lon)) {
+        const up = getMoonAzEl(now, dxLocation.lat, dxLocation.lon).elevation >= 0;
+        addLeg(
+          latLonToVec3(dxLocation.lat, dxLocation.lon, EARTH_R * MARKER_ALT),
+          moonVec,
+          cssVarColor('--accent-cyan', '#00ddff'),
+          up,
+        );
+      }
+      s.requestRender?.();
+    };
+
+    build();
+    const id = setInterval(build, 60_000);
+    return () => {
+      clearInterval(id);
+      clear();
+      s.scene?.remove(group);
+      s.requestRender?.();
+    };
+    // themeTick: leg colours come from CSS variables. lowMem: scene rebuild.
+  }, [emeMode, hasDE, lat0, lon0, dxLocation?.lat, dxLocation?.lon, themeTick, lowMem]);
+
+  // ── EME: frame Earth + Moon ──────────────────────────────
+  // Orbit around the Earth–Moon midpoint from a point beside the line, tilted
+  // a little above it, so both bodies sit in frame with the legs between them.
+  // Leaving EME mode restores the normal ceiling and an Earth-centred orbit.
+  useEffect(() => {
+    const s = gl.current;
+    if (!s.camera || !s.controls) return;
+    s.controls.maxDistance = emeMode ? EME_CAM_MAX_DISTANCE : CAM_MAX_DISTANCE;
+    if (!emeMode) {
+      s.controls.target.set(0, 0, 0);
+      if (s.camera.position.length() > CAM_MAX_DISTANCE) s.camera.position.setLength(DEFAULT_CAM_DISTANCE);
+      s.controls.update();
+      s.requestRender?.();
+      return;
+    }
+    // The QTH auto-follow re-centres on Earth; it must not fight the framing.
+    userMovedRef.current = true;
+    const pos = getMoonPosition(new Date());
+    const moonDir = latLonToVec3(pos.lat, pos.lon, 1);
+    const up = new THREE.Vector3(0, 1, 0);
+    const side = new THREE.Vector3().crossVectors(moonDir, up);
+    if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
+    side.normalize();
+    const mid = moonDir.clone().multiplyScalar(MOON_DIST / 2);
+    s.controls.target.copy(mid);
+    // Half the Earth–Moon span plus clearance must fit in the narrower of the
+    // two half-extents at the target distance (vertical fov, aspect for width).
+    const halfSpan = MOON_DIST / 2 + EME_FRAME_MARGIN;
+    const tanHalfFov = Math.tan((s.camera.fov * Math.PI) / 360);
+    const aspect = Math.max(0.5, s.camera.aspect || 1);
+    const dist = Math.min(EME_CAM_MAX_DISTANCE - 1, halfSpan / (tanHalfFov * Math.min(aspect, 1.6)));
+    s.camera.position
+      .copy(mid)
+      .addScaledVector(side, dist)
+      .addScaledVector(up, dist * 0.22);
+    s.controls.update();
+    s.requestRender?.();
+    // lowMem: scene rebuild — re-apply to the fresh camera/controls.
+  }, [emeMode, emeFrameKey, lowMem]);
 
   // ── Trek theme easter egg: the Enterprise on patrol ──────
   // While the LCARS theme is active, a procedural Constitution-class
@@ -2656,7 +2793,13 @@ export default function Globe3D({
   const centerOn = useCallback((lat, lon) => {
     const s = gl.current;
     if (!s.camera || !s.controls) return;
-    const dist = s.camera.position.length();
+    let dist = s.camera.position.length();
+    // EME framing orbits the Earth–Moon midpoint; centring on a station means
+    // "look at Earth again", so drop back to an Earth-centred orbit first.
+    if (s.controls.target.lengthSq() > 0) {
+      s.controls.target.set(0, 0, 0);
+      dist = DEFAULT_CAM_DISTANCE;
+    }
     latLonToVec3(lat, lon, dist, s.camera.position);
     s.controls.update();
     s.requestRender?.();
