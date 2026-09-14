@@ -28,6 +28,8 @@ import {
   getEnterpriseTemplate,
   loadIssTemplate,
 } from '../utils/satelliteModels.js';
+import { getSantaTemplate } from '../utils/santaModel.js';
+import { getSantaState, resolveSantaClock, destinationPoint, formatPresents } from '../utils/santa.js';
 import { GLOBE_OVERLAY_PAINTERS, ZONE_SOURCES, workedGridCounts, decimateAircraft } from '../utils/globeOverlays.js';
 import logbookStore from '../services/logbookStore.js';
 import {
@@ -1676,6 +1678,126 @@ export default function Globe3D({
     };
   }, [lowMem, themeTick]);
 
+  // ── Christmas easter egg: Santa's sleigh on Christmas Eve ──────
+  // On 24–25 December (UTC) a procedural Santa, sleigh and nine reindeer fly
+  // the route in src/utils/santa.js: launch from the North Pole when it
+  // turns midnight in the first time zone, then westward one zone per hour
+  // through recognisable cities, home after Samoa. Same cost class and
+  // conventions as the Enterprise above (decorative, never picked, skipped
+  // in low-memory mode). santaOn is re-evaluated every minute so the effect
+  // starts and stops on its own at the day boundaries; ?santa=… drives a
+  // simulated clock for demos (see resolveSantaClock).
+  const [santaOn, setSantaOn] = useState(() => getSantaState(resolveSantaClock().nowMs).visible);
+  const [santaInfo, setSantaInfo] = useState(null);
+  useEffect(() => {
+    const check = () => setSantaOn(getSantaState(resolveSantaClock().nowMs).visible);
+    check();
+    const id = setInterval(check, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    if (lowMem || !santaOn) {
+      setSantaInfo(null);
+      return undefined;
+    }
+    const s = gl.current;
+    if (!s.scene) return undefined;
+
+    const sleigh = getSantaTemplate().clone();
+    s.scene.add(sleigh);
+
+    const ALT = EARTH_R * 1.045;
+    const SLEIGH_PX = 110; // nose-to-runner length on screen; the sleigh itself is ~1/4 of that
+    const TICK_MS = 50;
+    const INFO_MS = 5_000;
+
+    const pos = new THREE.Vector3();
+    const ahead = new THREE.Vector3();
+    const forward = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    const basis = new THREE.Matrix4();
+
+    let raf = 0;
+    let last = 0;
+    let lastInfo = 0;
+    const tick = (now) => {
+      raf = requestAnimationFrame(tick);
+      if (now - last < TICK_MS) return;
+      last = now;
+      if (!s.renderer) return;
+
+      const clock = resolveSantaClock();
+      const st = getSantaState(clock.nowMs);
+      sleigh.visible = st.visible;
+      if (!st.visible) return;
+
+      latLonToVec3(st.lat, st.lon, ALT, pos);
+      up.copy(pos).normalize();
+      // Nose along the track: a point half a degree ahead on the current bearing
+      const a = destinationPoint(st, st.heading, 0.5);
+      latLonToVec3(a.lat, a.lon, ALT, ahead);
+      forward.subVectors(ahead, pos);
+      right.crossVectors(up, forward).normalize();
+      forward.crossVectors(right, up).normalize();
+      basis.makeBasis(right, up, forward);
+      sleigh.quaternion.setFromRotationMatrix(basis);
+      // Gentle bob so the team looks airborne rather than pinned
+      pos.addScaledVector(up, 0.004 * Math.sin(now / 350));
+      sleigh.position.copy(pos);
+
+      const h = s.renderer.domElement.clientHeight || 1;
+      const fovK = 2 * Math.tan((s.camera.fov * Math.PI) / 360);
+      sleigh.scale.setScalar((SLEIGH_PX * fovK * s.camera.position.distanceTo(sleigh.position)) / h);
+
+      if (now - lastInfo > INFO_MS) {
+        lastInfo = now;
+        setSantaInfo({
+          phase: st.phase,
+          lastStop: st.lastStop,
+          nextStop: st.nextStop,
+          delivered: st.delivered,
+          simulated: clock.simulated,
+        });
+      }
+      s.requestRender?.();
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      s.scene?.remove(sleigh);
+      s.requestRender?.();
+      setSantaInfo(null);
+    };
+  }, [lowMem, santaOn]);
+
+  const santaText = useMemo(() => {
+    if (!santaInfo) return '';
+    const presents = formatPresents(santaInfo.delivered);
+    const vars = { stop: santaInfo.lastStop, next: santaInfo.nextStop, presents };
+    const byPhase = {
+      pre: t('santa.pre', {
+        ...vars,
+        defaultValue: 'Santa is loading the sleigh at the North Pole — first stop {{next}}',
+      }),
+      flight: t('santa.flight', {
+        ...vars,
+        defaultValue: 'Santa is over {{stop}} · next stop {{next}} · {{presents}} presents delivered',
+      }),
+      home: t('santa.home', {
+        ...vars,
+        defaultValue: 'Santa is heading home to the North Pole · {{presents}} presents delivered',
+      }),
+      post: t('santa.post', {
+        ...vars,
+        defaultValue: 'Santa is back at the North Pole · {{presents}} presents delivered · Merry Christmas!',
+      }),
+    };
+    const text = byPhase[santaInfo.phase] || '';
+    return santaInfo.simulated ? `${text} (${t('santa.simulated', 'simulated')})` : text;
+  }, [santaInfo, t]);
+
   // ── Plugin overlay layers (Maidenhead / zones / D-RAP / aurora / worked grids) ──────
   // The globe-capable subset of the plugin layers, driven by the same
   // enabled/opacity states the flat map persists (openhamclock_mapSettings
@@ -2977,6 +3099,33 @@ export default function Globe3D({
           }}
         >
           {t('map.loadingTiles', 'Loading globe')} {Math.round(textureProgress * 100)}%
+        </div>
+      )}
+
+      {/* Christmas easter egg status line — see the Santa effect above */}
+      {santaText && !hideUi && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '48px',
+            right: '10px',
+            zIndex: 1100,
+            maxWidth: 'calc(100% - 120px)', // leave the control column clear
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            color: 'var(--text-primary)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '11px',
+            background: 'var(--bg-panel)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '6px',
+            padding: '5px 10px',
+            pointerEvents: 'none',
+          }}
+          title={t('santa.title', 'Santa tracker')}
+        >
+          🎅 {santaText}
         </div>
       )}
 

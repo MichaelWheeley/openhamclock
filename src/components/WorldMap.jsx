@@ -5,6 +5,7 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MAP_STYLES } from '../utils/config.js';
+import { getSantaState, resolveSantaClock, formatPresents } from '../utils/santa.js';
 import {
   latLonToMaidenhead,
   getSunPosition,
@@ -186,6 +187,7 @@ export const WorldMap = ({
   const dxMarkerRef = useRef([]);
   const sunMarkerRef = useRef([]);
   const moonMarkerRef = useRef([]);
+  const santaMarkerRef = useRef([]);
   const potaMarkersRef = useRef([]);
   const wwffMarkersRef = useRef([]);
   const sotaMarkersRef = useRef([]);
@@ -1529,6 +1531,51 @@ export const WorldMap = ({
       dxMarkerRef.current.push(m);
     });
   }, [deLocation, dxLocation, allUnits, dxWeatherAllowed, showDeDxMarkers]);
+
+  // ── Christmas easter egg: Santa on the flat map ──
+  // Companion to the 3D globe's sleigh (see Globe3D + src/utils/santa.js):
+  // an emoji marker at Santa's current position on 24–25 December, refreshed
+  // every 30 s. getSantaState is not visible on any other day, so the effect
+  // costs one cheap call per tick the rest of the year.
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    const clear = () => {
+      santaMarkerRef.current.forEach((m) => {
+        try {
+          map.removeLayer(m);
+        } catch (e) {}
+      });
+      santaMarkerRef.current = [];
+    };
+    const update = () => {
+      clear();
+      const clock = resolveSantaClock();
+      const st = getSantaState(clock.nowMs);
+      if (!st.visible) return;
+      const where =
+        st.phase === 'flight'
+          ? `over <b>${st.lastStop}</b> · next stop ${st.nextStop}`
+          : st.phase === 'home'
+            ? 'heading home to the North Pole'
+            : 'at the North Pole';
+      const popup = `<b>🎅 Santa</b> ${where}<br>${formatPresents(st.delivered)} presents delivered${clock.simulated ? '<br><i>simulated</i>' : ''}`;
+      const html = '<div style="font-size:22px;line-height:1;filter:drop-shadow(0 0 3px rgba(0,0,0,.7))">🦌🛷</div>';
+      for (const offset of [-360, 0, 360]) {
+        const icon = L.divIcon({ className: 'santa-marker-icon', html, iconSize: [48, 24], iconAnchor: [24, 12] });
+        const m = L.marker([st.lat, st.lon + offset], { icon, zIndexOffset: 18000 })
+          .bindPopup(popup)
+          .addTo(map);
+        santaMarkerRef.current.push(m);
+      }
+    };
+    update();
+    const interval = setInterval(update, 30_000);
+    return () => {
+      clearInterval(interval);
+      clear();
+    };
+  }, []);
 
   // Update sun/moon markers every 60 seconds (matches terminator refresh)
   useEffect(() => {

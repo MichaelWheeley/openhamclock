@@ -667,6 +667,8 @@ The interface chrome — panel picker, settings tabs, sidebar, and map control b
 
 The four **season themes** each bring a palette, a matching map tint, and living weather drawn over the interface: **Winter** (frost-steel blues with drifting snow and frost creeping down panel edges), **Spring** (a light meadow theme with falling blossom petals), **Summer** (sun-washed sand with fireflies wandering after dark colors), and **Fall** (foliage golds and maple reds with tumbling leaves). The animations follow the same rules as the Matrix rain — skipped in Low Memory Mode and under reduced-motion. Each season also hides at least one easter egg that only appears on the right day of the year; we won't spoil the dates, but operators who work Field Day may notice the fireflies acting oddly well-trained.
 
+**Christmas Eve 🎅** — from 24 December 10:00 UTC (midnight in the first time zone) the 3D globe and the flat map show Santa's sleigh and reindeer working westward around the world, one time zone per hour, with a status line naming the city he is over, his next stop, and the presents delivered so far. He is parked at the North Pole before launch and after the run, and gone again on 26 December. To show it to the kids on any other day, open the app with `?santa=1` (or `?santa=2026-12-24T18:00Z` for an exact moment); `?santa=off` switches the simulation off again.
+
 Display extras: header size slider, local-time-first clock swap, mutual-reception star toggle, a **Display Schedule** (sleep/wake times for shack TVs, with an option to keep the HDMI signal alive), **Keep Awake** wake-lock, and **Low Memory Mode** for machines under 8 GB.
 
 ### Profiles (Settings → Profiles)
