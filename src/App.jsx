@@ -30,7 +30,6 @@ import {
   useWWFFSpots,
   useSOTASpots,
   useWWBOTASpots,
-  useCANParksSpots,
   useContests,
   useWeather,
   useWeatherAlerts,
@@ -99,7 +98,6 @@ const App = () => {
   const [showSotaFilters, setShowSotaFilters] = useState(false);
   const [showWwffFilters, setShowWwffFilters] = useState(false);
   const [showWwbotaFilters, setShowWwbotaFilters] = useState(false);
-  const [showCanparksFilters, setShowCanparksFilters] = useState(false);
   const [layoutResetKey, setLayoutResetKey] = useState(0);
   const [, setBandColorChangeVersion] = useState(0);
   const [updateInProgress, setUpdateInProgress] = useState(false);
@@ -288,8 +286,6 @@ const App = () => {
     toggleSOTALabels,
     toggleWWBOTA,
     toggleWWBOTALabels,
-    toggleCANParks,
-    toggleCANParksLabels,
     toggleSatellites,
     togglePSKReporter,
     togglePSKPaths,
@@ -315,8 +311,6 @@ const App = () => {
     setWwffFilters,
     wwbotaFilters,
     setWwbotaFilters,
-    canparksFilters,
-    setCanparksFilters,
   } = useFilters();
 
   const { isFullscreen, handleFullscreenToggle } = useFullscreen();
@@ -338,8 +332,7 @@ const App = () => {
     showPotaFilters ||
     showSotaFilters ||
     showWwffFilters ||
-    showWwbotaFilters ||
-    showCanparksFilters;
+    showWwbotaFilters;
   const sceneRotation = useSceneRotation(config, handleSaveConfig, { paused: anyModalOpen });
 
   // Responsive breakpoint for sidebar/header behavior
@@ -365,7 +358,6 @@ const App = () => {
   const wwffSpots = useWWFFSpots();
   const sotaSpots = useSOTASpots();
   const wwbotaSpots = useWWBOTASpots();
-  const canparksSpots = useCANParksSpots();
   const dxClusterData = useDXClusterData(dxFilters, config);
   const dxpeditions = useDXpeditions();
   const contests = useContests();
@@ -479,7 +471,6 @@ const App = () => {
     sota: sotaSpots.data,
     wwff: wwffSpots.data,
     wwbota: wwbotaSpots.data,
-    canparks: canparksSpots.data,
     dxcluster: dxClusterData.spots,
     watchlist: watchlistHits,
     dxpeditions: dxpeditions.data?.dxpeditions,
@@ -645,10 +636,6 @@ const App = () => {
     return ActivateFilter(wwbotaSpots, wwbotaFilters);
   }, [wwbotaSpots.data, wwbotaFilters]);
 
-  const filteredCanparksSpots = useMemo(() => {
-    return ActivateFilter(canparksSpots, canparksFilters);
-  }, [canparksSpots.data, canparksFilters]);
-
   const wsjtxMapSpots = useMemo(() => {
     // Apply same age filter as panel (stored in localStorage)
     let ageMinutes = 30;
@@ -709,7 +696,6 @@ const App = () => {
     setShowSotaFilters,
     setShowWwffFilters,
     setShowWwbotaFilters,
-    setShowCanparksFilters,
     handleUpdateClick,
     updateInProgress,
     isLocalInstall,
@@ -741,8 +727,6 @@ const App = () => {
     filteredSotaSpots,
     wwbotaSpots,
     filteredWwbotaSpots,
-    canparksSpots,
-    filteredCanparksSpots,
     mySpots,
     dxpeditions,
     contests,
@@ -770,8 +754,6 @@ const App = () => {
     setWwffFilters,
     wwbotaFilters,
     setWwbotaFilters,
-    canparksFilters,
-    setCanparksFilters,
     mapLayers,
     toggleDeDxMarkers,
     toggleDXPaths,
@@ -784,8 +766,6 @@ const App = () => {
     toggleSOTALabels,
     toggleWWBOTA,
     toggleWWBOTALabels,
-    toggleCANParks,
-    toggleCANParksLabels,
     toggleSatellites,
     togglePSKReporter,
     togglePSKPaths,
@@ -1014,13 +994,6 @@ const App = () => {
         onFilterChange={setWwbotaFilters}
         isOpen={showWwbotaFilters}
         onClose={() => setShowWwbotaFilters(false)}
-      />
-      <ActivateFilterManager
-        name="CANParks"
-        filters={canparksFilters}
-        onFilterChange={setCanparksFilters}
-        isOpen={showCanparksFilters}
-        onClose={() => setShowCanparksFilters(false)}
       />
       <CommandPalette
         isOpen={showCommandPalette}

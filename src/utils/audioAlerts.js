@@ -37,7 +37,6 @@ export const ALERT_FEEDS = {
   sota: { label: 'SOTA Spots', defaultTone: 'high-ping' },
   wwff: { label: 'WWFF Spots', defaultTone: 'low-tone' },
   wwbota: { label: 'WWBOTA Spots', defaultTone: 'sharp' },
-  canparks: { label: 'CANParks Spots', defaultTone: 'chirp' },
   dxcluster: { label: 'DX Cluster', defaultTone: 'beep' },
   watchlist: { label: 'Watchlist Hits', defaultTone: 'two-tone', eventful: true },
   dxpeditions: { label: 'DXpeditions', defaultTone: 'two-tone' },

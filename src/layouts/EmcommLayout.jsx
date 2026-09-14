@@ -888,7 +888,6 @@ export default function EmcommLayout(props) {
             potaSpots={[]}
             sotaSpots={[]}
             wwbotaSpots={[]}
-            canparksSpots={[]}
             mySpots={[]}
             dxPaths={[]}
             dxFilters={dxFilters}
@@ -903,7 +902,6 @@ export default function EmcommLayout(props) {
             showPOTA={false}
             showSOTA={false}
             showWWBOTA={false}
-            showCANParks={false}
             showSatellites={false}
             showPSKReporter={false}
             showPSKPaths={false}

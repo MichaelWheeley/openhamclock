@@ -494,7 +494,6 @@ export default function EmeLayout(props) {
             potaSpots={[]}
             sotaSpots={[]}
             wwbotaSpots={[]}
-            canparksSpots={[]}
             mySpots={[]}
             dxPaths={[]}
             dxFilters={dxFilters}
@@ -511,7 +510,6 @@ export default function EmeLayout(props) {
             showPOTA={false}
             showSOTA={false}
             showWWBOTA={false}
-            showCANParks={false}
             showSatellites={satMode}
             showPSKReporter={!satMode && activityOnGlobe}
             showPSKPaths={false}

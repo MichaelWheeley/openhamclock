@@ -239,7 +239,6 @@ _The DX Cluster panel: band-coloured spots with age, mode, and the tune / listen
 - **DX Cluster** — live spots with band coloring, filtering, worked/dupe badges, click-to-tune, click-to-listen, and log-from-spot. Detailed below in [DX cluster in depth](#dx-cluster-in-depth).
 - **PSK Reporter** — who hears you (**TX** tab) and who you hear (**RX** tab) on digital modes, live via a server-side MQTT proxy with HTTP fallback. Filter by band, mode, retention window (2–15 min), callsign or grid. A gold star ★ marks _mutual_ reception — you hear them and they hear you on the same band, so a QSO is likely. A trash-can button clears all spots.
 - **POTA / SOTA / WWFF / WWBOTA** — currently active Parks, Summits, Flora & Fauna, and Bunkers on the Air activators, each with its own marker shape and color on the map (▲ green, ◆ orange, ▼ light green, ■ light purple). QRT and expired spots are filtered automatically. Band/mode/grid filters per panel; SOTA spots include summit name, altitude, and points.
-- **CANParks** — activators in the [CANParks](https://canparks.ca/) Canadian parks program, with the same panel features as its sibling programs (● maple-red map marker, band/mode/grid filters, click-to-tune, log-from-spot, worked-before badges). Spots are enriched server-side from the CANParks park directory, so each spot carries park name, grid, and coordinates; parks that are also POTA references show a muted "POTA CA-xxxx" chip. The program is young — an empty panel just means nobody is on the air from a Canadian park right now.
 - **DXpeditions** — active and upcoming DXpeditions (NG3K data) with real operating callsigns, dates, and modes.
 - **Contests** — the WA7BNM contest calendar with countdowns and links; active contests highlighted.
 - **DX News ticker** — headlines merged from DXNews.com, DX-World, and NG3K, deduplicated over 24 hours, with adjustable text size and scroll speed (« » buttons, 0.5×–2.5×).
@@ -355,7 +354,7 @@ All filter state persists in your browser.
 
 - **Click** it — sets the station as your DX target and highlights the path on the map.
 - **Tune** — with click-to-tune enabled and Rig Bridge running, your radio jumps to the frequency and the right mode (Yaesu rigs even get a proper band-select so antenna/ATU memories follow).
-- **🎧 Listen** — no radio handy? The listen button opens a web SDR _already tuned_ to the spot. OpenHamClock picks the nearest live KiwiSDR with a free slot whose coverage includes the frequency, falling back to a curated list of long-running receivers, and finally to the KiwiSDR directory. Available on DX cluster rows, activation rows (POTA/SOTA/WWFF/WWBOTA/CANParks), and callsign popups.
+- **🎧 Listen** — no radio handy? The listen button opens a web SDR _already tuned_ to the spot. OpenHamClock picks the nearest live KiwiSDR with a free slot whose coverage includes the frequency, falling back to a curated list of long-running receivers, and finally to the KiwiSDR directory. Available on DX cluster rows, activation rows (POTA/SOTA/WWFF/WWBOTA), and callsign popups.
 - **📓+ Log it** — opens the Logbook's new-QSO form prefilled from the spot. In layouts without a Logbook panel, the same button opens a small Log QSO pop-up instead, so log-from-spot works everywhere (the Contest layout keeps its own quick-log strip).
 - **Callsign popup** — click a callsign anywhere for a station card: name, QTH with the DX end's local time, country, and a jump to your preferred callbook (QRZ.com, HamQTH, or QRZCQ — pick in Settings → Station). When the station has been spotted recently, the card also shows a one-line spot history — "Heard 14x today: 20m(8) 15m(4) 40m(2)" — straight from the server's in-memory cluster cache.
 - **Send a spot** — spot a station yourself directly from the panel header; it goes out through the OHC cluster.
@@ -487,7 +486,7 @@ _Settings → Rig Bridge: enable, download for your OS, connect_
 
 **Cloud Relay (alpha):** using the hosted site or a cloud install? The relay connects your local rig-bridge to the server with a per-session token, enabling click-to-tune, PTT status, WSJT-X decodes, and APRS from anywhere. Connect it from Settings → Rig Bridge; the session credential lives only in your browser.
 
-**Click-to-tune behavior:** works from DX cluster, POTA/SOTA/WWFF/WWBOTA/CANParks, PSK Reporter, and WSJT-X panels. "Auto-set mode" switches CW/SSB/Data from the band plan; Yaesu rigs get true band-select commands so ATU and antenna memories follow. With a US license class set in Settings → Station, tuning outside your privileges still tunes but shows a brief warning toast (e.g. "28.6 MHz SSB is outside Technician privileges").
+**Click-to-tune behavior:** works from DX cluster, POTA/SOTA/WWFF/WWBOTA, PSK Reporter, and WSJT-X panels. "Auto-set mode" switches CW/SSB/Data from the band plan; Yaesu rigs get true band-select commands so ATU and antenna memories follow. With a US license class set in Settings → Station, tuning outside your privileges still tunes but shows a brief warning toast (e.g. "28.6 MHz SSB is outside Technician privileges").
 
 (The older _Rig Listener_ and _WSJT-X Relay_ standalone tools still exist but are deprecated — Rig Bridge replaces all of them.)
 
@@ -567,7 +566,7 @@ DX-side Doppler is deliberately not shown — that belongs to the other operator
 
 _Settings → Alerts: pick what wakes you and how_
 
-**Settings → Alerts** plays a tone when new items appear in a feed. Feeds: POTA, SOTA, WWFF, WWBOTA, CANParks, DX Cluster, Watchlist Hits, DXpeditions, Contests, Contest Starts, Satellite Passes, Band Openings, Lightning Proximity, and Space Weather — all off by default, each with its own tone (nine Web Audio presets — no sound files) and a master volume.
+**Settings → Alerts** plays a tone when new items appear in a feed. Feeds: POTA, SOTA, WWFF, WWBOTA, DX Cluster, Watchlist Hits, DXpeditions, Contests, Contest Starts, Satellite Passes, Band Openings, Lightning Proximity, and Space Weather — all off by default, each with its own tone (nine Web Audio presets — no sound files) and a master volume.
 
 Four event feeds go beyond "new item in a panel":
 

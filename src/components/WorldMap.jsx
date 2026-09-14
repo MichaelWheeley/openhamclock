@@ -106,7 +106,6 @@ import { mapDefs as POTADefs } from './POTAPanel.jsx';
 import { mapDefs as SOTADefs } from './SOTAPanel.jsx';
 import { mapDefs as WWBOTADefs } from './WWBOTAPanel.jsx';
 import { mapDefs as WWFFDefs } from './WWFFPanel.jsx';
-import { mapDefs as CANParksDefs } from './CANParksPanel.jsx';
 
 const POPUP_AUTO_CLOSE_MS = 20_000;
 
@@ -121,7 +120,6 @@ export const WorldMap = ({
   wwffSpots,
   sotaSpots,
   wwbotaSpots,
-  canparksSpots,
   dxPaths,
   dxFilters,
   mapBandFilter,
@@ -141,8 +139,6 @@ export const WorldMap = ({
   showSOTALabels = true,
   showWWBOTA,
   showWWBOTALabels = true,
-  showCANParks,
-  showCANParksLabels = true,
   showPSKReporter,
   showPSKPaths = true,
   showMutualReception = true,
@@ -194,7 +190,6 @@ export const WorldMap = ({
   const wwffMarkersRef = useRef([]);
   const sotaMarkersRef = useRef([]);
   const wwbotaMarkersRef = useRef([]);
-  const canparksMarkersRef = useRef([]);
   const dxPathsLinesRef = useRef([]);
   const dxPathsMarkersRef = useRef([]);
   const pskMarkersRef = useRef([]);
@@ -1943,11 +1938,6 @@ export const WorldMap = ({
     placeSpots(WWBOTADefs, wwbotaSpots, showWWBOTA, showWWBOTALabels, wwbotaMarkersRef, mapInstanceRef);
   }, [wwbotaSpots, showWWBOTA, showWWBOTALabels, bandPassesMapFilter]);
 
-  // Update CANParks markers
-  useEffect(() => {
-    placeSpots(CANParksDefs, canparksSpots, showCANParks, showCANParksLabels, canparksMarkersRef, mapInstanceRef);
-  }, [canparksSpots, showCANParks, showCANParksLabels, bandPassesMapFilter]);
-
   // Plugin layer system - properly load saved states
   useEffect(() => {
     if (!mapInstanceRef.current) return;
@@ -2529,7 +2519,6 @@ export const WorldMap = ({
             wwffSpots={wwffSpots}
             sotaSpots={sotaSpots}
             wwbotaSpots={wwbotaSpots}
-            canparksSpots={canparksSpots}
             dxPaths={dxPaths}
             dxFilters={dxFilters}
             mapBandFilter={mapBandFilter}
@@ -2540,7 +2529,6 @@ export const WorldMap = ({
             showWWFF={showWWFF}
             showSOTA={showSOTA}
             showWWBOTA={showWWBOTA}
-            showCANParks={showCANParks}
             showPSKReporter={showPSKReporter}
             showPSKPaths={showPSKPaths}
             showMutualReception={showMutualReception}
@@ -2597,7 +2585,6 @@ export const WorldMap = ({
               wwffSpots={wwffSpots}
               sotaSpots={sotaSpots}
               wwbotaSpots={wwbotaSpots}
-              canparksSpots={canparksSpots}
               dxPaths={globeDxPaths}
               mapBandFilter={mapBandFilter}
               pskReporterSpots={pskReporterSpots}
@@ -2607,7 +2594,6 @@ export const WorldMap = ({
               showWWFF={showWWFF}
               showSOTA={showSOTA}
               showWWBOTA={showWWBOTA}
-              showCANParks={showCANParks}
               showPSKReporter={showPSKReporter}
               showWSJTX={showWSJTX}
               onSpotClick={onSpotClick}

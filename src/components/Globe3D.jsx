@@ -390,7 +390,6 @@ export default function Globe3D({
   wwffSpots,
   sotaSpots,
   wwbotaSpots,
-  canparksSpots,
   dxPaths,
   mapBandFilter,
   pskReporterSpots,
@@ -400,7 +399,6 @@ export default function Globe3D({
   showWWFF,
   showSOTA,
   showWWBOTA,
-  showCANParks,
   showPSKReporter,
   showPSKPaths = true,
   showWSJTX,
@@ -595,7 +593,6 @@ export default function Globe3D({
     if (showWWFF) pushSimple(wwffSpots, ACTIVITY_COLORS.wwff, 'WWFF');
     if (showSOTA) pushSimple(sotaSpots, ACTIVITY_COLORS.sota, 'SOTA');
     if (showWWBOTA) pushSimple(wwbotaSpots, ACTIVITY_COLORS.wwbota, 'WWBOTA');
-    if (showCANParks) pushSimple(canparksSpots, ACTIVITY_COLORS.canparks, 'CANParks');
 
     if (showDXPaths && dxPaths?.length) {
       dxPaths.forEach((p) => {
@@ -674,7 +671,6 @@ export default function Globe3D({
     wwffSpots,
     sotaSpots,
     wwbotaSpots,
-    canparksSpots,
     dxPaths,
     pskReporterSpots,
     wsjtxSpots,
@@ -682,7 +678,6 @@ export default function Globe3D({
     showWWFF,
     showSOTA,
     showWWBOTA,
-    showCANParks,
     showDXPaths,
     showPSKReporter,
     showWSJTX,

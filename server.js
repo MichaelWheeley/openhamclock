@@ -258,7 +258,6 @@ Object.assign(ctx, spaceWeatherExports);
 // 3. Remaining routes (can use callsign + space-weather exports)
 require('./server/routes/rotator')(app, ctx);
 require('./server/routes/spots')(app, ctx);
-require('./server/routes/canparks')(app, ctx);
 require('./server/routes/emcomm')(app, ctx);
 const swpcAlertsExports = require('./server/routes/swpc-alerts')(app, ctx);
 Object.assign(ctx, swpcAlertsExports); // refreshSwpcAlerts + onSwpcAlertsRefreshed (used by push.js)
