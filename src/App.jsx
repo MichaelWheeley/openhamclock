@@ -76,7 +76,7 @@ import { HELP_EVENT } from './utils/helpTopics.js';
 import { useDXSpotAnnouncements } from './hooks/app/useDXSpotAnnouncements';
 import { useWeatherAlertAnnouncements } from './hooks/app/useWeatherAlertAnnouncements';
 import { extractBaseCall } from './components/CallsignLink.jsx';
-import { getBandFromFreq, detectMode, normalizeFrequencyToMHz } from './utils/callsign';
+import { getBandFromFreq, detectMode, normalizeFrequencyToMHz, getCallsignInfo } from './utils/callsign';
 import { getContestReminders, contestReminderId, CONTEST_REMINDERS_EVENT } from './utils/contestReminders.js';
 
 // Load DXCC entity database on app startup (non-blocking)
@@ -362,7 +362,12 @@ const App = () => {
   const dxpeditions = useDXpeditions();
   const contests = useContests();
   const swpcAlerts = useSWPCAlerts();
-  const bandOpenings = useBandOpenings();
+  // Band Openings are scoped to this station's CQ zone by default (#1191)
+  const myRegion = useMemo(() => {
+    const info = getCallsignInfo(config.callsign);
+    return { myZone: info?.cqZone ?? null, myContinent: info?.continent ?? null };
+  }, [config.callsign]);
+  const bandOpenings = useBandOpenings(myRegion);
   // Audio alert only for significant space weather (R2/S2/G2 or higher)
   const severeSwpcAlerts = useMemo(
     () => (swpcAlerts.data || []).filter((a) => (a.scale?.level ?? 0) >= 2),

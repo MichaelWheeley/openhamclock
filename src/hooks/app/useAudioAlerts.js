@@ -38,7 +38,7 @@ function itemKey(feedId, item) {
       return `${item.name || ''}-${item.aos || ''}`;
     case 'band-openings':
       // One alert per opening episode: band + path + hour it was first seen.
-      return `${item.band || ''}-${item.from_continent || ''}-${item.to_continent || ''}-${item.firstSeenHour ?? ''}`;
+      return `${item.band || ''}-${item.from_continent || ''}-${item.to_zone != null ? `Z${item.to_zone}` : item.to_continent || ''}-${item.firstSeenHour ?? ''}`;
     case 'swpc':
       return `${item.productId || ''}-${item.serial || ''}`;
     default:

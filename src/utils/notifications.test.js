@@ -126,6 +126,16 @@ describe('formatAlertBody', () => {
         factor: null,
       }),
     ).toBe('10m opening EU→NA (6 spots)');
+    // Zone-scoped opening (#1191): the hearing side is a CQ zone
+    expect(
+      formatAlertBody('band-openings', {
+        band: '20m',
+        from_continent: 'EU',
+        to_zone: 3,
+        shortCount: 12,
+        factor: 4,
+      }),
+    ).toBe('20m opening EU→zone 3 (12 spots, 4x baseline)');
     expect(formatAlertBody('band-openings', {})).toBe('');
   });
 
