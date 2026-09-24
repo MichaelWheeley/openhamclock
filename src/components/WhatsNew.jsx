@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 // Set to null to hide. Shown at the top of the What's New modal.
 const ANNOUNCEMENT = {
   emoji: '🌙',
-  text: "26.8.0 is the September drop proper, three weeks after the encore. The globe learned to bounce signals off the Moon, OpenHamClock ships as a plain download-and-run executable for the first time, and band-opening alerts finally know which coast you're on. Tips of the hat this cycle: mbrun-plm for three sharp EmComm reports that all shipped within the week, and Mike Bass (N7WLC), whose PR review turned into the zone-scoped band openings below. 73 de K0CJH.",
+  text: "26.8.0 is the September drop proper, three weeks after the encore. The globe learned to bounce signals off the Moon, and band-opening alerts finally know which coast you're on. Tips of the hat this cycle: mbrun-plm for three sharp EmComm reports that all shipped within the week, and Mike Bass (N7WLC), whose PR review turned into the zone-scoped band openings below. 73 de K0CJH.",
   color: '#c9d1e6',
   bg: 'rgba(201, 209, 230, 0.10)',
   border: 'rgba(201, 209, 230, 0.30)',
@@ -32,7 +32,7 @@ const CHANGELOG = [
     version: '26.8.0',
     date: '2026-09-24',
     heading:
-      "The September drop proper, three weeks after the encore. The 3D globe learned to bounce signals off the Moon: a new EME layout plans mutual windows, draws the DE→Moon→DX path, and shows live moonbounce activity from PSK Reporter — with a satellite-relay mode on the same chassis. OpenHamClock also ships as a plain executable now: no Node, no Docker, download and run on Windows, macOS, Linux, or a Raspberry Pi. Band-opening alerts finally know which coast you're on, APRS symbols survive a refresh, the EmComm sidebar remembers itself, and the manual got pictures.",
+      "The September drop proper, three weeks after the encore. The 3D globe learned to bounce signals off the Moon: a new EME layout plans mutual windows, draws the DE→Moon→DX path, and shows live moonbounce activity from PSK Reporter — with a satellite-relay mode on the same chassis. Band-opening alerts finally know which coast you're on, APRS symbols survive a refresh, the EmComm sidebar remembers itself, and the manual got pictures.",
     features: [
       {
         icon: '🌙',
@@ -43,11 +43,6 @@ const CHANGELOG = [
         icon: '🛰️',
         title: 'NEW: Satellite Relay Mode — Experimental',
         desc: 'Flip the MOON/SAT switch in the EME header and the same chassis works a bird instead: only the chosen satellite and its footprint are drawn, legs run DE→satellite→DX, and the rail ranks candidate relay satellites by their next mutual pass, shows live az/el/range for both ends with Doppler at DE, and lists 24 hours of mutual passes with per-station AOS and LOS. Cluster satellite spots and the AMSAT status line show for each candidate. Verified against an ISS-like orbit; we have not yet caught a live pass with real SatNOGS transmitter data, hence the label.',
-      },
-      {
-        icon: '📦',
-        title: 'NEW: Prebuilt Executables',
-        desc: "Every release now attaches ready-to-run builds: Windows x64, macOS (Apple Silicon and Intel), Linux x64 and arm64, and a best-effort Raspberry Pi 32-bit build, each with SHA-256 sums. Download, extract, run — it opens your browser to the dashboard. Your .env, config and data live in the folder next to the executable (or wherever OPENHAMCLOCK_HOME points). No Node.js, no Docker. This is the first release to run the binary build on GitHub's runners, so if a file is missing for your platform, tell us.",
       },
       {
         icon: '📻',
