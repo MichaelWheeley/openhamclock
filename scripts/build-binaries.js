@@ -17,7 +17,7 @@
  * The bundled assets are listed under "pkg.assets" in package.json.
  */
 
-const { execSync, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -102,9 +102,15 @@ function readmeText(name) {
     .join('\n');
 }
 
-function sh(cmd, opts = {}) {
-  execSync(cmd, { cwd: ROOT, stdio: 'inherit', ...opts });
+// Always argv arrays, never a shell string: paths under ROOT/OUT are absolute
+// and a shell would re-parse them (CodeQL js/shell-command-injection-from-environment).
+function run(cmd, args, opts = {}) {
+  const r = spawnSync(cmd, args, { cwd: ROOT, stdio: 'inherit', ...opts });
+  if (r.error) throw r.error;
+  if (r.status !== 0) throw new Error(`${cmd} ${args[0] || ''} exited with status ${r.status}`);
 }
+// npm's launcher is npx.cmd on Windows; the release workflow builds on Linux/macOS.
+const NPX = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
 function build(name) {
   const stage = path.join(OUT, `stage-${name}`);
@@ -121,10 +127,21 @@ function build(name) {
   // node binary of the *target's* CPU architecture, which fails when
   // cross-building (Pi/arm64 from an x64 runner, Windows from a Mac). The
   // sources are public anyway; startup cost of compiling them is negligible.
-  sh(
-    `npx --yes @yao-pkg/pkg server.js --target ${target} --output "${binPath}" ` +
-      '--compress GZip --no-bytecode --public --public-packages "*"',
-  );
+  run(NPX, [
+    '--yes',
+    '@yao-pkg/pkg',
+    'server.js',
+    '--target',
+    target,
+    '--output',
+    binPath,
+    '--compress',
+    'GZip',
+    '--no-bytecode',
+    '--public',
+    '--public-packages',
+    '*',
+  ]);
 
   // Ad-hoc sign macOS binaries when building on a Mac (pkg signs too; this is
   // belt-and-braces so Apple Silicon does not refuse to launch it).
@@ -142,14 +159,18 @@ function build(name) {
     archive = path.join(OUT, `${base}.zip`);
     fs.rmSync(archive, { force: true });
     if (process.platform === 'win32') {
-      sh(`powershell -NoProfile -Command "Compress-Archive -Path '${stage}\\*' -DestinationPath '${archive}'"`);
+      run('powershell', [
+        '-NoProfile',
+        '-Command',
+        `Compress-Archive -LiteralPath '${path.join(stage, '*')}' -DestinationPath '${archive}'`,
+      ]);
     } else {
-      sh(`zip -q -j "${archive}" "${binPath}" "${path.join(stage, 'README.txt')}"`);
+      run('zip', ['-q', '-j', archive, binPath, path.join(stage, 'README.txt')]);
     }
   } else {
     archive = path.join(OUT, `${base}.tar.gz`);
     fs.rmSync(archive, { force: true });
-    sh(`tar -czf "${archive}" -C "${stage}" ${binName} README.txt`);
+    run('tar', ['-czf', archive, '-C', stage, binName, 'README.txt']);
   }
   fs.rmSync(stage, { recursive: true, force: true });
 
