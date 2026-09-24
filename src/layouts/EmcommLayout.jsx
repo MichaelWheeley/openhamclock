@@ -47,6 +47,14 @@ const writeStored = (key, value) => {
 };
 /** Resolve a section's collapsed flag: explicit > "all" override > mode default */
 const isPanelCollapsed = (states, mode, title) => states[title] ?? states.__all ?? mode === 'collapsed';
+const EMCOMM_APRS_SELECT = {
+  background: '#1a1f2e',
+  border: '1px solid #2a3040',
+  borderRadius: '3px',
+  color: '#888',
+  fontSize: '9px',
+  padding: '1px 4px',
+};
 const PANEL_TOOL_BTN = {
   background: 'transparent',
   color: '#888',
@@ -1216,23 +1224,34 @@ export default function EmcommLayout(props) {
             count={emcommStationsWithDistance.length}
             color="#22d3ee"
             extra={
-              <select
-                value={aprsSource}
-                onChange={(e) => setAprsSource(e.target.value)}
-                style={{
-                  background: '#1a1f2e',
-                  border: '1px solid #2a3040',
-                  borderRadius: '3px',
-                  color: '#888',
-                  fontSize: '9px',
-                  padding: '1px 4px',
-                  marginLeft: '6px',
-                }}
-              >
-                <option value="all">All Sources</option>
-                <option value="rf">RF Only</option>
-                <option value="internet">Internet Only</option>
-              </select>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '6px' }}>
+                <select value={aprsSource} onChange={(e) => setAprsSource(e.target.value)} style={EMCOMM_APRS_SELECT}>
+                  <option value="all">All Sources</option>
+                  <option value="rf">RF Only</option>
+                  <option value="internet">Internet Only</option>
+                </select>
+                {/* Dwell + clear (#1190) — how long heard stations linger, and a flush */}
+                <select
+                  value={aprsData?.dwellMinutes ?? 60}
+                  onChange={(e) => aprsData?.setDwellMinutes?.(Number(e.target.value))}
+                  title="How long a station stays on the map after it was last heard"
+                  style={EMCOMM_APRS_SELECT}
+                >
+                  {(aprsData?.dwellOptions ?? [60]).map((m) => (
+                    <option key={m} value={m}>
+                      {m < 60 ? `${m}m` : `${m / 60}h`}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => aprsData?.clearStations?.()}
+                  title="Remove every APRS station from the map and list until new beacons arrive"
+                  style={{ ...EMCOMM_APRS_SELECT, cursor: 'pointer' }}
+                >
+                  Clear
+                </button>
+              </span>
             }
           >
             {emcommStationsWithDistance.length === 0 ? (
