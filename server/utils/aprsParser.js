@@ -192,7 +192,9 @@ function parseMice(destination, info) {
 function parseResourceTokens(comment) {
   if (!comment) return { tokens: [], cleanComment: '' };
   const tokens = [];
-  const regex = /\[([A-Za-z]+)\s+([^\]]+)\]/g;
+  // The value starts with a non-space so the whitespace run has one split
+  // point (CodeQL js/polynomial-redos on "[A   …" otherwise).
+  const regex = /\[([A-Za-z]+)\s+([^\]\s][^\]]*)\]/g;
   let match;
   while ((match = regex.exec(comment)) !== null) {
     const key = match[1];
@@ -246,7 +248,11 @@ function parseAprsPacket(line) {
         .split(',')[0]
         .replace(/\0/g, '')
         .trim();
-      payload = line.slice(headerEnd + 1).replace(/[\r\n]+$/, '');
+      payload = line.slice(headerEnd + 1);
+      // Trailing CR/LF trimmed by hand — /[\r\n]+$/ is polynomial on long runs of newlines
+      let end = payload.length;
+      while (end > 0 && (payload[end - 1] === '\n' || payload[end - 1] === '\r')) end--;
+      payload = payload.slice(0, end);
       if (payload.charAt(0) !== '}') break;
       thirdPartyVia.push(src);
       line = payload.slice(1);

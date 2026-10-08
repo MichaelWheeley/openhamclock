@@ -212,3 +212,17 @@ describe('rig-bridge copy stays in step', () => {
     expect(bridge).toBe(server);
   });
 });
+
+describe('pathological input stays fast (CodeQL js/polynomial-redos)', () => {
+  it('long runs of spaces inside a bracket token and long newline tails parse in bounded time', () => {
+    const spaces = `N8TAG-12>SXUX4Y:\`p+5l!![/[A${' '.repeat(20000)}x`;
+    const newlines = `N0CALL-9>APRS:!3858.49N/08415.25W>test${'\n'.repeat(8000)}`;
+    const t0 = performance.now();
+    parseAprsPacket(spaces);
+    const s = parseAprsPacket(newlines);
+    expect(performance.now() - t0).toBeLessThan(200);
+    expect(s.comment).toBe('test');
+    // tokens with ordinary spacing still parse
+    expect(parseAprsPacket('N8TAG-12>SXUX4Y:\`p+5l!![/[Beds   12/20] [Water OK]').tokens).toHaveLength(2);
+  });
+});
